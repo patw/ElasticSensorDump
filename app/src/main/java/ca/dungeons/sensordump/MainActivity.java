@@ -1,5 +1,6 @@
 package ca.dungeons.sensordump;
 
+import android.app.Activity;
 import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -7,7 +8,6 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -19,14 +19,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener {
+public class MainActivity extends Activity implements SensorEventListener {
 
     // Used to store sensor data before converting to JSON to submit
     public HashMap<String, Float> hmSensorData = new HashMap<String, Float>();
     public String json_sensor_data = null;
     TextView tvProgress = null;
-    Button btnStart = null;
-    ImageButton ibSetup = null;
     ArrayList<String> json_documents = new ArrayList<String>();
     private SensorManager mSensorManager;
     private int[] usable_sensors;
@@ -38,6 +36,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -55,6 +54,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     btnStart.setText(R.string.button_start);
                     stopLogging();
                 }
+            }
+        });
+
+        // Click a button, get the settings screen
+        final ImageButton ibSetup = (ImageButton) findViewById(R.id.ibSetup);
+        ibSetup.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // Do nothing for now.
             }
         });
 
