@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Elastic Sensor Dump</string>
+    <string name="title_activity_settings">Settings</string>
+    <string name="button_start">Start Collecting</string>
+    <string name="button_stop">Stop Collecting</string>
+    <string name="logging_stopped">Logging Stopped</string>
+</resources>
