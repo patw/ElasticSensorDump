@@ -3,12 +3,14 @@ package ca.dungeons.sensordump;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -42,7 +44,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         setContentView(R.layout.activity_main);
 
         /// Create a new data logger (make configurable!!)
-        final ESDataLogger edl = new ESDataLogger("10.0.23.51", 9200, "sensor_dump", "nexus4");
+        final ESDataLogger edl = new ESDataLogger();
+        update_es_url(edl);
         final Intent settings_intent = new Intent(this, SettingsActivity.class);
 
         // Click a button, get some sensor data
@@ -51,6 +54,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             public void onClick(View v) {
                 if (!logging) {
                     btnStart.setText(R.string.button_stop);
+                    update_es_url(edl);
                     startLogging();
                 } else {
                     btnStart.setText(R.string.button_start);
@@ -93,7 +97,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     @Override
     public final void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // I don't really care about this
+        // I don't really care about this yet.
     }
 
     @Override
@@ -149,5 +153,17 @@ public class MainActivity extends Activity implements SensorEventListener {
             documents_written = edl_instance.documents_written;
             sync_errors = edl_instance.sync_errors;
         }
+    }
+
+    private void update_es_url(ESDataLogger edl ) {
+        // Load config data
+        SharedPreferences sharedPrefs =
+                PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+
+        // Populate the elastic data log
+        edl.es_host = sharedPrefs.getString("host", "localhost");
+        edl.es_port = sharedPrefs.getString("port", "9200");
+        edl.es_index = sharedPrefs.getString("index", "sensor_dump");
+        edl.es_type = sharedPrefs.getString("type", "phone_data");
     }
 }

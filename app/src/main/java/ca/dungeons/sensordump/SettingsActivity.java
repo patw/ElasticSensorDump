@@ -30,17 +30,18 @@ public class SettingsActivity extends PreferenceActivity
 
     private void checkValues()
     {
-        SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-        String strUserName = sharedPrefs.getString("username", "NA");
-        boolean bAppUpdates = sharedPrefs.getBoolean("applicationUpdates",false);
-        String downloadType = sharedPrefs.getString("downloadType","1");
+        SharedPreferences sharedPrefs =
+                PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 
-        String msg = "Cur Values: ";
-        msg += "\n userName = " + strUserName;
-        msg += "\n bAppUpdates = " + bAppUpdates;
-        msg += "\n downloadType = " + downloadType;
+        String es_host = sharedPrefs.getString("host", "localhost");
+        String es_port = sharedPrefs.getString("port", "9200");
+        String es_index = sharedPrefs.getString("index", "sensor_dump");
+        String es_type = sharedPrefs.getString("type", "phone_data");
 
-        Log.v("Preferences", msg);
+        String current_values = "http://" + es_host + ":" + es_port + "/"
+                + es_index + "/" + es_type;
+
+        Log.v("Preferences", current_values);
     }
 
 }

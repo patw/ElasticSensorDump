@@ -1,10 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-    <EditTextPreference android:title="Your Name"
-        android:key="username"
-        android:summary="Please provide your username"></EditTextPreference>
-    <CheckBoxPreference android:title="Application Updates"
-        android:defaultValue="false"
-        android:summary="This option if selected will allow the application to check for latest versions."
-        android:key="applicationUpdates" />
+    <EditTextPreference android:title="ES Host"
+        android:key="host"
+        android:summary="Host or IP for elastic search server"></EditTextPreference>
+    <EditTextPreference android:title="ES Port"
+        android:key="port"
+        android:defaultValue="9200"
+        android:summary="Port for ES index. Usually 9200"></EditTextPreference>
+    <EditTextPreference android:title="Index"
+        android:key="index"
+        android:defaultValue="sensor_dump"
+        android:summary="Index name for sensor dump. Default is fine."></EditTextPreference>
+    <EditTextPreference android:title="Type"
+        android:key="type"
+        android:defaultValue="phone_data"
+        android:summary="Type name for index documents. Default is fine."></EditTextPreference>
 </PreferenceScreen>

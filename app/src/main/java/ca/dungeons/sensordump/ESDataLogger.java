@@ -16,11 +16,20 @@ public class ESDataLogger {
 
     public int documents_written = 0;
     public int sync_errors = 0;
-    private String es_url = null;
     private Handler post_handler;
 
-    public ESDataLogger(String server, int port, String index, String type) {
-        es_url = "http://" + server + ":" + port + "/" + index + "/" + type + "/";
+    public String es_host = "";
+    public String es_port = "";
+    public String es_index = "";
+    public String es_type = "";
+
+    public ESDataLogger() {
+        // Do nothing constructor
+    }
+
+    // Return the new URL
+    private String get_es_url() {
+        return "http://" + es_host + ":" + es_port + "/" + es_index + "/" + es_type + "/";
     }
 
     public void store_hash(ArrayList<String> json_documents) {
@@ -29,7 +38,6 @@ public class ESDataLogger {
             task.execute(json_documents.get(i));
             documents_written += 1;
             json_documents.remove(i);
-            Log.v("Removed one.  New size", "" + json_documents.size());
         }
     }
 
@@ -37,7 +45,7 @@ public class ESDataLogger {
         @Override
         protected String doInBackground(String... json_docs) {
             try {
-                URL url = new URL(es_url);
+                URL url = new URL(get_es_url());
                 HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
                 httpCon.setDoOutput(true);
                 httpCon.setRequestMethod("POST");
@@ -46,7 +54,7 @@ public class ESDataLogger {
                 out.close();
                 httpCon.getInputStream();
             } catch (Exception e) {
-                Log.v(es_url, e.toString());
+                Log.v(get_es_url(), e.toString());
                 sync_errors += 1;
             }
             return "Done!";
