@@ -11,6 +11,7 @@ import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -107,7 +108,18 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         // Store sensor update into sensor data structure
         for (int i = 0; i < event.values.length; i++) {
-            String sensor_name = event.sensor.getStringType().replace("android.sensor.", "") + i;
+
+            // We don't need the android.sensor. and motorola.sensor. stuff
+            // Split it out and just get the sensor name
+            String sensor_name = "";
+            String[] sensor_hierarchy_name = event.sensor.getStringType().split("\\.");
+            if(sensor_hierarchy_name.length == 0) {
+                sensor_name = event.sensor.getStringType();
+            } else {
+                sensor_name = sensor_hierarchy_name[sensor_hierarchy_name.length - 1] + i;
+            }
+
+            // Store the actual sensor data now
             float sensor_value = event.values[i];
             hmSensorData.put(sensor_name, sensor_value);
         }
