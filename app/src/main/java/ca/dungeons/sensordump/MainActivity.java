@@ -2,6 +2,7 @@ package ca.dungeons.sensordump;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -42,6 +43,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         /// Create a new data logger (make configurable!!)
         final ESDataLogger edl = new ESDataLogger("10.0.23.51", 9200, "sensor_dump", "nexus4");
+        final Intent settings_intent = new Intent(this, SettingsActivity.class);
 
         // Click a button, get some sensor data
         final Button btnStart = (Button) findViewById(R.id.btnStart);
@@ -61,7 +63,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         final ImageButton ibSetup = (ImageButton) findViewById(R.id.ibSetup);
         ibSetup.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                // Do nothing for now.
+                startActivity(settings_intent);
             }
         });
 
