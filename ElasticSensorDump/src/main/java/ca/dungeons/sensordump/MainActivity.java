@@ -11,7 +11,6 @@ import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -19,14 +18,16 @@ import android.widget.TextView;
 
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
 public class MainActivity extends Activity implements SensorEventListener {
 
     // Used to store sensor data before converting to JSON to submit
-    public HashMap<String, Float> hmSensorData = new HashMap<String, Float>();
+    public HashMap<String, Object> hmSensorData = new HashMap<String, Object>();
     public String json_sensor_data = null;
     TextView tvProgress = null;
     ArrayList<String> json_documents = new ArrayList<String>();
@@ -104,7 +105,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     @Override
     public final void onSensorChanged(SensorEvent event) {
         // Update timestamp in sensor data structure
-        hmSensorData.put("Time", (float) System.currentTimeMillis());
+        Date log_date = new Date(System.currentTimeMillis());
+        SimpleDateFormat log_date_format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
+        String date_string = log_date_format.format(log_date);
+        hmSensorData.put("timestamp", date_string);
 
         // Store sensor update into sensor data structure
         for (int i = 0; i < event.values.length; i++) {
