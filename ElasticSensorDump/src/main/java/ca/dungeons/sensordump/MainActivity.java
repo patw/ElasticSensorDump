@@ -181,5 +181,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         edl.es_port = sharedPrefs.getString("port", "9200");
         edl.es_index = sharedPrefs.getString("index", "sensor_dump");
         edl.es_type = sharedPrefs.getString("type", "phone_data");
+        edl.es_ssl = sharedPrefs.getBoolean("ssl", false);
+        edl.es_user = sharedPrefs.getString("user", "");
+        edl.es_pass = sharedPrefs.getString("pass", "");
     }
 }
