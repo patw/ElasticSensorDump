@@ -1,7 +1,6 @@
 package ca.dungeons.sensordump;
 
 import android.os.AsyncTask;
-import android.os.Handler;
 import android.util.Log;
 
 import java.io.OutputStreamWriter;
@@ -26,13 +25,13 @@ public class ESDataLogger {
     public String esUsername = "";
     public String esPassword = "";
 
-    private Handler postHandler;
+    private boolean firstWrite = true;
 
     public ESDataLogger() {
         // Do nothing constructor
     }
 
-    // Return the new URL
+    // Return the es index URL
     private String getEsUrl() {
         String esProto = "http://";
 
@@ -42,6 +41,18 @@ public class ESDataLogger {
         }
 
         return esProto + esHost + ":" + esPort + "/" + esIndex + "/" + esType + "/";
+    }
+
+    // Return the es put URL for creating a mapping
+    private String getEsMappingUrl() {
+        String esProto = "http://";
+
+        // For Shield
+        if (esSSL) {
+            esProto = "https://";
+        }
+
+        return esProto + esHost + ":" + esPort + "/" + esIndex;
     }
 
     public void storeHash(ArrayList<String> jsonDocuments) {
@@ -66,19 +77,42 @@ public class ESDataLogger {
                 });
             }
 
+            // Push the mapping to the index if this is our first packet
+            if (firstWrite) {
+                // Same as the regular url but with _mapping
+                try {
+                    URL url = new URL(getEsMappingUrl());
+                    HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                    httpCon.setDoOutput(true);
+                    httpCon.setRequestMethod("PUT");
+                    OutputStreamWriter out = new OutputStreamWriter(httpCon.getOutputStream());
+                    // So ugly bro...
+                    out.write("{\"mappings\": {\"" + esType + "\": {\"properties\": {\"location\": {\"type\": \"geo_point\"}}}}}");
+                    out.close();
+                    httpCon.getInputStream();
+                } catch (Exception e) {
+                    Log.v("Mapping failed", e.toString());
+                }
+                // Doesn't matter how this ends, we need to get out.
+                firstWrite = false;
+            }
+
+            // Write normal json data
             try {
                 URL url = new URL(getEsUrl());
                 HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
                 httpCon.setDoOutput(true);
+
                 httpCon.setRequestMethod("POST");
                 OutputStreamWriter out = new OutputStreamWriter(httpCon.getOutputStream());
                 out.write(jsonDocs[0]);
                 out.close();
                 httpCon.getInputStream();
             } catch (Exception e) {
-                Log.v(getEsUrl(), e.toString());
+                Log.v("Doc failed", e.toString());
                 syncErrors += 1;
             }
+
             return "Done!";
         }
 

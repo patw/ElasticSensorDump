@@ -1,16 +1,21 @@
 package ca.dungeons.sensordump;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -31,6 +36,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     public String jsonSensorData = null;
     TextView tvProgress = null;
     ArrayList<String> jsonDocuments = new ArrayList<String>();
+    // Create new GPS logger
+    GPSLogger gpsLogger = new GPSLogger();
     private SensorManager mSensorManager;
     private int[] usableSensors;
     private Handler refreshHandler;
@@ -38,6 +45,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int documentsWritten = 0;
     private int syncErrors = 0;
     private boolean logging = false;
+    private LocationManager locationManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,6 +118,16 @@ public class MainActivity extends Activity implements SensorEventListener {
         String dateString = logDateFormat.format(logDate);
         hmSensorData.put("@timestamp", dateString);
 
+        // Dump gps data into document if it's ready
+        if (gpsLogger.gpsHasData) {
+            hmSensorData.put("location", "" + gpsLogger.gpsLat + "," + gpsLogger.gpsLong);
+            hmSensorData.put("altitude", gpsLogger.gpsAlt);
+            hmSensorData.put("accuracy", gpsLogger.gpsAccuracy);
+            hmSensorData.put("bearing", gpsLogger.gpsBearing);
+            hmSensorData.put("gps_provider", gpsLogger.gpsProvider);
+            hmSensorData.put("speed", gpsLogger.gpsSpeed);
+        }
+
         // Store sensor update into sensor data structure
         for (int i = 0; i < event.values.length; i++) {
 
@@ -141,6 +159,15 @@ public class MainActivity extends Activity implements SensorEventListener {
                     mSensorManager.getDefaultSensor(usableSensors[i]),
                     SensorManager.SENSOR_DELAY_NORMAL);
         }
+
+        // Light up the GPS if we're allowed
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, gpsLogger);
+        } else {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+        }
+
         logging = true;
     }
 
@@ -150,6 +177,12 @@ public class MainActivity extends Activity implements SensorEventListener {
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText(R.string.loggingStopped);
         mSensorManager.unregisterListener(this);
+
+        // Disable GPS if we allowed it.
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationManager.removeUpdates(gpsLogger);
+        }
+
     }
 
     // Update the display with readings/written/errors
