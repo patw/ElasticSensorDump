@@ -16,67 +16,68 @@ import java.util.ArrayList;
  */
 public class ESDataLogger {
 
-    public int documents_written = 0;
-    public int sync_errors = 0;
-    public String es_host = "";
-    public String es_port = "";
-    public String es_index = "";
-    public String es_type = "";
-    public boolean es_ssl = false;
-    public String es_user = "";
-    public String es_pass = "";
-    private Handler post_handler;
+    public int documentsWritten = 0;
+    public int syncErrors = 0;
+    public String esHost = "";
+    public String esPort = "";
+    public String esIndex = "";
+    public String esType = "";
+    public boolean esSSL = false;
+    public String esUsername = "";
+    public String esPassword = "";
+
+    private Handler postHandler;
 
     public ESDataLogger() {
         // Do nothing constructor
     }
 
     // Return the new URL
-    private String get_es_url() {
-        String es_proto = "http://";
+    private String getEsUrl() {
+        String esProto = "http://";
 
         // For Shield
-        if (es_ssl) {
-            es_proto = "https://";
+        if (esSSL) {
+            esProto = "https://";
         }
 
-        return es_proto + es_host + ":" + es_port + "/" + es_index + "/" + es_type + "/";
+        return esProto + esHost + ":" + esPort + "/" + esIndex + "/" + esType + "/";
     }
 
-    public void store_hash(ArrayList<String> json_documents) {
-        for (int i = 0; i < json_documents.size(); i++) {
+    public void storeHash(ArrayList<String> jsonDocuments) {
+        for (int i = 0; i < jsonDocuments.size(); i++) {
             PostJSONDocsTask task = new PostJSONDocsTask();
-            task.execute(json_documents.get(i));
-            documents_written += 1;
-            json_documents.remove(i);
+            task.execute(jsonDocuments.get(i));
+            documentsWritten += 1;
+            jsonDocuments.remove(i);
         }
     }
 
     private class PostJSONDocsTask extends AsyncTask<String, Void, String> {
         @Override
-        protected String doInBackground(String... json_docs) {
+        protected String doInBackground(String... jsonDocs) {
 
             // Send authentication if required
-            if (es_user.length() > 0 && es_pass.length() > 0) {
+            if (esUsername.length() > 0 && esPassword.length() > 0) {
                 Authenticator.setDefault(new Authenticator() {
                     protected PasswordAuthentication getPasswordAuthentication() {
-                        return new PasswordAuthentication(es_user, es_pass.toCharArray());
+                        return new PasswordAuthentication(esUsername, esPassword.toCharArray());
                     }
                 });
             }
 
             try {
-                URL url = new URL(get_es_url());
+                URL url = new URL(getEsUrl());
                 HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
                 httpCon.setDoOutput(true);
                 httpCon.setRequestMethod("POST");
                 OutputStreamWriter out = new OutputStreamWriter(httpCon.getOutputStream());
-                out.write(json_docs[0]);
+                out.write(jsonDocs[0]);
                 out.close();
                 httpCon.getInputStream();
             } catch (Exception e) {
-                Log.v(get_es_url(), e.toString());
-                sync_errors += 1;
+                Log.v(getEsUrl(), e.toString());
+                syncErrors += 1;
             }
             return "Done!";
         }

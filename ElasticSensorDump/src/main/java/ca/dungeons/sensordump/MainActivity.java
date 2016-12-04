@@ -28,15 +28,15 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // Used to store sensor data before converting to JSON to submit
     public HashMap<String, Object> hmSensorData = new HashMap<String, Object>();
-    public String json_sensor_data = null;
+    public String jsonSensorData = null;
     TextView tvProgress = null;
-    ArrayList<String> json_documents = new ArrayList<String>();
+    ArrayList<String> jsonDocuments = new ArrayList<String>();
     private SensorManager mSensorManager;
-    private int[] usable_sensors;
-    private Handler refresh_handler;
-    private int documents_sent = 0;
-    private int documents_written = 0;
-    private int sync_errors = 0;
+    private int[] usableSensors;
+    private Handler refreshHandler;
+    private int documentsSent = 0;
+    private int documentsWritten = 0;
+    private int syncErrors = 0;
     private boolean logging = false;
 
     @Override
@@ -47,19 +47,19 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         /// Create a new data logger (make configurable!!)
         final ESDataLogger edl = new ESDataLogger();
-        update_es_url(edl);
-        final Intent settings_intent = new Intent(this, SettingsActivity.class);
+        updateEsUrl(edl);
+        final Intent settingsIntent = new Intent(this, SettingsActivity.class);
 
         // Click a button, get some sensor data
         final Button btnStart = (Button) findViewById(R.id.btnStart);
         btnStart.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (!logging) {
-                    btnStart.setText(R.string.button_stop);
-                    update_es_url(edl);
+                    btnStart.setText(R.string.buttonStop);
+                    updateEsUrl(edl);
                     startLogging();
                 } else {
-                    btnStart.setText(R.string.button_start);
+                    btnStart.setText(R.string.buttonStart);
                     stopLogging();
                 }
             }
@@ -69,31 +69,31 @@ public class MainActivity extends Activity implements SensorEventListener {
         final ImageButton ibSetup = (ImageButton) findViewById(R.id.ibSetup);
         ibSetup.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                startActivity(settings_intent);
+                startActivity(settingsIntent);
             }
         });
 
         // Get a list of all available sensors on the device and store in array
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         List<Sensor> deviceSensors = mSensorManager.getSensorList(Sensor.TYPE_ALL);
-        usable_sensors = new int[deviceSensors.size()];
+        usableSensors = new int[deviceSensors.size()];
         for (int i = 0; i < deviceSensors.size(); i++) {
-            usable_sensors[i] = deviceSensors.get(i).getType();
+            usableSensors[i] = deviceSensors.get(i).getType();
         }
 
         // Refresh screen and store data periodically (make configurable!!)
-        refresh_handler = new Handler();
+        refreshHandler = new Handler();
         final Runnable r = new Runnable() {
             public void run() {
                 if (logging) {
                     updateScreen();
                     storeData(edl);
                 }
-                refresh_handler.postDelayed(this, 1000);
+                refreshHandler.postDelayed(this, 1000);
             }
         };
 
-        refresh_handler.postDelayed(r, 1000);
+        refreshHandler.postDelayed(r, 1000);
 
     }
 
@@ -105,40 +105,40 @@ public class MainActivity extends Activity implements SensorEventListener {
     @Override
     public final void onSensorChanged(SensorEvent event) {
         // Update timestamp in sensor data structure
-        Date log_date = new Date(System.currentTimeMillis());
-        SimpleDateFormat log_date_format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
-        String date_string = log_date_format.format(log_date);
-        hmSensorData.put("timestamp", date_string);
+        Date logDate = new Date(System.currentTimeMillis());
+        SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
+        String dateString = logDateFormat.format(logDate);
+        hmSensorData.put("@timestamp", dateString);
 
         // Store sensor update into sensor data structure
         for (int i = 0; i < event.values.length; i++) {
 
             // We don't need the android.sensor. and motorola.sensor. stuff
             // Split it out and just get the sensor name
-            String sensor_name = "";
-            String[] sensor_hierarchy_name = event.sensor.getStringType().split("\\.");
-            if(sensor_hierarchy_name.length == 0) {
-                sensor_name = event.sensor.getStringType();
+            String sensorName = "";
+            String[] sensorHierarchyName = event.sensor.getStringType().split("\\.");
+            if (sensorHierarchyName.length == 0) {
+                sensorName = event.sensor.getStringType();
             } else {
-                sensor_name = sensor_hierarchy_name[sensor_hierarchy_name.length - 1] + i;
+                sensorName = sensorHierarchyName[sensorHierarchyName.length - 1] + i;
             }
 
             // Store the actual sensor data now
-            float sensor_value = event.values[i];
-            hmSensorData.put(sensor_name, sensor_value);
+            float sensorValue = event.values[i];
+            hmSensorData.put(sensorName, sensorValue);
         }
 
         // Convert to JSON and add to log array
-        JSONObject temp_json = new JSONObject(hmSensorData);
-        json_sensor_data = temp_json.toString();
-        json_documents.add(json_sensor_data);
+        JSONObject tempJson = new JSONObject(hmSensorData);
+        jsonSensorData = tempJson.toString();
+        jsonDocuments.add(jsonSensorData);
     }
 
     // Go through the sensor array and light them all up
     private void startLogging() {
-        for (int i = 0; i < usable_sensors.length; i++) {
+        for (int i = 0; i < usableSensors.length; i++) {
             mSensorManager.registerListener(this,
-                    mSensorManager.getDefaultSensor(usable_sensors[i]),
+                    mSensorManager.getDefaultSensor(usableSensors[i]),
                     SensorManager.SENSOR_DELAY_NORMAL);
         }
         logging = true;
@@ -148,41 +148,41 @@ public class MainActivity extends Activity implements SensorEventListener {
     private void stopLogging() {
         logging = false;
         tvProgress = (TextView) findViewById(R.id.tvProgress);
-        tvProgress.setText(R.string.logging_stopped);
+        tvProgress.setText(R.string.loggingStopped);
         mSensorManager.unregisterListener(this);
     }
 
     // Update the display with readings/written/errors
     public void updateScreen() {
-        String update_text = "Sensor Readings: " + documents_sent + "\n" +
-                "Documents Written: " + documents_written + "\n" +
-                "Errors: " + sync_errors;
+        String updateText = "Sensor Readings: " + documentsSent + "\n" +
+                "Documents Written: " + documentsWritten + "\n" +
+                "Errors: " + syncErrors;
         tvProgress = (TextView) findViewById(R.id.tvProgress);
-        tvProgress.setText(update_text);
+        tvProgress.setText(updateText);
     }
 
     // Store the sensor data in the configured Elastic Search system
-    private void storeData(ESDataLogger edl_instance) {
-        if (json_documents.size() > 0) {
-            edl_instance.store_hash(json_documents);
-            documents_sent += json_documents.size();
-            documents_written = edl_instance.documents_written;
-            sync_errors = edl_instance.sync_errors;
+    private void storeData(ESDataLogger edlInstance) {
+        if (jsonDocuments.size() > 0) {
+            edlInstance.storeHash(jsonDocuments);
+            documentsSent += jsonDocuments.size();
+            documentsWritten = edlInstance.documentsWritten;
+            syncErrors = edlInstance.syncErrors;
         }
     }
 
-    private void update_es_url(ESDataLogger edl ) {
+    private void updateEsUrl(ESDataLogger edl) {
         // Load config data
         SharedPreferences sharedPrefs =
                 PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 
         // Populate the elastic data log
-        edl.es_host = sharedPrefs.getString("host", "localhost");
-        edl.es_port = sharedPrefs.getString("port", "9200");
-        edl.es_index = sharedPrefs.getString("index", "sensor_dump");
-        edl.es_type = sharedPrefs.getString("type", "phone_data");
-        edl.es_ssl = sharedPrefs.getBoolean("ssl", false);
-        edl.es_user = sharedPrefs.getString("user", "");
-        edl.es_pass = sharedPrefs.getString("pass", "");
+        edl.esHost = sharedPrefs.getString("host", "localhost");
+        edl.esPort = sharedPrefs.getString("port", "9200");
+        edl.esIndex = sharedPrefs.getString("index", "sensor_dump");
+        edl.esType = sharedPrefs.getString("type", "phone_data");
+        edl.esSSL = sharedPrefs.getBoolean("ssl", false);
+        edl.esUsername = sharedPrefs.getString("user", "");
+        edl.esPassword = sharedPrefs.getString("pass", "");
     }
 }
