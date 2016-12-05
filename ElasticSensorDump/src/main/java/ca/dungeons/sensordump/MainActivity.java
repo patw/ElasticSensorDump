@@ -130,6 +130,8 @@ public class MainActivity extends Activity implements SensorEventListener {
             hmSensorData.put("bearing", gpsLogger.gpsBearing);
             hmSensorData.put("gps_provider", gpsLogger.gpsProvider);
             hmSensorData.put("speed", gpsLogger.gpsSpeed);
+            hmSensorData.put("speed_kmh", gpsLogger.gpsSpeedKMH);
+            hmSensorData.put("speed_mph", gpsLogger.gpsSpeedMPH);
         }
 
         // Store sensor update into sensor data structure
