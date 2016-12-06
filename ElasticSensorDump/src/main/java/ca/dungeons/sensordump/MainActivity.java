@@ -47,6 +47,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int syncErrors = 0;
     private boolean logging = false;
     private LocationManager locationManager;
+    private long lastUpdate = System.currentTimeMillis();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,6 +117,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     @Override
     public final void onSensorChanged(SensorEvent event) {
+
         // Update timestamp in sensor data structure
         Date logDate = new Date(System.currentTimeMillis());
         SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
@@ -152,10 +154,15 @@ public class MainActivity extends Activity implements SensorEventListener {
             hmSensorData.put(sensorName, sensorValue);
         }
 
-        // Convert to JSON and add to log array
-        JSONObject tempJson = new JSONObject(hmSensorData);
-        jsonSensorData = tempJson.toString();
-        jsonDocuments.add(jsonSensorData);
+        // Make sure we only generate docs at a reasonable rate (precusor to adjustable rates!)
+        // We'll use 250ms for now
+        if (System.currentTimeMillis() > lastUpdate + 250) {
+            lastUpdate = System.currentTimeMillis();
+            // Convert to JSON and add to log array
+            JSONObject tempJson = new JSONObject(hmSensorData);
+            jsonSensorData = tempJson.toString();
+            jsonDocuments.add(jsonSensorData);
+        }
     }
 
     // Go through the sensor array and light them all up
