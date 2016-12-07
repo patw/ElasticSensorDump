@@ -20,6 +20,7 @@ public class GPSLogger implements LocationListener {
     public float gpsSpeed;
     public float gpsSpeedKMH;
     public float gpsSpeedMPH;
+    public int gpsUpdates;
 
     @Override
     public void onLocationChanged(Location location) {
@@ -31,6 +32,7 @@ public class GPSLogger implements LocationListener {
         this.gpsBearing = location.getBearing();
         this.gpsProvider = location.getProvider();
         this.gpsSpeed = location.getSpeed();
+        this.gpsUpdates += 1;
 
         // Metre per second is not ideal. Adding km/hr and mph as well
         this.gpsSpeedKMH = this.gpsSpeed * (float) 3.6;
