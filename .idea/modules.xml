@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/ElasticSensorDump/ElasticSensorDump.iml" filepath="$PROJECT_DIR$/ElasticSensorDump/ElasticSensorDump.iml" />
-      <module fileurl="file://$PROJECT_DIR$/SensorDump.iml" filepath="$PROJECT_DIR$/SensorDump.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ElasticSensorDump.iml" filepath="$PROJECT_DIR$/ElasticSensorDump.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ElasticSensorDump/ElasticSensorDump-ElasticSensorDump.iml" filepath="$PROJECT_DIR$/ElasticSensorDump/ElasticSensorDump-ElasticSensorDump.iml" />
     </modules>
   </component>
 </project>
