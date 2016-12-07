@@ -134,6 +134,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             hmSensorData.put("speed", gpsLogger.gpsSpeed);
             hmSensorData.put("speed_kmh", gpsLogger.gpsSpeedKMH);
             hmSensorData.put("speed_mph", gpsLogger.gpsSpeedMPH);
+            hmSensorData.put("gps_updates", gpsLogger.gpsUpdates);
         }
 
         // Store sensor update into sensor data structure
@@ -202,6 +203,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     public void updateScreen() {
         String updateText = "Sensor Readings: " + documentsSent + "\n" +
                 "Documents Written: " + documentsWritten + "\n" +
+                "GPS Updates: " + gpsLogger.gpsUpdates + "\n" +
                 "Errors: " + syncErrors;
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText(updateText);
