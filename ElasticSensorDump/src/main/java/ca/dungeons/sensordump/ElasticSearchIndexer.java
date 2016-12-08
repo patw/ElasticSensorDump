@@ -20,6 +20,7 @@ public class ElasticSearchIndexer {
     public long failedIndex = 0;
     public long indexRequests = 0;
     public long indexSuccess = 0;
+    public int lastResponseCode;
     private String esHost;
     private String esPort;
     private String esIndex;
@@ -27,6 +28,7 @@ public class ElasticSearchIndexer {
     private String esUsername;
     private String esPassword;
     private boolean esSSL;
+
 
     public ElasticSearchIndexer() {
     }
@@ -74,8 +76,8 @@ public class ElasticSearchIndexer {
 
                 try {
                     httpCon = (HttpURLConnection) u.openConnection();
-                    httpCon.setConnectTimeout(1000);
-                    httpCon.setReadTimeout(1000);
+                    httpCon.setConnectTimeout(2000);
+                    httpCon.setReadTimeout(2000);
                     httpCon.setDoOutput(true);
                     httpCon.setRequestMethod(verb);
                     osw = new OutputStreamWriter(httpCon.getOutputStream());
@@ -86,6 +88,7 @@ public class ElasticSearchIndexer {
                     // Something bad happened. I expect only the finest of 200's
                     int responseCode = httpCon.getResponseCode();
                     if (responseCode > 299) {
+                        lastResponseCode = responseCode;
                         failedIndex++;
                     }
 
@@ -112,7 +115,8 @@ public class ElasticSearchIndexer {
 
     // Send mapping to elastic for sensor index using PUT
     private void createMapping() {
-        String mappingData = "{\"mappings\": {\"" + esType + "\": {\"properties\": {\"location\": {\"type\": \"geo_point\"},{\"start_location\": {\"type\": \"geo_point\"}}}}}";
+        String mappingData = "{\"mappings\":{\"" + esType + "\":{\"properties\":{\"location\":{\"type\": \"geo_point\"},\"start_location\":{\"type\":\"geo_point\"}}}}}";
+        Log.v("Mapping", mappingData);
         String url = buildURL();
         callElasticAPI("PUT", url, mappingData);
     }
