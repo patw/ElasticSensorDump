@@ -37,7 +37,6 @@ public class MainActivity extends Activity implements SensorEventListener {
     public String jsonSensorData = null;
     TextView tvProgress = null;
     ArrayList<String> jsonDocuments = new ArrayList<String>();
-    // Create new GPS logger
     GPSLogger gpsLogger = new GPSLogger();
     private SensorManager mSensorManager;
     private int[] usableSensors;
@@ -48,6 +47,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private boolean logging = false;
     private LocationManager locationManager;
     private long lastUpdate = System.currentTimeMillis();
+    private long startTime = System.currentTimeMillis();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,9 +124,19 @@ public class MainActivity extends Activity implements SensorEventListener {
         String dateString = logDateFormat.format(logDate);
         hmSensorData.put("@timestamp", dateString);
 
+        // Store the logging start time with each document
+        Date startDate = new Date(startTime);
+        String startDateString = logDateFormat.format(startDate);
+        hmSensorData.put("start_time", startDateString);
+
+        // Store the duration of the sensor log with each document
+        long logDuration = (System.currentTimeMillis() - startTime) / 1000;
+        hmSensorData.put("log_duration_seconds", logDuration);
+
         // Dump gps data into document if it's ready
         if (gpsLogger.gpsHasData) {
             hmSensorData.put("location", "" + gpsLogger.gpsLat + "," + gpsLogger.gpsLong);
+            hmSensorData.put("start_location", "" + gpsLogger.gpsLatStart + "," + gpsLogger.gpsLongStart);
             hmSensorData.put("altitude", gpsLogger.gpsAlt);
             hmSensorData.put("accuracy", gpsLogger.gpsAccuracy);
             hmSensorData.put("bearing", gpsLogger.gpsBearing);
@@ -135,6 +145,14 @@ public class MainActivity extends Activity implements SensorEventListener {
             hmSensorData.put("speed_kmh", gpsLogger.gpsSpeedKMH);
             hmSensorData.put("speed_mph", gpsLogger.gpsSpeedMPH);
             hmSensorData.put("gps_updates", gpsLogger.gpsUpdates);
+            hmSensorData.put("acceleration", gpsLogger.gpsAcceleration);
+            hmSensorData.put("acceleration_kmh", gpsLogger.gpsAccelerationKMH);
+            hmSensorData.put("acceleration_mph", gpsLogger.gpsAccelerationMPH);
+            hmSensorData.put("distance_metres", gpsLogger.gpsDistanceMetres);
+            hmSensorData.put("distance_feet", gpsLogger.gpsDistanceFeet);
+            hmSensorData.put("total_distance_metres", gpsLogger.gpsTotalDistance);
+            hmSensorData.put("total_distance_km", gpsLogger.gpsTotalDistanceKM);
+            hmSensorData.put("total_distance_miles", gpsLogger.gpsTotalDistanceMiles);
         }
 
         // Store sensor update into sensor data structure

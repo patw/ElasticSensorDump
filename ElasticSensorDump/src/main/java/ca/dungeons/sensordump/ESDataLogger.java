@@ -89,7 +89,7 @@ public class ESDataLogger {
                     httpCon.setRequestMethod("PUT");
                     OutputStreamWriter out = new OutputStreamWriter(httpCon.getOutputStream());
                     // So ugly bro...
-                    out.write("{\"mappings\": {\"" + esType + "\": {\"properties\": {\"location\": {\"type\": \"geo_point\"}}}}}");
+                    out.write("{\"mappings\": {\"" + esType + "\": {\"properties\": {\"location\": {\"type\": \"geo_point\"},{\"start_location\": {\"type\": \"geo_point\"}}}}}");
                     out.close();
                     httpCon.getInputStream();
 
