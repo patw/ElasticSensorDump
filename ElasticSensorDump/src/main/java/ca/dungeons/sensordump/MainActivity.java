@@ -22,30 +22,25 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-import org.json.JSONObject;
-
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
 public class MainActivity extends Activity implements SensorEventListener {
 
-    // Used to store sensor data before converting to JSON to submit
-    public HashMap<String, Object> hmSensorData = new HashMap<String, Object>();
-    public String jsonSensorData = null;
     TextView tvProgress = null;
-    ArrayList<String> jsonDocuments = new ArrayList<String>();
     GPSLogger gpsLogger = new GPSLogger();
+    ElasticSearchIndexer esIndexer;
+    // Hashmap stores all sensor and gps data
+    private HashMap<String, Object> hmSensorData = new HashMap<String, Object>();
     private SensorManager mSensorManager;
+    private LocationManager locationManager;
+
     private int[] usableSensors;
     private Handler refreshHandler;
-    private int documentsSent = 0;
-    private int documentsWritten = 0;
-    private int syncErrors = 0;
     private boolean logging = false;
-    private LocationManager locationManager;
+
     private long lastUpdate = System.currentTimeMillis();
     private long startTime = System.currentTimeMillis();
 
@@ -58,10 +53,15 @@ public class MainActivity extends Activity implements SensorEventListener {
         // Wakelock to prevent app from sleeping
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        /// Create a new data logger (make configurable!!)
-        final ESDataLogger edl = new ESDataLogger();
-        updateEsUrl(edl);
+        // Callback for settings screen
         final Intent settingsIntent = new Intent(this, SettingsActivity.class);
+
+        // Load config data
+        final SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+
+        // Spin up a new ES API indexer
+        esIndexer = new ElasticSearchIndexer();
+        esIndexer.updateURL(sharedPrefs);
 
         // Click a button, get some sensor data
         final Button btnStart = (Button) findViewById(R.id.btnStart);
@@ -69,7 +69,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             public void onClick(View v) {
                 if (!logging) {
                     btnStart.setText(R.string.buttonStop);
-                    updateEsUrl(edl);
+                    esIndexer.updateURL(sharedPrefs);
                     startLogging();
                 } else {
                     btnStart.setText(R.string.buttonStart);
@@ -100,7 +100,6 @@ public class MainActivity extends Activity implements SensorEventListener {
             public void run() {
                 if (logging) {
                     updateScreen();
-                    storeData(edl);
                 }
                 refreshHandler.postDelayed(this, 1000);
             }
@@ -177,10 +176,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         // We'll use 250ms for now
         if (System.currentTimeMillis() > lastUpdate + 250) {
             lastUpdate = System.currentTimeMillis();
-            // Convert to JSON and add to log array
-            JSONObject tempJson = new JSONObject(hmSensorData);
-            jsonSensorData = tempJson.toString();
-            jsonDocuments.add(jsonSensorData);
+            esIndexer.index(hmSensorData);
         }
     }
 
@@ -219,36 +215,11 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // Update the display with readings/written/errors
     public void updateScreen() {
-        String updateText = "Sensor Readings: " + documentsSent + "\n" +
-                "Documents Written: " + documentsWritten + "\n" +
+        String updateText = "Sensor Readings: " + esIndexer.indexRequests + "\n" +
+                "Documents Written: " + esIndexer.indexSuccess + "\n" +
                 "GPS Updates: " + gpsLogger.gpsUpdates + "\n" +
-                "Errors: " + syncErrors;
+                "Errors: " + esIndexer.failedIndex;
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText(updateText);
-    }
-
-    // Store the sensor data in the configured Elastic Search system
-    private void storeData(ESDataLogger edlInstance) {
-        if (jsonDocuments.size() > 0) {
-            edlInstance.storeHash(jsonDocuments);
-            documentsSent += jsonDocuments.size();
-            documentsWritten = edlInstance.documentsWritten;
-            syncErrors = edlInstance.syncErrors;
-        }
-    }
-
-    private void updateEsUrl(ESDataLogger edl) {
-        // Load config data
-        SharedPreferences sharedPrefs =
-                PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-
-        // Populate the elastic data log
-        edl.esHost = sharedPrefs.getString("host", "localhost");
-        edl.esPort = sharedPrefs.getString("port", "9200");
-        edl.esIndex = sharedPrefs.getString("index", "sensor_dump");
-        edl.esType = sharedPrefs.getString("type", "phone_data");
-        edl.esSSL = sharedPrefs.getBoolean("ssl", false);
-        edl.esUsername = sharedPrefs.getString("user", "");
-        edl.esPassword = sharedPrefs.getString("pass", "");
     }
 }
