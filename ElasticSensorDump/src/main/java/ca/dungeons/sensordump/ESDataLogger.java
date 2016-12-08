@@ -83,6 +83,8 @@ public class ESDataLogger {
                 try {
                     URL url = new URL(getEsMappingUrl());
                     HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                    httpCon.setConnectTimeout(1000);
+                    httpCon.setReadTimeout(1000);
                     httpCon.setDoOutput(true);
                     httpCon.setRequestMethod("PUT");
                     OutputStreamWriter out = new OutputStreamWriter(httpCon.getOutputStream());
@@ -90,6 +92,14 @@ public class ESDataLogger {
                     out.write("{\"mappings\": {\"" + esType + "\": {\"properties\": {\"location\": {\"type\": \"geo_point\"}}}}}");
                     out.close();
                     httpCon.getInputStream();
+
+                    // Something bad happened, lets error it
+                    int responseCode = httpCon.getResponseCode();
+                    if (responseCode > 299) {
+                        syncErrors++;
+                    }
+
+                    httpCon.disconnect();
                 } catch (Exception e) {
                     Log.v("Mapping failed", e.toString());
                 }
@@ -101,13 +111,22 @@ public class ESDataLogger {
             try {
                 URL url = new URL(getEsUrl());
                 HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                httpCon.setConnectTimeout(1000);
+                httpCon.setReadTimeout(1000);
                 httpCon.setDoOutput(true);
-
                 httpCon.setRequestMethod("POST");
                 OutputStreamWriter out = new OutputStreamWriter(httpCon.getOutputStream());
                 out.write(jsonDocs[0]);
                 out.close();
                 httpCon.getInputStream();
+
+                // Something bad happened, lets error it
+                int responseCode = httpCon.getResponseCode();
+                if (responseCode > 299) {
+                    syncErrors++;
+                }
+
+                httpCon.disconnect();
             } catch (Exception e) {
                 Log.v("Doc failed", e.toString());
                 syncErrors += 1;
