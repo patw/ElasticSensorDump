@@ -71,11 +71,11 @@ public class MainActivity extends Activity implements SensorEventListener {
         btnStart.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (!logging) {
-                    btnStart.setText(R.string.buttonStop);
+                    btnStart.setText(getString(R.string.buttonStop));
                     esIndexer.updateURL(sharedPrefs);
                     startLogging();
                 } else {
-                    btnStart.setText(R.string.buttonStart);
+                    btnStart.setText(getString(R.string.buttonStart));
                     stopLogging();
                 }
             }
@@ -96,7 +96,8 @@ public class MainActivity extends Activity implements SensorEventListener {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser) {
-                    tvSeekBarText.setText(R.string.Collection_Interval + defaultRefreshTime + R.string.milliseconds);
+                    tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + (defaultRefreshTime+progress) +
+                                            " " + getString(R.string.milliseconds));
                 }
             }
             @Override
@@ -222,7 +223,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private void stopLogging() {
         logging = false;
         tvProgress = (TextView) findViewById(R.id.tvProgress);
-        tvProgress.setText(R.string.loggingStopped);
+        tvProgress.setText( getString(R.string.loggingStopped) );
         mSensorManager.unregisterListener(this);
 
         // Disable GPS if we allowed it.
@@ -233,10 +234,10 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // Update the display with readings/written/errors
     public void updateScreen() {
-        String updateText = R.string.Sensor_Readings + esIndexer.indexRequests + "\n" +
-                R.string.Documents_Written + esIndexer.indexSuccess + "\n" +
-                R.string.GPS_Updates + gpsLogger.gpsUpdates + "\n" +
-                R.string.Errors + esIndexer.failedIndex;
+        String updateText = getString(R.string.Sensor_Readings) + esIndexer.indexRequests + "\n" +
+                getString(R.string.Documents_Written) + esIndexer.indexSuccess + "\n" +
+                getString(R.string.GPS_Updates) + gpsLogger.gpsUpdates + "\n" +
+                getString(R.string.Errors) + esIndexer.failedIndex;
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText(updateText);
     }

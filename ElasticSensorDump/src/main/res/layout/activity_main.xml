@@ -67,7 +67,7 @@
         android:layout_marginTop="25dp"
         android:clickable="true"
         android:max="750"
-        android:progress="250"
+        android:progress="0"
         android:scrollbarSize="12dp"
         android:thumb="@android:drawable/sym_def_app_icon" />
 
