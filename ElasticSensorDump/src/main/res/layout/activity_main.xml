@@ -46,7 +46,8 @@
         android:ems="10"
         android:gravity="center_vertical|center"
         android:selectAllOnFocus="false"
-        android:text="Collection Interval (ms)" />
+        android:text="@string/Collection_Interval" />
+
 
     <TextView
         android:id="@+id/tvProgress"
@@ -54,7 +55,7 @@
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true"
-        android:text="No Sensor Readings"
+        android:text="@string/No_Sensor_Readings"
         android:textAppearance="?android:attr/textAppearanceLarge" />
 
     <SeekBar
