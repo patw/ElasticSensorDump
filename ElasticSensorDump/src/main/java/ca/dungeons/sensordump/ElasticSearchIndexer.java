@@ -116,7 +116,6 @@ public class ElasticSearchIndexer {
     // Send mapping to elastic for sensor index using PUT
     private void createMapping() {
         String mappingData = "{\"mappings\":{\"" + esType + "\":{\"properties\":{\"location\":{\"type\": \"geo_point\"},\"start_location\":{\"type\":\"geo_point\"}}}}}";
-        Log.v("Mapping", mappingData);
         String url = buildURL();
         callElasticAPI("PUT", url, mappingData);
     }
