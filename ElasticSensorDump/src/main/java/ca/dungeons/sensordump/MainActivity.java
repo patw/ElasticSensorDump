@@ -45,7 +45,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private long lastUpdate = System.currentTimeMillis();
     private long startTime = System.currentTimeMillis();
 
-    private int refreshTime = 250;
+    private int defaultRefreshTime = 250;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,15 +89,14 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
         });
 
-        // Slide a bar to adjust the tick timing
+        // Slide a bar to adjust the refresh times
         final SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar);
         final TextView tvSeekBarText = (TextView) findViewById(R.id.TickText);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser) {
-                    refreshTime = progress + 100;
-                    tvSeekBarText.setText("Collection Interval :" + (progress + 100) + " (ms) ");
+                    tvSeekBarText.setText(R.string.Collection_Interval + defaultRefreshTime + R.string.milliseconds);
                 }
             }
             @Override
@@ -194,7 +193,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         // Make sure we only generate docs at a reasonable rate (precusor to adjustable rates!)
         // We'll use 250ms for now
-        if (System.currentTimeMillis() > lastUpdate + refreshTime) {
+        if (System.currentTimeMillis() > lastUpdate + defaultRefreshTime) {
             lastUpdate = System.currentTimeMillis();
             esIndexer.index(hmSensorData);
         }
@@ -234,10 +233,10 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // Update the display with readings/written/errors
     public void updateScreen() {
-        String updateText = "Sensor Readings: " + esIndexer.indexRequests + "\n" +
-                "Documents Written: " + esIndexer.indexSuccess + "\n" +
-                "GPS Updates: " + gpsLogger.gpsUpdates + "\n" +
-                "Errors: " + esIndexer.failedIndex;
+        String updateText = R.string.Sensor_Readings + esIndexer.indexRequests + "\n" +
+                R.string.Documents_Written + esIndexer.indexSuccess + "\n" +
+                R.string.GPS_Updates + gpsLogger.gpsUpdates + "\n" +
+                R.string.Errors + esIndexer.failedIndex;
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText(updateText);
     }
