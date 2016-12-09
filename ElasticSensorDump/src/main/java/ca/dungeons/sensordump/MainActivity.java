@@ -182,6 +182,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // Go through the sensor array and light them all up
     private void startLogging() {
+        esIndexer.resetCounters();
+
         for (int i = 0; i < usableSensors.length; i++) {
             mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(usableSensors[i]), SensorManager.SENSOR_DELAY_NORMAL);
         }

@@ -44,6 +44,13 @@ public class ElasticSearchIndexer {
         esPassword = sharedPrefs.getString("pass", "");
     }
 
+    // Stop/start should reset counters
+    public void resetCounters() {
+        failedIndex = 0;
+        indexRequests = 0;
+        indexSuccess = 0;
+    }
+
     private void callElasticAPI(final String verb, String url, final String jsonData) {
 
         final URL u;
@@ -94,8 +101,11 @@ public class ElasticSearchIndexer {
 
                     httpCon.disconnect();
                 } catch (IOException i) {
-                    Log.v("Index operation failed", i.toString());
-                    failedIndex++;
+                    // Only show errors for index requests, not the mapping request
+                    if (indexRequests != 0) {
+                        Log.v("Index operation failed", i.toString());
+                        failedIndex++;
+                    }
                 }
                 indexSuccess++;
             }
