@@ -17,15 +17,6 @@
         android:layout_centerHorizontal="true"
         android:src="@drawable/elastic_logo" />
 
-    <TextView
-        android:id="@+id/tvProgress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_centerVertical="true"
-        android:text="No Sensor Readings"
-        android:textAppearance="?android:attr/textAppearanceLarge" />
-
     <Button
         android:id="@+id/btnStart"
         android:layout_width="wrap_content"
@@ -41,5 +32,41 @@
         android:layout_alignParentEnd="true"
         android:layout_alignParentTop="true"
         android:src="@mipmap/ic_gear" />
+
+    <TextView
+        android:text="Collection Interval (ms)"
+        android:ems="10"
+        android:id="@+id/TickText"
+        android:layout_width="wrap_content"
+        android:layout_height="30dp"
+        style="@style/AppTheme"
+        android:selectAllOnFocus="false"
+        android:layout_below="@+id/seekBar"
+        android:gravity="center_vertical|center"
+        android:clickable="false"
+        android:contextClickable="false"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentStart="true" />
+
+    <TextView
+        android:id="@+id/tvProgress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="No Sensor Readings"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true" />
+
+    <SeekBar
+        android:layout_width="300dp"
+        android:layout_height="30dp"
+        android:id="@+id/seekBar"
+        android:layout_marginTop="25dp"
+        android:scrollbarSize="12dp"
+        android:thumb="@android:drawable/sym_def_app_icon"
+        android:max="900"
+        android:clickable="true"
+        android:layout_below="@+id/tvProgress"
+        android:layout_centerHorizontal="true" />
 
 </RelativeLayout>

@@ -21,6 +21,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.SeekBar;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -84,6 +85,22 @@ public class MainActivity extends Activity implements SensorEventListener {
             public void onClick(View v) {
                 startActivity(settingsIntent);
             }
+        });
+
+        // Slide a bar to adjust the tick timing
+        final SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar);
+        final TextView tvSeekBarText = (TextView) findViewById(R.id.TickText);
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if(fromUser)
+                tvSeekBarText.setText( "Collection Interval :" + (progress + 100)
+                                        + " (ms) ");//updates as user slides
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar){ } //intentionally blank
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) { } //intentionally blank
         });
 
         // Get a list of all available sensors on the device and store in array
