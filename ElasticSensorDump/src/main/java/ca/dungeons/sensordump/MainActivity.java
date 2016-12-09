@@ -199,10 +199,10 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // Go through the sensor array and light them all up
     private void startLogging() {
+        esIndexer.resetCounters();
+
         for (int i = 0; i < usableSensors.length; i++) {
-            mSensorManager.registerListener(this,
-                    mSensorManager.getDefaultSensor(usableSensors[i]),
-                    SensorManager.SENSOR_DELAY_NORMAL);
+            mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(usableSensors[i]), SensorManager.SENSOR_DELAY_NORMAL);
         }
 
         // Light up the GPS if we're allowed
@@ -227,7 +227,6 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             locationManager.removeUpdates(gpsLogger);
         }
-
     }
 
     // Update the display with readings/written/errors
