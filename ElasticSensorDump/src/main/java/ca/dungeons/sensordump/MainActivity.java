@@ -20,8 +20,8 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
-import android.widget.TextView;
 import android.widget.SeekBar;
+import android.widget.TextView;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -44,6 +44,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private long lastUpdate = System.currentTimeMillis();
     private long startTime = System.currentTimeMillis();
+
+    private int refreshTime = 250;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,9 +95,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if(fromUser)
-                tvSeekBarText.setText( "Collection Interval :" + (progress + 100)
-                                        + " (ms) ");//updates as user slides
+                if (fromUser) {
+                    refreshTime = progress + 100;
+                    tvSeekBarText.setText("Collection Interval :" + (progress + 100) + " (ms) ");
+                }
             }
             @Override
             public void onStartTrackingTouch(SeekBar seekBar){ } //intentionally blank
@@ -191,7 +194,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         // Make sure we only generate docs at a reasonable rate (precusor to adjustable rates!)
         // We'll use 250ms for now
-        if (System.currentTimeMillis() > lastUpdate + 250) {
+        if (System.currentTimeMillis() > lastUpdate + refreshTime) {
             lastUpdate = System.currentTimeMillis();
             esIndexer.index(hmSensorData);
         }
