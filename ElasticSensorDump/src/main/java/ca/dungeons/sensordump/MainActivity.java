@@ -191,9 +191,11 @@ public class MainActivity extends Activity implements SensorEventListener {
                     sensorName = sensorHierarchyName[sensorHierarchyName.length - 1] + i;
                 }
 
-                // Store the actual sensor data now
-                float sensorValue = event.values[i];
-                joSensorData.put(sensorName, sensorValue);
+                // Store the actual sensor data now unless it's returning NaN
+                Float sensorValue = event.values[i];
+                if (!sensorValue.isNaN()) {
+                    joSensorData.put(sensorName, sensorValue);
+                }
             }
 
             // Make sure we only generate docs at a reasonable rate (precusor to adjustable rates!)
