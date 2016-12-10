@@ -14,7 +14,6 @@ import java.util.HashMap;
 
 public class ElasticSearchIndexer {
 
-    public boolean badUrl = false;
     public long failedIndex = 0;
     public long indexRequests = 0;
     public long indexSuccess = 0;
@@ -26,6 +25,10 @@ public class ElasticSearchIndexer {
     private String esUsername;
     private String esPassword;
     private boolean esSSL;
+
+    // Control variable to prevent sensors from being written before mapping created
+    // Multi-threading is fun :(
+    private boolean isCreatingMapping;
 
 
     public ElasticSearchIndexer() {
@@ -86,29 +89,42 @@ public class ElasticSearchIndexer {
                     int responseCode = httpCon.getResponseCode();
                     if (responseCode > 299) {
                         lastResponseCode = responseCode;
-                        failedIndex++;
+                        if (!isCreatingMapping) {
+                            failedIndex++;
+                        }
                     }
 
                     httpCon.disconnect();
                 } catch (Exception e) {
                     // Only show errors for index requests, not the mapping request
-                    if (indexRequests != 0) {
+                    if (isCreatingMapping) {
+                        isCreatingMapping = false;
+                    } else {
+                        Log.v("Index Request", "" + indexRequests);
                         Log.v("Fail Reason", e.toString());
                         Log.v("Fail URL", url);
                         Log.v("Fail Data", jsonData);
                         failedIndex++;
                     }
                 }
+                if (isCreatingMapping) {
+                    isCreatingMapping = false;
+                }
                 indexSuccess++;
             }
         };
 
-        // Assuming the URL is valid, we can start
-        if (!badUrl) {
+        // Only allow posts if we're not creating mapping
+        if (isCreatingMapping) {
+            if (verb.equals("PUT")) {
+                Thread t = new Thread(r);
+                t.start();
+            }
+        } else {
+            // We're not creating a mapping, just go nuts
             Thread t = new Thread(r);
             t.start();
         }
-
     }
 
     // Build the URL based on the config data
@@ -129,10 +145,13 @@ public class ElasticSearchIndexer {
 
     // Send JSON data to elastic using POST
     public void index(HashMap<String, Object> indexData) {
+
         // Create the mapping on first request
         if (indexRequests == 0) {
+            isCreatingMapping = true;
             createMapping();
         }
+
         String jsonData = new JSONObject(indexData).toString();
         String url = buildURL() + esType + "/";
 
