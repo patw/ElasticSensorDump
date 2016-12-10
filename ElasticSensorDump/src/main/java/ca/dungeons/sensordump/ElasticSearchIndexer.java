@@ -10,7 +10,6 @@ import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.PasswordAuthentication;
 import java.net.URL;
-import java.util.HashMap;
 
 public class ElasticSearchIndexer {
 
@@ -143,22 +142,19 @@ public class ElasticSearchIndexer {
     }
 
     // Send JSON data to elastic using POST
-    public void index(HashMap<String, Object> indexData) {
+    public void index(JSONObject joIndex) {
 
         // Create the mapping on first request
         if (isCreatingMapping && indexRequests == 0) {
             createMapping();
         }
 
-        JSONObject jo = new JSONObject(indexData);
-        String jsonData = jo.toString();
+        String jsonData = joIndex.toString();
         String url = buildURL() + esType + "/";
 
         // If we have some data, it's good to post
         if (jsonData != null) {
             callElasticAPI("POST", url, jsonData);
-        } else {
-            Log.v("Document error", indexData.toString());
         }
     }
 

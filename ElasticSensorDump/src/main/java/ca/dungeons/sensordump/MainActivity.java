@@ -16,6 +16,7 @@ import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -23,9 +24,10 @@ import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
+import org.json.JSONObject;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 
 public class MainActivity extends Activity implements SensorEventListener {
@@ -34,7 +36,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     GPSLogger gpsLogger = new GPSLogger();
     ElasticSearchIndexer esIndexer;
     // Hashmap stores all sensor and gps data
-    private HashMap<String, Object> hmSensorData = new HashMap<String, Object>();
+    private JSONObject joSensorData = new JSONObject();
     private SensorManager mSensorManager;
     private LocationManager locationManager;
 
@@ -138,66 +140,70 @@ public class MainActivity extends Activity implements SensorEventListener {
     @Override
     public final void onSensorChanged(SensorEvent event) {
 
-        // Update timestamp in sensor data structure
-        Date logDate = new Date(System.currentTimeMillis());
-        SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
-        String dateString = logDateFormat.format(logDate);
-        hmSensorData.put("@timestamp", dateString);
+        try {
+            // Update timestamp in sensor data structure
+            Date logDate = new Date(System.currentTimeMillis());
+            SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
+            String dateString = logDateFormat.format(logDate);
+            joSensorData.put("@timestamp", dateString);
 
-        // Store the logging start time with each document
-        Date startDate = new Date(startTime);
-        String startDateString = logDateFormat.format(startDate);
-        hmSensorData.put("start_time", startDateString);
+            // Store the logging start time with each document
+            Date startDate = new Date(startTime);
+            String startDateString = logDateFormat.format(startDate);
+            joSensorData.put("start_time", startDateString);
 
-        // Store the duration of the sensor log with each document
-        long logDuration = (System.currentTimeMillis() - startTime) / 1000;
-        hmSensorData.put("log_duration_seconds", logDuration);
+            // Store the duration of the sensor log with each document
+            long logDuration = (System.currentTimeMillis() - startTime) / 1000;
+            joSensorData.put("log_duration_seconds", logDuration);
 
-        // Dump gps data into document if it's ready
-        if (gpsLogger.gpsHasData) {
-            hmSensorData.put("location", "" + gpsLogger.gpsLat + "," + gpsLogger.gpsLong);
-            hmSensorData.put("start_location", "" + gpsLogger.gpsLatStart + "," + gpsLogger.gpsLongStart);
-            hmSensorData.put("altitude", gpsLogger.gpsAlt);
-            hmSensorData.put("accuracy", gpsLogger.gpsAccuracy);
-            hmSensorData.put("bearing", gpsLogger.gpsBearing);
-            hmSensorData.put("gps_provider", gpsLogger.gpsProvider);
-            hmSensorData.put("speed", gpsLogger.gpsSpeed);
-            hmSensorData.put("speed_kmh", gpsLogger.gpsSpeedKMH);
-            hmSensorData.put("speed_mph", gpsLogger.gpsSpeedMPH);
-            hmSensorData.put("gps_updates", gpsLogger.gpsUpdates);
-            hmSensorData.put("acceleration", gpsLogger.gpsAcceleration);
-            hmSensorData.put("acceleration_kmh", gpsLogger.gpsAccelerationKMH);
-            hmSensorData.put("acceleration_mph", gpsLogger.gpsAccelerationMPH);
-            hmSensorData.put("distance_metres", gpsLogger.gpsDistanceMetres);
-            hmSensorData.put("distance_feet", gpsLogger.gpsDistanceFeet);
-            hmSensorData.put("total_distance_metres", gpsLogger.gpsTotalDistance);
-            hmSensorData.put("total_distance_km", gpsLogger.gpsTotalDistanceKM);
-            hmSensorData.put("total_distance_miles", gpsLogger.gpsTotalDistanceMiles);
-        }
-
-        // Store sensor update into sensor data structure
-        for (int i = 0; i < event.values.length; i++) {
-
-            // We don't need the android.sensor. and motorola.sensor. stuff
-            // Split it out and just get the sensor name
-            String sensorName = "";
-            String[] sensorHierarchyName = event.sensor.getStringType().split("\\.");
-            if (sensorHierarchyName.length == 0) {
-                sensorName = event.sensor.getStringType();
-            } else {
-                sensorName = sensorHierarchyName[sensorHierarchyName.length - 1] + i;
+            // Dump gps data into document if it's ready
+            if (gpsLogger.gpsHasData) {
+                joSensorData.put("location", "" + gpsLogger.gpsLat + "," + gpsLogger.gpsLong);
+                joSensorData.put("start_location", "" + gpsLogger.gpsLatStart + "," + gpsLogger.gpsLongStart);
+                joSensorData.put("altitude", gpsLogger.gpsAlt);
+                joSensorData.put("accuracy", gpsLogger.gpsAccuracy);
+                joSensorData.put("bearing", gpsLogger.gpsBearing);
+                joSensorData.put("gps_provider", gpsLogger.gpsProvider);
+                joSensorData.put("speed", gpsLogger.gpsSpeed);
+                joSensorData.put("speed_kmh", gpsLogger.gpsSpeedKMH);
+                joSensorData.put("speed_mph", gpsLogger.gpsSpeedMPH);
+                joSensorData.put("gps_updates", gpsLogger.gpsUpdates);
+                joSensorData.put("acceleration", gpsLogger.gpsAcceleration);
+                joSensorData.put("acceleration_kmh", gpsLogger.gpsAccelerationKMH);
+                joSensorData.put("acceleration_mph", gpsLogger.gpsAccelerationMPH);
+                joSensorData.put("distance_metres", gpsLogger.gpsDistanceMetres);
+                joSensorData.put("distance_feet", gpsLogger.gpsDistanceFeet);
+                joSensorData.put("total_distance_metres", gpsLogger.gpsTotalDistance);
+                joSensorData.put("total_distance_km", gpsLogger.gpsTotalDistanceKM);
+                joSensorData.put("total_distance_miles", gpsLogger.gpsTotalDistanceMiles);
             }
 
-            // Store the actual sensor data now
-            float sensorValue = event.values[i];
-            hmSensorData.put(sensorName, sensorValue);
-        }
+            // Store sensor update into sensor data structure
+            for (int i = 0; i < event.values.length; i++) {
 
-        // Make sure we only generate docs at a reasonable rate (precusor to adjustable rates!)
-        // We'll use 250ms for now
-        if (System.currentTimeMillis() > lastUpdate + defaultRefreshTime) {
-            lastUpdate = System.currentTimeMillis();
-            esIndexer.index(hmSensorData);
+                // We don't need the android.sensor. and motorola.sensor. stuff
+                // Split it out and just get the sensor name
+                String sensorName = "";
+                String[] sensorHierarchyName = event.sensor.getStringType().split("\\.");
+                if (sensorHierarchyName.length == 0) {
+                    sensorName = event.sensor.getStringType();
+                } else {
+                    sensorName = sensorHierarchyName[sensorHierarchyName.length - 1] + i;
+                }
+
+                // Store the actual sensor data now
+                float sensorValue = event.values[i];
+                joSensorData.put(sensorName, sensorValue);
+            }
+
+            // Make sure we only generate docs at a reasonable rate (precusor to adjustable rates!)
+            // We'll use 250ms for now
+            if (System.currentTimeMillis() > lastUpdate + defaultRefreshTime) {
+                lastUpdate = System.currentTimeMillis();
+                esIndexer.index(joSensorData);
+            }
+        } catch (Exception e) {
+            Log.v("JSON Logging error", e.toString());
         }
     }
 
