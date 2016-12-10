@@ -156,6 +156,8 @@ public class ElasticSearchIndexer {
         // If we have some data, it's good to post
         if (jsonData != null) {
             callElasticAPI("POST", url, jsonData);
+        } else {
+            Log.v("Document error", indexData.toString());
         }
     }
 
