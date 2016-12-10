@@ -150,7 +150,8 @@ public class ElasticSearchIndexer {
             createMapping();
         }
 
-        String jsonData = new JSONObject(indexData).toString();
+        JSONObject jo = new JSONObject(indexData);
+        String jsonData = jo.toString();
         String url = buildURL() + esType + "/";
 
         // If we have some data, it's good to post
