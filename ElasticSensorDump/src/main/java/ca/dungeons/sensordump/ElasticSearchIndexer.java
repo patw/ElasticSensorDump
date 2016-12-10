@@ -5,11 +5,9 @@ import android.util.Log;
 
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URL;
 import java.util.HashMap;
@@ -51,9 +49,7 @@ public class ElasticSearchIndexer {
         indexSuccess = 0;
     }
 
-    private void callElasticAPI(final String verb, String url, final String jsonData) {
-
-        final URL u;
+    private void callElasticAPI(final String verb, final String url, final String jsonData) {
 
         indexRequests++;
 
@@ -66,22 +62,16 @@ public class ElasticSearchIndexer {
             });
         }
 
-        // Lets test this URL out!
-        try {
-            u = new URL(url);
-        } catch (MalformedURLException m) {
-            // We're done here, just stop operations
-            badUrl = true;
-            return;
-        }
-
         // Spin up a thread for http connection
         Runnable r = new Runnable() {
             public void run() {
+
                 HttpURLConnection httpCon;
                 OutputStreamWriter osw;
+                URL u;
 
                 try {
+                    u = new URL(url);
                     httpCon = (HttpURLConnection) u.openConnection();
                     httpCon.setConnectTimeout(2000);
                     httpCon.setReadTimeout(2000);
@@ -100,18 +90,25 @@ public class ElasticSearchIndexer {
                     }
 
                     httpCon.disconnect();
-                } catch (IOException i) {
+                } catch (Exception e) {
                     // Only show errors for index requests, not the mapping request
                     if (indexRequests != 0) {
-                        Log.v("Index operation failed", i.toString());
+                        Log.v("Fail Reason", e.toString());
+                        Log.v("Fail URL", url);
+                        Log.v("Fail Data", jsonData);
                         failedIndex++;
                     }
                 }
                 indexSuccess++;
             }
         };
-        Thread t = new Thread(r);
-        t.start();
+
+        // Assuming the URL is valid, we can start
+        if (!badUrl) {
+            Thread t = new Thread(r);
+            t.start();
+        }
+
     }
 
     // Build the URL based on the config data
@@ -138,7 +135,11 @@ public class ElasticSearchIndexer {
         }
         String jsonData = new JSONObject(indexData).toString();
         String url = buildURL() + esType + "/";
-        callElasticAPI("POST", url, jsonData);
+
+        // If we have some data, it's good to post
+        if (jsonData != null) {
+            callElasticAPI("POST", url, jsonData);
+        }
     }
 
 }
