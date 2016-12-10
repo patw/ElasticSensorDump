@@ -92,12 +92,13 @@ public class MainActivity extends Activity implements SensorEventListener {
         // Slide a bar to adjust the refresh times
         final SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar);
         final TextView tvSeekBarText = (TextView) findViewById(R.id.TickText);
+        tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + seekBar.getProgress() + getString(R.string.milliseconds));
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser) {
-                    tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + (defaultRefreshTime+progress) +
-                                            " " + getString(R.string.milliseconds));
+                    tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + progress + getString(R.string.milliseconds));
+                    defaultRefreshTime = progress;
                 }
             }
             @Override
