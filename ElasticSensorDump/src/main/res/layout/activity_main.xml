@@ -28,7 +28,9 @@
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:layout_below="@+id/ibSetup"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="97dp" />
+        android:layout_marginTop="97dp"
+        android:autoText="false"
+        android:breakStrategy="balanced" />
 
     <Button
         android:id="@+id/btnStart"
