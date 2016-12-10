@@ -28,7 +28,7 @@ public class ElasticSearchIndexer {
 
     // Control variable to prevent sensors from being written before mapping created
     // Multi-threading is fun :(
-    private boolean isCreatingMapping;
+    private boolean isCreatingMapping = true;
 
 
     public ElasticSearchIndexer() {
@@ -53,7 +53,6 @@ public class ElasticSearchIndexer {
     }
 
     private void callElasticAPI(final String verb, final String url, final String jsonData) {
-
         indexRequests++;
 
         // Send authentication if required
@@ -147,8 +146,7 @@ public class ElasticSearchIndexer {
     public void index(HashMap<String, Object> indexData) {
 
         // Create the mapping on first request
-        if (indexRequests == 0) {
-            isCreatingMapping = true;
+        if (isCreatingMapping && indexRequests == 0) {
             createMapping();
         }
 
