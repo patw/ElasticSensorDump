@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -40,8 +41,11 @@ public class MainActivity extends Activity implements SensorEventListener {
     private SensorManager mSensorManager;
     private LocationManager locationManager;
 
+    // Load config data
+    private SharedPreferences sharedPrefs;
+
     private int[] usableSensors;
-    private Handler refreshHandler;
+    //private Handler refreshHandler;
     private boolean logging = false;
 
     private long lastUpdate = System.currentTimeMillis();
@@ -49,10 +53,11 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private int defaultRefreshTime = 250;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
 
+    @Override
+    protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
 
         // Wakelock to prevent app from sleeping
@@ -60,13 +65,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         // Callback for settings screen
         final Intent settingsIntent = new Intent(this, SettingsActivity.class);
-
-        // Load config data
-        final SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-
-        // Spin up a new ES API indexer
-        esIndexer = new ElasticSearchIndexer();
-        esIndexer.updateURL(sharedPrefs);
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 
         // Click a button, get some sensor data
         final Button btnStart = (Button) findViewById(R.id.btnStart);
@@ -74,11 +73,13 @@ public class MainActivity extends Activity implements SensorEventListener {
             public void onClick(View v) {
                 if (!logging) {
                     btnStart.setText(getString(R.string.buttonStop));
-                    esIndexer.updateURL(sharedPrefs);
+
                     startLogging();
+                    logging = true;
                 } else {
                     btnStart.setText(getString(R.string.buttonStart));
                     stopLogging();
+                    logging = false;
                 }
             }
         });
@@ -117,19 +118,18 @@ public class MainActivity extends Activity implements SensorEventListener {
             usableSensors[i] = deviceSensors.get(i).getType();
         }
 
+        /*
         // Refresh screen and store data periodically (make configurable!!)
         refreshHandler = new Handler();
         final Runnable r = new Runnable() {
             public void run() {
-                if (logging) {
                     updateScreen();
-                }
-                refreshHandler.postDelayed(this, 1000);
+                refreshHandler.postDelayed(this, 250);
             }
         };
 
-        refreshHandler.postDelayed(r, 1000);
-
+        refreshHandler.postDelayed(r, 250);
+       */
     }
 
     @Override
@@ -203,6 +203,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             if (System.currentTimeMillis() > lastUpdate + defaultRefreshTime) {
                 lastUpdate = System.currentTimeMillis();
                 esIndexer.index(joSensorData);
+                updateScreen();
             }
         } catch (Exception e) {
             Log.v("JSON Logging error", e.toString());
@@ -211,7 +212,6 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // Go through the sensor array and light them all up
     private void startLogging() {
-        esIndexer.resetCounters();
 
         for (int i = 0; i < usableSensors.length; i++) {
             mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(usableSensors[i]), SensorManager.SENSOR_DELAY_NORMAL);
@@ -224,6 +224,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         } else {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
+
+        esIndexer = new ElasticSearchIndexer();
+        esIndexer.updateURL(sharedPrefs);
+        //esIndexer.resetCounters();
 
         logging = true;
     }
@@ -243,11 +247,38 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // Update the display with readings/written/errors
     public void updateScreen() {
+
         String updateText = getString(R.string.Sensor_Readings) + esIndexer.indexRequests + "\n" +
-                getString(R.string.Documents_Written) + esIndexer.indexSuccess + "\n" +
-                getString(R.string.GPS_Updates) + gpsLogger.gpsUpdates + "\n" +
-                getString(R.string.Errors) + esIndexer.failedIndex;
+            getString(R.string.Documents_Written) + esIndexer.indexSuccess + "\n" +
+            getString(R.string.GPS_Updates) + gpsLogger.gpsUpdates + "\n" +
+            getString(R.string.Errors) + esIndexer.failedIndex;
+
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText(updateText);
+
     }
+    @Override
+    public final void onSaveInstanceState( Bundle savedInstanceState ){
+        super.onSaveInstanceState(savedInstanceState);
+        savedInstanceState.putLong("sensorReadings", esIndexer.indexRequests);
+        savedInstanceState.putLong("Documents_Written", esIndexer.indexSuccess);
+        savedInstanceState.putInt("GPS_Updates", gpsLogger.gpsUpdates);
+        savedInstanceState.putLong("Errors", esIndexer.failedIndex);
+        savedInstanceState.putBoolean("Logging", logging);
+
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        esIndexer.indexRequests = savedInstanceState.getLong("sensorReadings", esIndexer.indexRequests);
+        esIndexer.indexSuccess = savedInstanceState.getLong("Documents_Written", esIndexer.indexSuccess);
+        gpsLogger.gpsUpdates = savedInstanceState.getInt("GPS_Updates", gpsLogger.gpsUpdates);
+        esIndexer.failedIndex = savedInstanceState.getLong("Errors", esIndexer.failedIndex);
+        logging = savedInstanceState.getBoolean("Logging", logging);
+
+    }
+
+
+
 }
