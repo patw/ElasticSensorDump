@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -59,6 +60,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         // Wakelock to prevent app from sleeping
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
 
         // Callback for settings screen
         final Intent settingsIntent = new Intent(this, SettingsActivity.class);
@@ -239,28 +241,4 @@ public class MainActivity extends Activity implements SensorEventListener {
         tvProgress.setText(updateText);
 
     }
-    @Override
-    public final void onSaveInstanceState( Bundle savedInstanceState ){
-        super.onSaveInstanceState(savedInstanceState);
-        savedInstanceState.putLong("sensorReadings", esIndexer.indexRequests);
-        savedInstanceState.putLong("Documents_Written", esIndexer.indexSuccess);
-        savedInstanceState.putInt("GPS_Updates", gpsLogger.gpsUpdates);
-        savedInstanceState.putLong("Errors", esIndexer.failedIndex);
-        savedInstanceState.putBoolean("Logging", logging);
-
-    }
-
-    @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
-        esIndexer.indexRequests = savedInstanceState.getLong("sensorReadings", esIndexer.indexRequests);
-        esIndexer.indexSuccess = savedInstanceState.getLong("Documents_Written", esIndexer.indexSuccess);
-        gpsLogger.gpsUpdates = savedInstanceState.getInt("GPS_Updates", gpsLogger.gpsUpdates);
-        esIndexer.failedIndex = savedInstanceState.getLong("Errors", esIndexer.failedIndex);
-        logging = savedInstanceState.getBoolean("Logging", logging);
-
-    }
-
-
-
 }
