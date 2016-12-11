@@ -177,9 +177,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                     sensorName = sensorHierarchyName[sensorHierarchyName.length - 1] + i;
                 }
 
-                // Store the actual sensor data now unless it's returning NaN
+                // Store the actual sensor data now unless it's returning NaN or something crazy big or small
                 Float sensorValue = event.values[i];
-                if (!sensorValue.isNaN()) {
+                if (!sensorValue.isNaN() && sensorValue < Long.MAX_VALUE && sensorValue > Long.MIN_VALUE) {
                     joSensorData.put(sensorName, sensorValue);
                 }
             }
