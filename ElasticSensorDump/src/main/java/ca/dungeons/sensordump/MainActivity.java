@@ -6,14 +6,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.content.res.Configuration;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -36,23 +34,22 @@ public class MainActivity extends Activity implements SensorEventListener {
     TextView tvProgress = null;
     GPSLogger gpsLogger = new GPSLogger();
     ElasticSearchIndexer esIndexer;
-    // Hashmap stores all sensor and gps data
+
+    // JSON structure for sensor and gps data
     private JSONObject joSensorData = new JSONObject();
     private SensorManager mSensorManager;
     private LocationManager locationManager;
 
-    // Load config data
+    // Config data
     private SharedPreferences sharedPrefs;
 
     private int[] usableSensors;
-    //private Handler refreshHandler;
     private boolean logging = false;
 
     private long lastUpdate = System.currentTimeMillis();
     private long startTime = System.currentTimeMillis();
 
     private int defaultRefreshTime = 250;
-
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -117,19 +114,6 @@ public class MainActivity extends Activity implements SensorEventListener {
         for (int i = 0; i < deviceSensors.size(); i++) {
             usableSensors[i] = deviceSensors.get(i).getType();
         }
-
-        /*
-        // Refresh screen and store data periodically (make configurable!!)
-        refreshHandler = new Handler();
-        final Runnable r = new Runnable() {
-            public void run() {
-                    updateScreen();
-                refreshHandler.postDelayed(this, 250);
-            }
-        };
-
-        refreshHandler.postDelayed(r, 250);
-       */
     }
 
     @Override
@@ -198,7 +182,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                 }
             }
 
-            // Make sure we only generate docs at a reasonable rate (precusor to adjustable rates!)
+            // Make sure we only generate docs at an adjustable rate
             // We'll use 250ms for now
             if (System.currentTimeMillis() > lastUpdate + defaultRefreshTime) {
                 lastUpdate = System.currentTimeMillis();
@@ -213,6 +197,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     // Go through the sensor array and light them all up
     private void startLogging() {
 
+        logging = true;
+        esIndexer = new ElasticSearchIndexer();
+        esIndexer.updateURL(sharedPrefs);
+
         for (int i = 0; i < usableSensors.length; i++) {
             mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(usableSensors[i]), SensorManager.SENSOR_DELAY_NORMAL);
         }
@@ -224,12 +212,6 @@ public class MainActivity extends Activity implements SensorEventListener {
         } else {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
-
-        esIndexer = new ElasticSearchIndexer();
-        esIndexer.updateURL(sharedPrefs);
-        //esIndexer.resetCounters();
-
-        logging = true;
     }
 
     // Shut down the sensors by stopping listening to them
