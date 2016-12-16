@@ -91,6 +91,10 @@ public class GPSLogger implements LocationListener {
         gpsHasData = true;
     }
 
+    public void resetGPS() {
+        gpsUpdates = 0;
+    }
+
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
 

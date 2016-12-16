@@ -47,8 +47,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int[] usableSensors;
     private boolean logging = false;
 
-    private long lastUpdate = System.currentTimeMillis();
-    private long startTime = System.currentTimeMillis();
+    private long lastUpdate;
+    private long startTime;
 
     private int defaultRefreshTime = 250;
 
@@ -57,9 +57,6 @@ public class MainActivity extends Activity implements SensorEventListener {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
-
-        // Wakelock to prevent app from sleeping
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
 
         // Callback for settings screen
@@ -199,7 +196,13 @@ public class MainActivity extends Activity implements SensorEventListener {
     // Go through the sensor array and light them all up
     private void startLogging() {
 
+        // Prevent screen from sleeping if logging has started
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         logging = true;
+        startTime = System.currentTimeMillis();
+        lastUpdate = startTime;
+        gpsLogger.resetGPS();
         esIndexer = new ElasticSearchIndexer();
         esIndexer.updateURL(sharedPrefs);
 
@@ -218,6 +221,10 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // Shut down the sensors by stopping listening to them
     private void stopLogging() {
+
+        // Disable wakelock if logging has stopped
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         logging = false;
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText( getString(R.string.loggingStopped) );
@@ -225,7 +232,11 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         // Disable GPS if we allowed it.
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            locationManager.removeUpdates(gpsLogger);
+            try {
+                locationManager.removeUpdates(gpsLogger);
+            } catch (Exception e) {
+                Log.v("GPS Error", "GPS could not unbind");
+            }
         }
     }
 
@@ -240,5 +251,20 @@ public class MainActivity extends Activity implements SensorEventListener {
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText(updateText);
 
+    }
+
+    // Catch the permissions request for GPS being successful, and light up the GPS for this session
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case 1: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, gpsLogger);
+                    }
+                }
+            }
+        }
     }
 }
