@@ -2,14 +2,14 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 25
-    buildToolsVersion "23.0.2"
+    buildToolsVersion "25.0.1"
 
     defaultConfig {
         applicationId "ca.dungeons.sensordump"
         minSdkVersion 20
         targetSdkVersion 25
-        versionCode 13
-        versionName "1.4.4"
+        versionCode 14
+        versionName "1.4.5"
     }
     buildTypes {
         release {
@@ -22,6 +22,6 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     testCompile 'junit:junit:4.12'
-    compile 'com.android.support:appcompat-v7:25.0.1'
-    compile 'com.android.support:support-v4:25.0.1'
+    compile 'com.android.support:appcompat-v7:25.1.0'
+    compile 'com.android.support:support-v4:25.1.0'
 }
