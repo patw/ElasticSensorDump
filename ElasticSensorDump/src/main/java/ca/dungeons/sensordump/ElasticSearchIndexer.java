@@ -11,7 +11,9 @@ import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.PasswordAuthentication;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class ElasticSearchIndexer {
@@ -26,6 +28,7 @@ public class ElasticSearchIndexer {
     private String esUsername;
     private String esPassword;
     private boolean esSSL;
+    private boolean esDateStampIndex;
 
     // We store all the failed index operations here, so we can replay them
     // at a later time.  This is to handle occasional disconnects in areas where
@@ -50,6 +53,17 @@ public class ElasticSearchIndexer {
         esSSL = sharedPrefs.getBoolean("ssl", false);
         esUsername = sharedPrefs.getString("user", "");
         esPassword = sharedPrefs.getString("pass", "");
+        esDateStampIndex = sharedPrefs.getBoolean("index_date", false);
+
+        // Tag the current date stamp on the index name if set in preferences
+        // Thanks GlenRSmith for this idea
+        if (esDateStampIndex) {
+            Date logDate = new Date(System.currentTimeMillis());
+            SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyyMMdd");
+            String dateString = logDateFormat.format(logDate);
+            esIndex = esIndex + "-" + dateString;
+        }
+
     }
 
     // Stop/start should reset counters

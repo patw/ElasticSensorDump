@@ -186,9 +186,9 @@ public class MainActivity extends Activity implements SensorEventListener {
             // Make sure we only generate docs at an adjustable rate
             // We'll use 250ms for now
             if (System.currentTimeMillis() > lastUpdate + defaultRefreshTime) {
+                updateScreen();
                 lastUpdate = System.currentTimeMillis();
                 esIndexer.index(joSensorData);
-                updateScreen();
             }
         } catch (Exception e) {
             Log.v("JSON Logging error", e.toString());
