@@ -5,18 +5,20 @@ import android.util.Log;
 
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.PasswordAuthentication;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ElasticSearchIndexer {
 
     public long failedIndex = 0;
     public long indexRequests = 0;
     public long indexSuccess = 0;
-    public int lastResponseCode;
     private String esHost;
     private String esPort;
     private String esIndex;
@@ -24,6 +26,12 @@ public class ElasticSearchIndexer {
     private String esUsername;
     private String esPassword;
     private boolean esSSL;
+
+    // We store all the failed index operations here, so we can replay them
+    // at a later time.  This is to handle occasional disconnects in areas where
+    // we may not have data or connection to the carrier network.
+    private List<String> failedJSONDocs = new ArrayList<String>();
+    private boolean isLastIndexSuccessful = false;
 
     // Control variable to prevent sensors from being written before mapping created
     // Multi-threading is fun :(
@@ -86,14 +94,27 @@ public class ElasticSearchIndexer {
                     // Something bad happened. I expect only the finest of 200's
                     int responseCode = httpCon.getResponseCode();
                     if (responseCode > 299) {
-                        lastResponseCode = responseCode;
                         if (!isCreatingMapping) {
                             failedIndex++;
+                            isLastIndexSuccessful = false;
                         }
+                    } else {
+                        isLastIndexSuccessful = true;
+                        indexSuccess++;
                     }
 
                     httpCon.disconnect();
+
                 } catch (Exception e) {
+
+                    // Probably a connection error.  Maybe.  Lets just buffer up the json
+                    // docs so we can try them again later
+                    if (e instanceof IOException) {
+                        if (!isCreatingMapping) {
+                            failedJSONDocs.add(jsonData);
+                        }
+                    }
+
                     // Only show errors for index requests, not the mapping request
                     if (isCreatingMapping) {
                         isCreatingMapping = false;
@@ -105,10 +126,10 @@ public class ElasticSearchIndexer {
                         failedIndex++;
                     }
                 }
+                // We are no longer creating the mapping.  Time for sensor readings!
                 if (isCreatingMapping) {
                     isCreatingMapping = false;
                 }
-                indexSuccess++;
             }
         };
 
@@ -141,6 +162,21 @@ public class ElasticSearchIndexer {
         callElasticAPI("PUT", url, mappingData);
     }
 
+    // Spam those failed docs!
+    // Maybe this should be a bulk operation... one day
+    private void indexFailedDocuments() {
+        String url = buildURL() + esType + "/";
+
+        for (String failedJsonDoc : failedJSONDocs) {
+            callElasticAPI("POST", url, failedJsonDoc);
+        }
+
+        // Update the metrics to show how awesome we are
+        failedIndex = failedIndex - failedJSONDocs.size();
+        indexSuccess = indexSuccess + failedJSONDocs.size();
+        failedJSONDocs.clear();
+    }
+
     // Send JSON data to elastic using POST
     public void index(JSONObject joIndex) {
 
@@ -155,6 +191,11 @@ public class ElasticSearchIndexer {
         // If we have some data, it's good to post
         if (jsonData != null) {
             callElasticAPI("POST", url, jsonData);
+        }
+
+        // Try it again!
+        if (isLastIndexSuccessful && failedJSONDocs.size() > 0) {
+            indexFailedDocuments();
         }
     }
 

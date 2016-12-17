@@ -57,6 +57,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
+
+        // Prevent screen from going into landscape
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
 
         // Callback for settings screen
