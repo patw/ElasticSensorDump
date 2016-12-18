@@ -20,8 +20,8 @@ import java.util.List;
 
 class ElasticSearchIndexer {
 
-    static int MAX_FAILED_DOCS = 1000;
-    static int LAST_RESPONSE_CODE = 299;
+    private static int MAX_FAILED_DOCS = 1000;
+    private static int LAST_RESPONSE_CODE = 299;
 
     long failedIndex = 0;
     long indexRequests = 0;

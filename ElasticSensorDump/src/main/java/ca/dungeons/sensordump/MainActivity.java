@@ -14,6 +14,7 @@ import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
@@ -52,7 +53,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private long lastUpdate;
     private long startTime;
 
-    private int defaultRefreshTime = 250;
+    private int sensorRefreshTime = 250;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -102,7 +103,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                 if (fromUser) {
                     if(progress < MIN_SENSOR_REFRESH) progress = MIN_SENSOR_REFRESH;
                     tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + progress + getString(R.string.milliseconds));
-                    defaultRefreshTime = progress;
+                    sensorRefreshTime = progress;
                 }
             }
             @Override
@@ -188,7 +189,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
             // Make sure we only generate docs at an adjustable rate
             // We'll use 250ms for now
-            if (System.currentTimeMillis() > lastUpdate + defaultRefreshTime) {
+            if (System.currentTimeMillis() > lastUpdate + sensorRefreshTime) {
                 updateScreen();
                 lastUpdate = System.currentTimeMillis();
                 esIndexer.index(joSensorData);
@@ -211,8 +212,9 @@ public class MainActivity extends Activity implements SensorEventListener {
         esIndexer = new ElasticSearchIndexer();
         esIndexer.updateURL(sharedPrefs);
 
-        for (int i = 0; i < usableSensors.length; i++) {
-            mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(usableSensors[i]), SensorManager.SENSOR_DELAY_NORMAL);
+        // Bind all sensors to activity
+        for (int usableSensor : usableSensors) {
+            mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(usableSensor), SensorManager.SENSOR_DELAY_NORMAL);
         }
 
         // Light up the GPS if we're allowed
@@ -260,7 +262,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // Catch the permissions request for GPS being successful, and light up the GPS for this session
     @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
         switch (requestCode) {
             case 1: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {

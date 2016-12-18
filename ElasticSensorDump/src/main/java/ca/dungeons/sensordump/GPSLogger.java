@@ -4,33 +4,29 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.os.Bundle;
 
-/**
- * Created by pwendorf on 2016-12-03.
- */
+class GPSLogger implements LocationListener {
 
-public class GPSLogger implements LocationListener {
-
-    public boolean gpsHasData = false;
-    public double gpsLat;
-    public double gpsLong;
-    public double gpsAlt;
-    public float gpsAccuracy;
-    public float gpsBearing;
-    public String gpsProvider;
-    public float gpsSpeed;
-    public float gpsSpeedKMH;
-    public float gpsSpeedMPH;
-    public int gpsUpdates = 0;
-    public double gpsLatStart;
-    public double gpsLongStart;
-    public float gpsAcceleration;
-    public float gpsAccelerationKMH;
-    public float gpsAccelerationMPH;
-    public double gpsDistanceMetres;
-    public double gpsDistanceFeet;
-    public double gpsTotalDistance;
-    public double gpsTotalDistanceKM;
-    public double gpsTotalDistanceMiles;
+    boolean gpsHasData = false;
+    double gpsLat;
+    double gpsLong;
+    double gpsAlt;
+    float gpsAccuracy;
+    float gpsBearing;
+    String gpsProvider;
+    float gpsSpeed;
+    float gpsSpeedKMH;
+    float gpsSpeedMPH;
+    int gpsUpdates = 0;
+    double gpsLatStart;
+    double gpsLongStart;
+    float gpsAcceleration;
+    float gpsAccelerationKMH;
+    float gpsAccelerationMPH;
+    double gpsDistanceMetres;
+    double gpsDistanceFeet;
+    double gpsTotalDistance;
+    double gpsTotalDistanceKM;
+    double gpsTotalDistanceMiles;
 
     private float lastSpeed;
     private double lastLat;
@@ -91,7 +87,7 @@ public class GPSLogger implements LocationListener {
         gpsHasData = true;
     }
 
-    public void resetGPS() {
+    void resetGPS() {
         gpsUpdates = 0;
     }
 
