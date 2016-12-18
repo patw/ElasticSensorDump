@@ -8,8 +8,8 @@ android {
         applicationId "ca.dungeons.sensordump"
         minSdkVersion 20
         targetSdkVersion 25
-        versionCode 14
-        versionName "1.4.5"
+        versionCode 15
+        versionName "1.4.6"
     }
     buildTypes {
         release {
