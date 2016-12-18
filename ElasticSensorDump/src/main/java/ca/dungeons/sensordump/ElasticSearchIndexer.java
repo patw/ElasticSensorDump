@@ -28,7 +28,6 @@ public class ElasticSearchIndexer {
     private String esUsername;
     private String esPassword;
     private boolean esSSL;
-    private boolean esDateStampIndex;
 
     // We store all the failed index operations here, so we can replay them
     // at a later time.  This is to handle occasional disconnects in areas where
@@ -39,6 +38,9 @@ public class ElasticSearchIndexer {
     // Control variable to prevent sensors from being written before mapping created
     // Multi-threading is fun :(
     private boolean isCreatingMapping = true;
+
+    // Another control variable, because threading is hate.
+    private boolean isRetryingFailedIndexes = false;
 
 
     public ElasticSearchIndexer() {
@@ -53,11 +55,10 @@ public class ElasticSearchIndexer {
         esSSL = sharedPrefs.getBoolean("ssl", false);
         esUsername = sharedPrefs.getString("user", "");
         esPassword = sharedPrefs.getString("pass", "");
-        esDateStampIndex = sharedPrefs.getBoolean("index_date", false);
 
         // Tag the current date stamp on the index name if set in preferences
         // Thanks GlenRSmith for this idea
-        if (esDateStampIndex) {
+        if (sharedPrefs.getBoolean("index_date", false)) {
             Date logDate = new Date(System.currentTimeMillis());
             SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyyMMdd");
             String dateString = logDateFormat.format(logDate);
@@ -125,6 +126,7 @@ public class ElasticSearchIndexer {
                     // docs so we can try them again later
                     if (e instanceof IOException) {
                         if (!isCreatingMapping) {
+                            isLastIndexSuccessful = false;
                             failedJSONDocs.add(jsonData);
                         }
                     }
@@ -179,16 +181,29 @@ public class ElasticSearchIndexer {
     // Spam those failed docs!
     // Maybe this should be a bulk operation... one day
     private void indexFailedDocuments() {
-        String url = buildURL() + esType + "/";
+        String url;
+        String bulkData = "";
 
-        for (String failedJsonDoc : failedJSONDocs) {
-            callElasticAPI("POST", url, failedJsonDoc);
+        // Bulk index url
+        if (esSSL) {
+            url = "https://" + esHost + ":" + esPort + "/_bulk";
+        } else {
+            url = "http://" + esHost + ":" + esPort + "/_bulk";
         }
 
-        // Update the metrics to show how awesome we are
-        failedIndex = failedIndex - failedJSONDocs.size();
-        indexSuccess = indexSuccess + failedJSONDocs.size();
+        for (String failedJsonDoc : failedJSONDocs) {
+            bulkData += "{\"index\":{\"_index\":\"" + esIndex + "\",\"_type\":\"" + esType + "\"}}\n";
+            bulkData += failedJsonDoc + "\n";
+        }
+
+        Log.v("Bulk Data", bulkData);
+        callElasticAPI("POST", url, bulkData);
+
+        // Clear failed log and update our stats
+        failedIndex -= failedJSONDocs.size();
+        indexSuccess += failedJSONDocs.size();
         failedJSONDocs.clear();
+        isRetryingFailedIndexes = false;
     }
 
     // Send JSON data to elastic using POST
@@ -208,7 +223,8 @@ public class ElasticSearchIndexer {
         }
 
         // Try it again!
-        if (isLastIndexSuccessful && failedJSONDocs.size() > 0) {
+        if (isLastIndexSuccessful && failedJSONDocs.size() > 0 && !isRetryingFailedIndexes) {
+            isRetryingFailedIndexes = true;
             indexFailedDocuments();
         }
     }
