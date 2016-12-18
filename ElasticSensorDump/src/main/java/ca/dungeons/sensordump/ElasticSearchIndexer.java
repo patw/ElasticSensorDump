@@ -74,7 +74,7 @@ public class ElasticSearchIndexer {
         indexSuccess = 0;
     }
 
-    private void callElasticAPI(final String verb, final String url, final String jsonData) {
+    private void callElasticAPI(final String verb, final String url, final String jsonData, final boolean isBulk) {
         indexRequests++;
 
         // Send authentication if required
@@ -125,7 +125,7 @@ public class ElasticSearchIndexer {
                     // Probably a connection error.  Maybe.  Lets just buffer up the json
                     // docs so we can try them again later
                     if (e instanceof IOException) {
-                        if (!isCreatingMapping) {
+                        if (!isCreatingMapping && !isBulk) {
                             isLastIndexSuccessful = false;
                             failedJSONDocs.add(jsonData);
                         }
@@ -145,6 +145,15 @@ public class ElasticSearchIndexer {
                 // We are no longer creating the mapping.  Time for sensor readings!
                 if (isCreatingMapping) {
                     isCreatingMapping = false;
+                }
+
+                // Bulk success!
+                if (isBulk) {
+                    // Clear failed log and update our stats
+                    failedIndex -= failedJSONDocs.size();
+                    indexSuccess += failedJSONDocs.size();
+                    failedJSONDocs.clear();
+                    isRetryingFailedIndexes = false;
                 }
             }
         };
@@ -175,14 +184,14 @@ public class ElasticSearchIndexer {
     private void createMapping() {
         String mappingData = "{\"mappings\":{\"" + esType + "\":{\"properties\":{\"location\":{\"type\": \"geo_point\"},\"start_location\":{\"type\":\"geo_point\"}}}}}";
         String url = buildURL();
-        callElasticAPI("PUT", url, mappingData);
+        callElasticAPI("PUT", url, mappingData, false);
     }
 
     // Spam those failed docs!
     // Maybe this should be a bulk operation... one day
     private void indexFailedDocuments() {
         String url;
-        String bulkData = "";
+        StringBuilder bulkDataList = new StringBuilder();
 
         // Bulk index url
         if (esSSL) {
@@ -192,18 +201,14 @@ public class ElasticSearchIndexer {
         }
 
         for (String failedJsonDoc : failedJSONDocs) {
-            bulkData += "{\"index\":{\"_index\":\"" + esIndex + "\",\"_type\":\"" + esType + "\"}}\n";
-            bulkData += failedJsonDoc + "\n";
+            bulkDataList.append("{\"index\":{\"_index\":\"" + esIndex + "\",\"_type\":\"" + esType + "\"}}\n");
+            bulkDataList.append(failedJsonDoc + "\n");
         }
 
-        Log.v("Bulk Data", bulkData);
-        callElasticAPI("POST", url, bulkData);
+        String bulkData = bulkDataList.toString();
 
-        // Clear failed log and update our stats
-        failedIndex -= failedJSONDocs.size();
-        indexSuccess += failedJSONDocs.size();
-        failedJSONDocs.clear();
-        isRetryingFailedIndexes = false;
+        Log.v("Bulk Data", bulkData);
+        callElasticAPI("POST", url, bulkData, true);
     }
 
     // Send JSON data to elastic using POST
@@ -219,7 +224,7 @@ public class ElasticSearchIndexer {
 
         // If we have some data, it's good to post
         if (jsonData != null) {
-            callElasticAPI("POST", url, jsonData);
+            callElasticAPI("POST", url, jsonData, false);
         }
 
         // Try it again!
