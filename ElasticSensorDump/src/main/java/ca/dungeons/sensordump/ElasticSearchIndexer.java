@@ -2,11 +2,8 @@ package ca.dungeons.sensordump;
 
 import android.content.SharedPreferences;
 import android.util.Log;
-
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.Authenticator;
@@ -37,7 +34,7 @@ class ElasticSearchIndexer {
     // We store all the failed index operations here, so we can replay them
     // at a later time.  This is to handle occasional disconnects in areas where
     // we may not have data or connection to the carrier network.
-    private List<String> failedJSONDocs = new ArrayList<String>();
+    private List<String> failedJSONDocs = new ArrayList<>();
     private boolean isLastIndexSuccessful = false;
 
     // Control variable to prevent sensors from being written before mapping created
@@ -133,7 +130,7 @@ class ElasticSearchIndexer {
                     if (e instanceof IOException) {
                         if (!isCreatingMapping && !isBulk) {
                             isLastIndexSuccessful = false;
-                            // Store up to MAX_FAILED_DOCS worth of data before dumpint it
+                            // Store up to MAX_FAILED_DOCS worth of data before dumping it
                             if(failedJSONDocs.size() < MAX_FAILED_DOCS) {
                                 failedJSONDocs.add(jsonData);
                             }

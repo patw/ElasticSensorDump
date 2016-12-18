@@ -33,11 +33,11 @@ import java.util.List;
 
 public class MainActivity extends Activity implements SensorEventListener {
 
-    static int MIN_SENSOR_REFRESH = 50;
+    private static int MIN_SENSOR_REFRESH = 50;
 
-    TextView tvProgress = null;
-    GPSLogger gpsLogger = new GPSLogger();
-    ElasticSearchIndexer esIndexer;
+    private TextView tvProgress = null;
+    private GPSLogger gpsLogger = new GPSLogger();
+    private ElasticSearchIndexer esIndexer;
 
     // JSON structure for sensor and gps data
     private JSONObject joSensorData = new JSONObject();
@@ -172,7 +172,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
                 // We don't need the android.sensor. and motorola.sensor. stuff
                 // Split it out and just get the sensor name
-                String sensorName = "";
+                String sensorName;
                 String[] sensorHierarchyName = event.sensor.getStringType().split("\\.");
                 if (sensorHierarchyName.length == 0) {
                     sensorName = event.sensor.getStringType();
@@ -248,7 +248,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
 
     // Update the display with readings/written/errors
-    public void updateScreen() {
+    private void updateScreen() {
 
         String updateText = getString(R.string.Sensor_Readings) + esIndexer.indexRequests + "\n" +
             getString(R.string.Documents_Written) + esIndexer.indexSuccess + "\n" +
