@@ -17,7 +17,8 @@
         android:layout_alignParentTop="true"
         android:src="@mipmap/ic_gear"
         android:alpha=".75"
-        android:foregroundGravity="top" />
+        android:foregroundGravity="top"
+        android:contentDescription="@string/Settings" />
 
 
     <TextView
@@ -28,9 +29,7 @@
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:layout_below="@+id/ibSetup"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="97dp"
-        android:autoText="false"
-        android:breakStrategy="balanced" />
+        android:layout_marginTop="97dp" />
 
     <Button
         android:id="@+id/btnStart"
@@ -46,7 +45,6 @@
         android:layout_width="wrap_content"
         android:layout_height="30dp"
         android:clickable="false"
-        android:contextClickable="false"
         android:ems="10"
         android:gravity="center_vertical|center"
         android:selectAllOnFocus="false"
@@ -59,7 +57,7 @@
         android:layout_width="300dp"
         android:layout_height="30dp"
         android:clickable="true"
-        android:max="750"
+        android:max="999"
         android:progress="250"
         android:scrollbarSize="12dp"
         android:thumb="@android:drawable/sym_def_app_icon"
@@ -76,6 +74,7 @@
         android:layout_width="300dp"
         android:layout_height="300dp"
         android:layout_centerVertical="true"
-        android:layout_alignStart="@+id/seekBar" />
+        android:layout_alignStart="@+id/seekBar"
+        android:contentDescription="@string/app_name" />
 
 </RelativeLayout>

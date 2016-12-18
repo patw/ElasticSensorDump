@@ -32,6 +32,8 @@ import java.util.List;
 
 public class MainActivity extends Activity implements SensorEventListener {
 
+    static int MIN_SENSOR_REFRESH = 50;
+
     TextView tvProgress = null;
     GPSLogger gpsLogger = new GPSLogger();
     ElasticSearchIndexer esIndexer;
@@ -98,6 +100,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser) {
+                    if(progress < MIN_SENSOR_REFRESH) progress = MIN_SENSOR_REFRESH;
                     tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + progress + getString(R.string.milliseconds));
                     defaultRefreshTime = progress;
                 }

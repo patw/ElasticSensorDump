@@ -3,6 +3,8 @@ package ca.dungeons.sensordump;
 import android.content.SharedPreferences;
 import android.util.Log;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -16,11 +18,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-public class ElasticSearchIndexer {
+class ElasticSearchIndexer {
 
-    public long failedIndex = 0;
-    public long indexRequests = 0;
-    public long indexSuccess = 0;
+    static int MAX_FAILED_DOCS = 1000;
+    static int LAST_RESPONSE_CODE = 299;
+
+    long failedIndex = 0;
+    long indexRequests = 0;
+    long indexSuccess = 0;
     private String esHost;
     private String esPort;
     private String esIndex;
@@ -43,10 +48,10 @@ public class ElasticSearchIndexer {
     private boolean isRetryingFailedIndexes = false;
 
 
-    public ElasticSearchIndexer() {
+    ElasticSearchIndexer() {
     }
 
-    public void updateURL(SharedPreferences sharedPrefs) {
+    void updateURL(SharedPreferences sharedPrefs) {
         // Extract config information to build connection strings
         esHost = sharedPrefs.getString("host", "localhost");
         esPort = sharedPrefs.getString("port", "9200");
@@ -74,7 +79,8 @@ public class ElasticSearchIndexer {
         indexSuccess = 0;
     }
 
-    private void callElasticAPI(final String verb, final String url, final String jsonData, final boolean isBulk) {
+    private void callElasticAPI(final String verb, final String url,
+                                final String jsonData, final boolean isBulk) {
         indexRequests++;
 
         // Send authentication if required
@@ -108,7 +114,7 @@ public class ElasticSearchIndexer {
 
                     // Something bad happened. I expect only the finest of 200's
                     int responseCode = httpCon.getResponseCode();
-                    if (responseCode > 299) {
+                    if (responseCode > LAST_RESPONSE_CODE) {
                         if (!isCreatingMapping) {
                             failedIndex++;
                             isLastIndexSuccessful = false;
@@ -127,7 +133,10 @@ public class ElasticSearchIndexer {
                     if (e instanceof IOException) {
                         if (!isCreatingMapping && !isBulk) {
                             isLastIndexSuccessful = false;
-                            failedJSONDocs.add(jsonData);
+                            // Store up to MAX_FAILED_DOCS worth of data before dumpint it
+                            if(failedJSONDocs.size() < MAX_FAILED_DOCS) {
+                                failedJSONDocs.add(jsonData);
+                            }
                         }
                     }
 
@@ -182,9 +191,22 @@ public class ElasticSearchIndexer {
 
     // Send mapping to elastic for sensor index using PUT
     private void createMapping() {
-        String mappingData = "{\"mappings\":{\"" + esType + "\":{\"properties\":{\"location\":{\"type\": \"geo_point\"},\"start_location\":{\"type\":\"geo_point\"}}}}}";
-        String url = buildURL();
-        callElasticAPI("PUT", url, mappingData, false);
+
+        JSONObject mappings = new JSONObject();
+        try {
+            JSONObject typeGeoPoint = new JSONObject().put("type", "geo_point");
+            JSONObject mappingTypes = new JSONObject().put("start_location", typeGeoPoint);
+            mappingTypes.put("location", typeGeoPoint);
+            JSONObject properties = new JSONObject().put("properties",mappingTypes);
+            JSONObject indexType = new JSONObject().put(esType, properties);
+            mappings = new JSONObject().put("mappings", indexType);
+        } catch (JSONException j) {
+            Log.v("Json Exception", j.toString());
+        }
+        
+        Log.v("Mapping", mappings.toString());
+
+        callElasticAPI("PUT", buildURL(), mappings.toString() , false);
     }
 
     // Spam those failed docs!
@@ -201,8 +223,9 @@ public class ElasticSearchIndexer {
         }
 
         for (String failedJsonDoc : failedJSONDocs) {
-            bulkDataList.append("{\"index\":{\"_index\":\"" + esIndex + "\",\"_type\":\"" + esType + "\"}}\n");
-            bulkDataList.append(failedJsonDoc + "\n");
+            bulkDataList.append("{\"index\":{\"_index\":\"").append(esIndex)
+                    .append("\",\"_type\":\"").append(esType).append("\"}}\n");
+            bulkDataList.append(failedJsonDoc).append("\n");
         }
 
         String bulkData = bulkDataList.toString();
@@ -212,7 +235,7 @@ public class ElasticSearchIndexer {
     }
 
     // Send JSON data to elastic using POST
-    public void index(JSONObject joIndex) {
+    void index(JSONObject joIndex) {
 
         // Create the mapping on first request
         if (isCreatingMapping && indexRequests == 0) {

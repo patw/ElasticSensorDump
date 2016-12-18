@@ -11,4 +11,5 @@
     <string name="Documents_Written">Documents Written: </string>
     <string name="GPS_Updates">GPS Updates: </string>
     <string name="Errors">Errors: </string>
+    <string name="Settings">Settings</string>
 </resources>
