@@ -36,10 +36,10 @@
             android:layout_alignParentEnd="true">
 
                 <Switch
+                    android:id="@+id/switch1"
                     android:text="GPS"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:id="@+id/switch1"
                     android:layout_marginBottom="8dp"
                     android:layout_above="@+id/tvProgress"
                     android:layout_toEndOf="@+id/tvProgress"
@@ -64,12 +64,14 @@
             android:layout_alignParentStart="true">
 
                 <SeekBar
-                    android:layout_width="200dp"
-                    android:layout_height="wrap_content"
                     android:id="@+id/seekBar2"
                     style="@style/SeekBarseekBar"
+                    android:layout_width="200dp"
+                    android:layout_height="wrap_content"
                     android:layout_alignParentBottom="true"
                     android:layout_centerHorizontal="true"
+                    android:max="1000"
+                    android:progress="250"
                     android:layout_marginBottom="21dp" />
 
                 <TextView
@@ -91,9 +93,9 @@
 
                 <TextView
                     android:id="@+id/tvProgress"
+                    android:text="@string/No_Sensor_Readings"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/No_Sensor_Readings"
                     android:textAppearance="?android:attr/textAppearanceLarge"
                     android:breakStrategy="balanced"
                     android:layout_alignParentTop="true"

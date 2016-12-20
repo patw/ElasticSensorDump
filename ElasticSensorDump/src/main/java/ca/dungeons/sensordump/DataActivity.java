@@ -124,7 +124,7 @@ public class DataActivity extends Activity {
 
             // -- Data Type TBD
             final Button dataButton6 = (Button) findViewById(R.id.dataButton6);
-            int DataReadings = savedInstanceState.getInt(  ); ///////////
+            int DataReadings = 5000; ///////////savedInstanceState.getInt(  )
             dataButton6.setText(""+ DataReadings +"");
             dataButton6.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
