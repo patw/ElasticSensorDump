@@ -7,15 +7,7 @@
     android:background="@color/backGroundGreyTint"
     tools:context="ca.dungeons.sensordump.MainActivity">
 
-        <Button
-            android:id="@+id/btnStart"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/buttonStart"
-            android:layout_centerVertical="true"
-            android:layout_centerHorizontal="true" />
-
-        <ImageView
+    <ImageView
             android:id="@+id/ivLogo"
             android:background="@drawable/elastic_logo"
             android:alpha=".1"
@@ -35,27 +27,31 @@
             android:layout_alignParentTop="true"
             android:layout_alignParentEnd="true">
 
-                <Switch
-                    android:id="@+id/switch1"
-                    android:text="GPS"
+            <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginRight="10dp">
+
+                <ToggleButton
+                    android:text="GPS On/Off"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:layout_above="@+id/tvProgress"
-                    android:layout_toEndOf="@+id/tvProgress"
-                    android:layout_weight="1" />
+                    android:id="@+id/GPS_Toggle"
+                    android:textStyle="normal|bold" />
 
-                <ImageButton
+            </LinearLayout>
+
+            <ImageButton
                     android:id="@+id/ibSetup"
-                    android:layout_width="match_parent"
+                    android:layout_width="52dp"
                     android:src="@mipmap/ic_gear"
-                    android:alpha=".75"
-                    android:foregroundGravity="top"
-                    android:contentDescription="@string/title_activity_settings"
+                android:contentDescription="@string/title_activity_settings"
                     android:layout_height="50dp"
-                    android:layout_alignParentTop="true"
-                    android:layout_alignParentEnd="true"
-                    android:layout_weight="1" />
+                android:elevation="0dp"
+                android:background="@color/backGroundGreyTint" />
+
         </LinearLayout>
 
         <RelativeLayout
@@ -74,20 +70,17 @@
                     android:progress="250"
                     android:layout_marginBottom="21dp" />
 
-                <TextView
+            <TextView
                     android:id="@+id/TickText"
                     style="@style/AppTheme"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
                     android:clickable="false"
-                    android:contextClickable="false"
                     android:ems="10"
                     android:gravity="center_vertical|center"
                     android:selectAllOnFocus="false"
                     android:text="@string/Collection_Interval"
                     android:textSize="12sp"
-                    tools:layout_editor_absoluteY="0dp"
-                    tools:layout_editor_absoluteX="0dp"
                     android:layout_above="@+id/seekBar2"
                     android:layout_centerHorizontal="true" />
 
@@ -97,10 +90,17 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textAppearance="?android:attr/textAppearanceLarge"
-                    android:breakStrategy="balanced"
                     android:layout_alignParentTop="true"
                     android:layout_centerHorizontal="true"
                     android:layout_marginTop="89dp" />
+
+            <Button
+                android:id="@+id/btnStart"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/buttonStart"
+                android:layout_above="@+id/TickText"
+                android:layout_centerHorizontal="true" />
 
         </RelativeLayout>
 

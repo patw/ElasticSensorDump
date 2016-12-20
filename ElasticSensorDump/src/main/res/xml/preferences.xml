@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <EditTextPreference
+        android:defaultValue="sensor_dump"
+        android:key="index"
+        android:summary="Index to find your data"
+        android:title="ES Index"></EditTextPreference>
+    <EditTextPreference
         android:key="host"
         android:summary="Host or IP for elastic search server"
         android:title="ES Host"></EditTextPreference>
@@ -10,25 +15,25 @@
         android:summary="Port for ES index. Usually 9200"
         android:title="ES Port"></EditTextPreference>
     <EditTextPreference
-        android:defaultValue="sensor_dump"
-        android:key="index"
-        android:summary="Index name for sensor dump. Default is fine."
-        android:title="Index"></EditTextPreference>
-    <EditTextPreference
         android:defaultValue="phone_data"
         android:key="type"
-        android:summary="Type name for index documents. Default is fine."
-        android:title="Type"></EditTextPreference>
+        android:title="Device Type"
+        android:summary="phone_index = default"></EditTextPreference>
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:title="Persistant GPS"
+        android:key="GPS_bool"
+        android:summary="Allow GPS access on restart" />
     <EditTextPreference
         android:defaultValue=""
         android:key="user"
         android:summary="Authenticate with user (requires Shield)"
-        android:title="User"></EditTextPreference>
+        android:title="ES Username"></EditTextPreference>
     <EditTextPreference
         android:defaultValue=""
         android:key="pass"
         android:summary="Authenticate with password (requires Shield)"
-        android:title="Password"></EditTextPreference>
+        android:title="ES Password"></EditTextPreference>
     <CheckBoxPreference
         android:key="ssl"
         android:summary="Connect to elastic using SSL (requires Shield)"
