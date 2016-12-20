@@ -14,10 +14,6 @@
         android:key="index"
         android:summary="Index name for sensor dump. Default is fine."
         android:title="Index"></EditTextPreference>
-    <CheckBoxPreference
-        android:key="index_date"
-        android:summary="Add current date to index name"
-        android:title="Date Stamp Index"></CheckBoxPreference>
     <EditTextPreference
         android:defaultValue="phone_data"
         android:key="type"
