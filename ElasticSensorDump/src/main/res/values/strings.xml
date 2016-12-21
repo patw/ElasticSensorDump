@@ -12,6 +12,9 @@
     <string name="GPS_Updates">GPS Updates: </string>
     <string name="Errors">Errors: </string>
     <string name="BackgroundElasticLogo"> </string>
+    <string name="gps_on_off">GPS On/Off</string>
+    <string name="gpsOn">GPS ON</string>
+    <string name="gpsOff">GPS OFF</string>
 
 
 </resources>

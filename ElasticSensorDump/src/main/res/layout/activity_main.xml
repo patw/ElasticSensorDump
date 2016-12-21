@@ -31,10 +31,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_marginRight="10dp">
+                android:layout_marginEnd="10dp">
 
                 <ToggleButton
-                    android:text="GPS On/Off"
+                    android:text="@string/gps_on_off"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:id="@+id/GPS_Toggle"
