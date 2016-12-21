@@ -272,9 +272,6 @@ public class MainActivity extends Activity implements SensorEventListener {
     private void updateScreen() {
 
 
-
-
-
         String updateText = getString(R.string.Sensor_Readings) + esIndexer.indexRequests + "\n" +
             getString(R.string.Documents_Written) + esIndexer.indexSuccess + "\n" +
             getString(R.string.GPS_Updates) + gpsLogger.gpsUpdates + "\n" +
@@ -305,8 +302,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     public void CheckGPS()
     {
-
         // GPS on/off persistent on app restart
+        //
         if(!gpsChoosen) {
             if(sharedPrefs.getBoolean("GPS_bool", true) ) {
                 gpsChoosen = true;
@@ -316,7 +313,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                 gpsChoosen = true;
             }
         }
-        
+        // boolean true = granted
         gpsBool = ( ContextCompat.checkSelfPermission(this, android.Manifest.permission.
                                         ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED );
 

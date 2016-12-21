@@ -92,8 +92,6 @@ public class DataActivity extends Activity {
         //
         // end button4
 
-
-
         // button 5
         //
             //text 5  (double) Time in hours: 1.50 hours
@@ -114,7 +112,6 @@ public class DataActivity extends Activity {
             });
         //
         // end button5
-
 
         // button 6
         //
