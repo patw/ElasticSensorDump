@@ -2,8 +2,10 @@ package ca.dungeons.sensordump;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -12,8 +14,10 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.LocationManager;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
@@ -24,7 +28,6 @@ import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.TextView;
-import android.widget.ToggleButton;
 
 import org.json.JSONObject;
 
@@ -32,63 +35,113 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
+import static android.R.attr.button;
+
+
 public class MainActivity extends Activity implements SensorEventListener {
 
     private static int MIN_SENSOR_REFRESH = 50;
-
-    private boolean logging = false;
-
+    private ElasticSearchIndexer esIndexer;
+    private SensorManager mSensorManager;
+    private LocationManager locationManager;
+    // Config data
+    private SharedPreferences sharedPrefs;
     private TextView tvProgress = null;
     private GPSLogger gpsLogger = new GPSLogger();
-    private ElasticSearchIndexer esIndexer;
 
     // JSON structure for sensor and gps data
     private JSONObject joSensorData = new JSONObject();
-    private SensorManager mSensorManager;
-    private LocationManager locationManager;
-
-    // Config data
-    private SharedPreferences sharedPrefs;
 
     private int[] usableSensors;
-
-    private boolean gpsBool = false;
-    private boolean gpsChoosen = false;
+    private boolean logging = false;
 
     private long lastUpdate;
     private long startTime;
 
     private int sensorRefreshTime = 250;
+    double batteryLevel = 0;
+
+    final BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            //context.unregisterReceiver(this);
+            int tempLevel = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int tempScale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+            if(tempLevel > 0 && tempScale > 0) {
+                batteryLevel = tempLevel;
+            }
+        }
+    };
+
+    boolean gpsChoosen = false;
+    boolean gpsBool = false;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        //set initial view to main activity
         setContentView(R.layout.activity_main);
-
         // Prevent screen from going into landscape
-        // get default preferences
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
+
+        // Callback for settings screen
+        final Intent settingsIntent = new Intent(this, SettingsActivity.class);
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 
-        // Get a list of all available sensors on the device and store in array
-        enumerateSensors();
-
-        //build a button to display current logging readings
+        // check for gps access, also set up some button controls
+        CheckGPS();
         // Click a button, get some sensor data
-        startButton();
+        final Button btnStart = (Button) findViewById(R.id.btnStart);
+        btnStart.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (!logging) {
+                    btnStart.setText(getString(R.string.buttonStop));
+                    startLogging();
+                    logging = true;
+                } else {
+                    btnStart.setText(getString(R.string.buttonStart));
+                    stopLogging();
+                    logging = false;
+                }
+            }
+        });
 
-        // build and set up on click functions to display the settings activity
         // Click a button, get the settings screen
-        settingsButton();
+        final ImageButton ibSetup = (ImageButton) findViewById(R.id.ibSetup);
+        ibSetup.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                startActivity(settingsIntent);
+            }
+        });
 
-        // build a Sliding bar and set up onSlide functions to adjust interval(tick) timing
         // Slide a bar to adjust the refresh times
-        intervalSeekBar();
+        final SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar);
+        final TextView tvSeekBarText = (TextView) findViewById(R.id.TickText);
+        tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + seekBar.getProgress() + getString(R.string.milliseconds));
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    if(progress < MIN_SENSOR_REFRESH) progress = MIN_SENSOR_REFRESH;
+                    tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + progress + getString(R.string.milliseconds));
+                    sensorRefreshTime = progress;
+                }
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar){ } //intentionally blank
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) { } //intentionally blank
+        });
 
-        // build a toggle button to display gps access
-        // GPS Toggle
-        gpsToggle();
+        // Get a list of all available sensors on the device and store in array
+        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        List<Sensor> deviceSensors = mSensorManager.getSensorList(Sensor.TYPE_ALL);
+        usableSensors = new int[deviceSensors.size()];
+        for (int i = 0; i < deviceSensors.size(); i++) {
+            usableSensors[i] = deviceSensors.get(i).getType();
+        }
+
+        IntentFilter batteryFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        registerReceiver(batteryReceiver, batteryFilter);
 
     }
 
@@ -137,10 +190,12 @@ public class MainActivity extends Activity implements SensorEventListener {
                 joSensorData.put("total_distance_km", gpsLogger.gpsTotalDistanceKM);
                 joSensorData.put("total_distance_miles", gpsLogger.gpsTotalDistanceMiles);
             }
-
+            // put battery status percentage into the Json.
+            if (batteryLevel > 0) {
+                joSensorData.put("battery_percentage", batteryLevel);
+            }
             // Store sensor update into sensor data structure
             for (int i = 0; i < event.values.length; i++) {
-
                 // We don't need the android.sensor. and motorola.sensor. stuff
                 // Split it out and just get the sensor name
                 String sensorName;
@@ -150,7 +205,6 @@ public class MainActivity extends Activity implements SensorEventListener {
                 } else {
                     sensorName = sensorHierarchyName[sensorHierarchyName.length - 1] + i;
                 }
-
                 // Store the actual sensor data now unless it's returning NaN or something crazy big or small
                 Float sensorValue = event.values[i];
                 if (!sensorValue.isNaN() && sensorValue < Long.MAX_VALUE && sensorValue > Long.MIN_VALUE) {
@@ -164,15 +218,19 @@ public class MainActivity extends Activity implements SensorEventListener {
                 updateScreen();
                 lastUpdate = System.currentTimeMillis();
                 esIndexer.index(joSensorData);
+
             }
         } catch (Exception e) {
             Log.v("JSON Logging error", e.toString());
         }
     }
+
     // Go through the sensor array and light them all up
     private void startLogging() {
+
         // Prevent screen from sleeping if logging has started
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        //check for gps access, store in preferences
         logging = true;
         startTime = System.currentTimeMillis();
         lastUpdate = startTime;
@@ -183,34 +241,32 @@ public class MainActivity extends Activity implements SensorEventListener {
         for (int usableSensor : usableSensors) {
             mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(usableSensor), SensorManager.SENSOR_DELAY_NORMAL);
         }
-        // Light up the GPS if we're allowed
-        CheckGPS();
-        updateScreen();
     }
+
     // Shut down the sensors by stopping listening to them
     private void stopLogging() {
+
         // Disable wakelock if logging has stopped
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         logging = false;
+        unregisterReceiver(batteryReceiver);
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText( getString(R.string.loggingStopped) );
         mSensorManager.unregisterListener(this);
-        // Disable GPS
-        gpsOFF();
-        updateScreen();
-    }
-    // identify sensors and add to array
-    private void enumerateSensors() {
-        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        List<Sensor> deviceSensors = mSensorManager.getSensorList(Sensor.TYPE_ALL);
-        usableSensors = new int[deviceSensors.size()];
-        for (int i = 0; i < deviceSensors.size(); i++) {
-            usableSensors[i] = deviceSensors.get(i).getType();
+
+        // Disable GPS if we allowed it.
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            try {
+                locationManager.removeUpdates(gpsLogger);
+                gpsOFF();
+            } catch (Exception e) {
+                Log.v("GPS Error", "GPS could not unbind");
+            }
         }
     }
+
     // Update the display with readings/written/errors
     private void updateScreen() {
-        ToggleButton toggleButton = (ToggleButton) findViewById(R.id.GPS_Toggle);
 
         String updateText = getString(R.string.Sensor_Readings) + esIndexer.indexRequests + "\n" +
             getString(R.string.Documents_Written) + esIndexer.indexSuccess + "\n" +
@@ -218,92 +274,49 @@ public class MainActivity extends Activity implements SensorEventListener {
             getString(R.string.Errors) + esIndexer.failedIndex;
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText(updateText);
-
-        if( gpsBool )
-            toggleButton.setTextOn(getString(R.string.gpsOn));
-        else
-            toggleButton.setTextOff(getString(R.string.gpsOff));
-        if( logging )
-            toggleButton.setVisibility(View.GONE);
-        else
-            toggleButton.setVisibility(View.VISIBLE);
     }
-    //main activity start logging button-- Main button
-    public void startButton(){
-        final Button btnStart = (Button) findViewById(R.id.btnStart);
-        btnStart.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if (!logging) {
-                    btnStart.setText(getString(R.string.buttonStop));
 
-                    startLogging();
-                    logging = true;
-                } else {
-                    btnStart.setText(getString(R.string.buttonStart));
-                    stopLogging();
-                    logging = false;
+    // Catch the permissions request for GPS being successful, and light up the GPS for this session
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case 1: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, gpsLogger);
+                    }
                 }
             }
-        });
-    }
-    // settings gear, top right of activity
-    public void settingsButton(){
-        final Intent settingsIntent = new Intent(this, SettingsActivity.class);
-        final ImageButton ibSetup = (ImageButton) findViewById(R.id.ibSetup);
-        ibSetup.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                startActivity(settingsIntent);
-            }
-        });
-    }
-    //main activity seek bar to change the tick interval
-    public void intervalSeekBar(){
-        final SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar2);
-        final TextView tvSeekBarText = (TextView) findViewById(R.id.TickText);
-        tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + seekBar.getProgress() + getString(R.string.milliseconds));
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser) {
-                    if(progress < MIN_SENSOR_REFRESH) progress = MIN_SENSOR_REFRESH;
-                    tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + progress + getString(R.string.milliseconds));
-                    sensorRefreshTime = progress;
-                }
-            }
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar){ } //intentionally blank
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) { } //intentionally blank
-        });
+        }
     }
 
-    // gps Toggle Button, Main Activity
-    public void gpsToggle(){
-        final ToggleButton toggleButton = (ToggleButton) findViewById(R.id.GPS_Toggle);
-        toggleButton.setTextOff(getString(R.string.gpsOff));
-
-        toggleButton.setOnCheckedChangeListener( new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                gpsBool = isChecked;
-                if( gpsBool )
-                    toggleButton.setTextOn(getString(R.string.gpsOn));
-                else
-                    toggleButton.setTextOff(getString(R.string.gpsOff));
-
-            }
-        });
+    // unbind GPS listener, should stop GPS thread in 2.0
+    public void gpsOFF(){
+        //unbind GPS listener if permission was granted
+        if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.
+                ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED )
+            locationManager.removeUpdates(gpsLogger);
+        else if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.
+                ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_DENIED)
+        {
+            Log.v("GPS Denied", "GPS Denied");
+        }//intentionally blank, if permission is denied initially, gps was not on
+        else //anything else
+            Log.v("GPS Error", "GPS could not unbind");
     }
 
     // GPS on/off persistent on app restart
     public void CheckGPS()
     {
+        CompoundButton GpsButton = (CompoundButton) findViewById(R.id.GPS_Toggle);
         // if the user has already been asked about GPS access, do not ask again
         // else ask and verify access before listening
         if(!gpsChoosen) {
             if(sharedPrefs.getBoolean("GPS_bool", true) ) {
                 gpsChoosen = true;
                 gpsBool = true;
+                GpsButton.setChecked(true);
             } else {
                 gpsChoosen = true;
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
@@ -317,18 +330,24 @@ public class MainActivity extends Activity implements SensorEventListener {
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, gpsLogger);
         }
     }
-    // unbind GPS listener, should stop GPS thread in 2.0
-    public void gpsOFF(){
-        //unbind GPS listener if permission was granted
-        if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.
-                                    ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED )
-            locationManager.removeUpdates(gpsLogger);
-        else if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.
-                ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_DENIED)
-        {}//intentionally blank, if permission is denied initially, gps was not on
-        else //anything else
-            Log.v("GPS Error", "GPS could not unbind");
+
+    @Override
+    protected void onPause() {
+        super.onPause();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+    }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+    }
 }
