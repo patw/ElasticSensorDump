@@ -33,10 +33,11 @@ public class SettingsActivity extends PreferenceActivity
         SharedPreferences sharedPrefs =
                 PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 
-        String es_host = sharedPrefs.getString("host", "localhost");
-        String es_port = sharedPrefs.getString("port", "9200");
-        String es_index = sharedPrefs.getString("index", "sensor_dump");
-        String es_type = sharedPrefs.getString("type", "phone_data");
+        String  es_host = sharedPrefs.getString("host", "localhost");
+        String  es_port = sharedPrefs.getString("port", "9200");
+        String  es_index = sharedPrefs.getString("index", "sensor_dump");
+        String  es_type = sharedPrefs.getString("type", "phone_data");
+        boolean es_gps = sharedPrefs.getBoolean("GPS_bool_preference", false);
 
         String current_values = "http://" + es_host + ":" + es_port + "/"
                 + es_index + "/" + es_type;
@@ -45,3 +46,4 @@ public class SettingsActivity extends PreferenceActivity
     }
 
 }
+
