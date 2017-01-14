@@ -35,9 +35,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
-import static android.R.attr.button;
-
-
 public class MainActivity extends Activity implements SensorEventListener {
 
     private static int MIN_SENSOR_REFRESH = 50;
@@ -271,7 +268,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         String updateText = getString(R.string.Sensor_Readings) + esIndexer.indexRequests + "\n" +
             getString(R.string.Documents_Written) + esIndexer.indexSuccess + "\n" +
             getString(R.string.GPS_Updates) + gpsLogger.gpsUpdates + "\n" +
-            getString(R.string.Errors) + esIndexer.failedIndex;
+            getString(R.string.Errors) + esIndexer.failedIndex + "\n" +
+                "Batter sensor" + batteryLevel;
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText(updateText);
     }
