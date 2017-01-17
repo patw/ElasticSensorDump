@@ -10,44 +10,6 @@
     tools:context="ca.dungeons.sensordump.MainActivity"
     android:background="@color/backGroundGreyTint">
 
-    <ImageView
-        android:background="@drawable/elastic_logo"
-        android:alpha=".1"
-        android:adjustViewBounds="false"
-        android:layout_width="300dp"
-        android:layout_height="300dp"
-        android:contentDescription="@string/app_name"
-        android:layout_centerHorizontal="true"
-        android:foregroundGravity="bottom" />
-
-
-    <LinearLayout
-        android:orientation="horizontal"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentEnd="true"
-        tools:ignore="RelativeOverlap">
-
-        <ToggleButton
-            android:text="@string/togglebutton"
-            android:layout_width="wrap_content"
-            android:layout_height="50dp"
-            android:id="@+id/GPS_Toggle"
-            android:textOff="@string/gps_off"
-            android:textOn="@string/gpsOn"
-            android:textSize="16sp"
-            android:background="@color/backGroundGreyTint" />
-
-        <ImageButton
-            android:id="@+id/ibSetup"
-            android:layout_height="50dp"
-            android:src="@mipmap/ic_gear"
-            android:alpha=".5"
-            android:foregroundGravity="top"
-            android:contentDescription="@string/settings"
-            android:layout_width="50dp" />
-    </LinearLayout>
 
     <LinearLayout
         android:orientation="vertical"
@@ -78,22 +40,191 @@
 
         <SeekBar
             style="@style/SeekBarseekBar"
-            android:layout_width="@android:dimen/thumbnail_width"
             android:layout_height="wrap_content"
-            android:max="1000"
-            android:progress="250"
-            android:id="@+id/seekBar" />
+            android:max="100"
+            android:progress="25"
+            android:id="@+id/seekBar"
+            android:layout_width="200dp" />
 
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/tvProgress"
+    <ImageView
+        android:background="@drawable/elastic_logo"
+        android:alpha=".1"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:contentDescription="@string/app_name"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true"
+        android:foregroundGravity="bottom" />
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="250dp"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentStart="true"
+        android:padding="15dp"
+        android:id="@+id/Vertical_layout">
+
+        <TextView
+            android:id="@+id/main_Banner"
+            android:layout_width="match_parent"
+            android:layout_height="66dp"
+            android:text="@string/No_Sensor_Readings"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:textAlignment="center"
+            android:textSize="30sp" />
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingBottom="15dp"
+            android:paddingTop="15dp"
+            android:clickable="false">
+
+            <TextView
+                android:text="@string/Sensor_Readings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/textView1"
+                android:layout_weight="1"
+                android:textSize="18sp"
+                android:textAlignment="textEnd" />
+
+            <TextView
+                android:text="@string/sensor_tv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/sensor_tv"
+                android:layout_weight="1"
+                android:textAlignment="center"
+                android:textColor="@android:color/background_dark"
+                android:textSize="24sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingBottom="15dp"
+            android:paddingTop="15dp"
+            android:clickable="false">
+
+            <TextView
+                android:text="@string/Documents_Written"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/Documents_Written_tv"
+                android:layout_weight="1"
+                android:textSize="18sp"
+                android:textAlignment="textEnd"/>
+
+            <TextView
+                android:text="@string/documents_tv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/documents_tv"
+                android:layout_weight="1"
+                android:textAlignment="center"
+                android:textColor="@android:color/background_dark"
+                android:textSize="24sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingBottom="15dp"
+            android:paddingTop="15dp"
+            android:textAlignment="center"
+            android:clickable="false">
+
+            <TextView
+                android:text="@string/GPS_Updates"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/GPS_Updates_tv"
+                android:layout_weight="1"
+                android:textSize="18sp"
+                android:textAlignment="textEnd"/>
+
+            <TextView
+                android:text="@string/gps_tv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/gps_TV"
+                android:layout_weight="1"
+                android:textAlignment="center"
+                android:textColor="@android:color/background_dark"
+                android:textSize="24sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingBottom="15dp"
+            android:paddingTop="15dp"
+            android:layout_marginBottom="40dp"
+            android:clickable="false">
+
+            <TextView
+                android:text="@string/Errors"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/Error_tv"
+                android:layout_weight="1"
+                android:textSize="18sp"
+                android:textAlignment="textEnd"/>
+
+            <TextView
+                android:text="@string/errors_tv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/errors_TV"
+                android:layout_weight="1"
+                android:textAlignment="center"
+                android:textColor="@android:color/background_dark"
+                android:textSize="24sp" />
+        </LinearLayout>
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:clickable="false" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/No_Sensor_Readings"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:layout_marginTop="110dp"
-        android:layout_centerHorizontal="true" />
+        tools:ignore="RelativeOverlap"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true">
+
+        <ToggleButton
+            android:text="@string/togglebutton"
+            android:layout_width="wrap_content"
+            android:layout_height="50dp"
+            android:id="@+id/GPS_Toggle"
+            android:textOff="@string/gps_off"
+            android:textOn="@string/gpsOn"
+            android:textSize="16sp"
+            android:background="@color/backGroundGreyTint" />
+
+        <ImageButton
+            android:id="@+id/ibSetup"
+            android:layout_height="50dp"
+            android:src="@mipmap/ic_gear"
+            android:alpha="1"
+            android:foregroundGravity="top"
+            android:contentDescription="@string/settings"
+            android:layout_width="50dp"
+            android:background="@color/backGroundGreyTint" />
+    </LinearLayout>
 
 
 </RelativeLayout>

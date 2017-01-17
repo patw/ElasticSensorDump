@@ -1,11 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <EditTextPreference
-        android:defaultValue="sensor_dump"
-        android:key="index"
-        android:summary="Index to find your data"
-        android:title="ES Index"></EditTextPreference>
-    <EditTextPreference
         android:key="host"
         android:summary="Host or IP for elastic search server"
         android:title="ES Host"></EditTextPreference>
@@ -15,15 +10,15 @@
         android:summary="Port for ES index. Usually 9200"
         android:title="ES Port"></EditTextPreference>
     <EditTextPreference
+        android:defaultValue="sensor_dump"
+        android:key="index"
+        android:summary="Index to find your data"
+        android:title="ES Index"></EditTextPreference>
+    <EditTextPreference
         android:defaultValue="phone_data"
         android:key="type"
-        android:title="Device Type"
+        android:title="ES Type"
         android:summary="phone_index = default"></EditTextPreference>
-    <CheckBoxPreference
-        android:defaultValue="false"
-        android:title="Persistant GPS"
-        android:key="GPS_bool"
-        android:summary="Allow GPS access on restart" />
     <EditTextPreference
         android:defaultValue=""
         android:key="user"
