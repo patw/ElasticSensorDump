@@ -16,8 +16,6 @@ import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.os.BatteryManager;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
-import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
@@ -31,11 +29,11 @@ import android.widget.TextView;
 import android.widget.ToggleButton;
 
 import org.json.JSONObject;
-import org.w3c.dom.Text;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.ServiceConfigurationError;
 
 public class MainActivity extends Activity implements SensorEventListener {
 
@@ -73,7 +71,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     };
 
     boolean gpsChoosen = false;
-    boolean gpsBool = false;
+    boolean gpsAccess = false;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -81,7 +79,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         setContentView(R.layout.activity_main);
         // Prevent screen from going into landscape
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
-        sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        sharedPrefs = this.getPreferences(Activity.MODE_PRIVATE);
         // main activity buttons
         buildButtonLogic();
         // Get a list of all available sensors on the device and store in array
@@ -179,16 +177,21 @@ public class MainActivity extends Activity implements SensorEventListener {
         // Prevent screen from sleeping if logging has started
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         //check for gps access, store in preferences
-        logging = true;
         startTime = System.currentTimeMillis();
         lastUpdate = startTime;
         gpsLogger.resetGPS();
         esIndexer = new ElasticSearchIndexer();
         esIndexer.updateURL(sharedPrefs);
-        // Bind all sensors to activity
-        for (int usableSensor : usableSensors) {
-            mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(usableSensor), SensorManager.SENSOR_DELAY_NORMAL);
+        try {
+            gpsPower();
+            // Bind all sensors to activity
+            for (int usableSensor : usableSensors) {
+                mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(usableSensor), SensorManager.SENSOR_DELAY_NORMAL);
+            }
+        }catch(Exception e){
+            Log.v("Error starting a sensor", "Error starting a sensor!!");
         }
+
     }
 
     // Shut down the sensors by stopping listening to them
@@ -196,10 +199,13 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         // Disable wakelock if logging has stopped
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        unregisterReceiver(batteryReceiver);
-        mSensorManager.unregisterListener(this);
-        gpsOFF();
-        logging = false;
+        try {
+            unregisterReceiver(batteryReceiver);
+            mSensorManager.unregisterListener(this);
+            gpsPower();
+        }catch( Exception e){
+            Log.v("Stop Logging", " Error stopLogging() ");
+        }
     }
 
     // Update the display with readings/written/errors
@@ -262,7 +268,6 @@ public class MainActivity extends Activity implements SensorEventListener {
                     sensorRefreshTime = progress * 10;
                 }
             }
-
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {
             } //intentionally blank
@@ -280,81 +285,72 @@ public class MainActivity extends Activity implements SensorEventListener {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 // if the toggle button changed to ON do...
                 if (isChecked) {
-                    gpsOn();
+                    // asks for permission if sharedPrefs does not contain a value for gpsChosen.
+                    gpsAccess = gpsPermission();
+                    gpsPower();
                 // if the toggle button is changed to OFF do...
                 } else {
                     // if we have gps access turn off receivers
-                    if( gpsPermission() ) {
+                    if( logging ) {
                         try {
-                            gpsOFF();
-                            // update sharedPrefs : gpsBool  to FALSE
-                            GpsToPrefs("GPS_Permission", false);
-                            // update sharedPrefs : gpsChoosen to TRUE
-                            GpsToPrefs("GPS_ASKEDforPermission", true);
+                            gpsPower();
                         } catch (Exception e) {
                             Log.v("GPS_TOGGLE_PROBLEM", "GPS_TOGGLE_PROBLEM");
                         }
                     }
                 }
-
             }
 
         });
     // end build button logic
     }
-    //     write the result of asking for GPS access
+    // write the result of asking for GPS access
     void GpsToPrefs(String asked, boolean permission) {
         SharedPreferences.Editor sharedPref_Editor = sharedPrefs.edit();
         sharedPref_Editor.putBoolean(asked, permission);
         sharedPref_Editor.apply();
     }
-    // true = we have asked for permission, and it was granted
-    boolean gpsPermission() {
-        gpsChoosen = sharedPrefs.getBoolean("GPS_ASKEDforPermission", false);
-        if( !gpsChoosen ) {
-            requestGpsPermission();
-            return sharedPrefs.getBoolean("GPS_Permission", false);
-        }
-        return sharedPrefs.getBoolean("GPS_Permission", false);
-    }
     // ask user to grant gps access & write result to sharedPrefs
     void requestGpsPermission(){
         try{
-            Log.v("CHECK DPS", "Check GPS FAIL");
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-            gpsBool = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-            GpsToPrefs("GPS_Permission", gpsBool);
+            gpsAccess = ( ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED );
+            GpsToPrefs("GPS_Permission", gpsAccess);
             GpsToPrefs("GPS_ASKEDforPermission", true);
         }catch( SecurityException e) {
             Log.v("CHECK DPS", "Check GPS FAIL");
         }
-
     }
-    // unbind GPS listener, should stop GPS thread in 2.0
-    public void gpsOFF(){
-        //unbind GPS listener if permission was granted
-        if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.
-                ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED )
-            locationManager.removeUpdates(gpsLogger);
-        else if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.
-                ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_DENIED)
-            Log.v("GPS Denied", "GPS Denied");
-        //intentionally blank, if permission is denied initially, gps was not on
-        else //anything else
-            Log.v("GPS Error", "GPS could not unbind");
+    // true = we have asked for permission, and it was granted
+    boolean gpsPermission() {
+        // if sharedPrefs does NOT contain a string for ASK for permission
+        String TempGosChosen = sharedPrefs.getString("GPS_ASKEDforPermission",null);
+        if( TempGosChosen == null ) {
+            requestGpsPermission();
+            sharedPrefs.getBoolean("GPS_ASKEDforPermission", true);
+            return sharedPrefs.getBoolean("GPS_Permission", false);
+        }
+        return sharedPrefs.getBoolean("GPS_Permission", false);
     }
-    // GPS on/off persistent on app restart
-    public void gpsOn()
+    // GPS on/off
+    public void gpsPower()
     {
-        // Light up the GPS if we're allowed
-        if ( gpsPermission() ) {
-            Log.v("CHECK DPS", "Check GPS FAIL");
+        if ( logging && gpsAccess ) {
+            //unbind GPS listener if permission was granted && we are logging
+            try {
+                locationManager.removeUpdates(gpsLogger);
+            }catch(SecurityException e){
+                Log.e("ERROR: GPS receivers" ,"ERROR: GPS receivers are not running" );
+            }
+        }else if( !logging && gpsAccess ){ // Light up the GPS if we're allowed
             try{
                 locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, gpsLogger);
             }catch(SecurityException e){
-                Log.v("CHECK DPS", "Check GPS FAIL");
+                Log.v("GPS ON", "GPS ON FAILED:: CHECK gpsPower()");
             }
+        }else{
+            Log.v("gpsPower()", "Either not logging or we don't have permission");
         }
     }
 
