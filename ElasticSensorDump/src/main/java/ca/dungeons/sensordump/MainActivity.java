@@ -33,7 +33,6 @@ import org.json.JSONObject;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import java.util.ServiceConfigurationError;
 
 public class MainActivity extends Activity implements SensorEventListener {
 
@@ -43,7 +42,6 @@ public class MainActivity extends Activity implements SensorEventListener {
     private LocationManager locationManager;
     // Config data
     private SharedPreferences sharedPrefs;
-    private TextView tvProgress = null;
     private GPSLogger gpsLogger = new GPSLogger();
 
     // JSON structure for sensor and gps data
@@ -70,7 +68,6 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     };
 
-    boolean gpsChoosen = false;
     boolean gpsAccess = false;
 
     @Override
@@ -183,7 +180,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         esIndexer = new ElasticSearchIndexer();
         esIndexer.updateURL(sharedPrefs);
         try {
-            gpsPower();
+            gpsPower("ON");
             // Bind all sensors to activity
             for (int usableSensor : usableSensors) {
                 mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(usableSensor), SensorManager.SENSOR_DELAY_NORMAL);
@@ -202,7 +199,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         try {
             unregisterReceiver(batteryReceiver);
             mSensorManager.unregisterListener(this);
-            gpsPower();
+            gpsPower("OFF");
         }catch( Exception e){
             Log.v("Stop Logging", " Error stopLogging() ");
         }
@@ -287,20 +284,19 @@ public class MainActivity extends Activity implements SensorEventListener {
                 if (isChecked) {
                     // asks for permission if sharedPrefs does not contain a value for gpsChosen.
                     gpsAccess = gpsPermission();
-                    gpsPower();
+                    gpsPower("ON");
                 // if the toggle button is changed to OFF do...
                 } else {
                     // if we have gps access turn off receivers
                     if( logging ) {
                         try {
-                            gpsPower();
+                            gpsPower("OFF");
                         } catch (Exception e) {
                             Log.v("GPS_TOGGLE_PROBLEM", "GPS_TOGGLE_PROBLEM");
                         }
                     }
                 }
             }
-
         });
     // end build button logic
     }
@@ -333,16 +329,16 @@ public class MainActivity extends Activity implements SensorEventListener {
         return sharedPrefs.getBoolean("GPS_Permission", false);
     }
     // GPS on/off
-    public void gpsPower()
+    public void gpsPower(String power)
     {
-        if ( logging && gpsAccess ) {
+        if ( power.equals("OFF") && gpsAccess ) {
             //unbind GPS listener if permission was granted && we are logging
             try {
                 locationManager.removeUpdates(gpsLogger);
             }catch(SecurityException e){
                 Log.e("ERROR: GPS receivers" ,"ERROR: GPS receivers are not running" );
             }
-        }else if( !logging && gpsAccess ){ // Light up the GPS if we're allowed
+        }else if( power.equals("ON") && gpsAccess ){ // Light up the GPS if we're allowed
             try{
                 locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, gpsLogger);
