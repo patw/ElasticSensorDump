@@ -138,9 +138,9 @@ class ElasticSearchIndexer {
                     }
 
                     // Only show errors for index requests, not the mapping request
-                    if (isCreatingMapping) {
+                    if (isCreatingMapping)
                         isCreatingMapping = false;
-                    } else {
+                    else {
                         Log.v("Index Request", "" + indexRequests);
                         Log.v("Fail Reason", e.toString());
                         Log.v("Fail URL", url);
@@ -149,9 +149,9 @@ class ElasticSearchIndexer {
                     }
                 }
                 // We are no longer creating the mapping.  Time for sensor readings!
-                if (isCreatingMapping) {
+                if (isCreatingMapping)
                     isCreatingMapping = false;
-                }
+
 
                 // Bulk success!
                 if (isBulk) {
@@ -179,11 +179,10 @@ class ElasticSearchIndexer {
 
     // Build the URL based on the config data
     private String buildURL() {
-        if (esSSL) {
+        if (esSSL)
             return "https://" + esHost + ":" + esPort + "/" + esIndex + "/";
-        } else {
+        else
             return "http://" + esHost + ":" + esPort + "/" + esIndex + "/";
-        }
     }
 
     // Send mapping to elastic for sensor index using PUT
@@ -213,11 +212,10 @@ class ElasticSearchIndexer {
         StringBuilder bulkDataList = new StringBuilder();
 
         // Bulk index url
-        if (esSSL) {
+        if (esSSL)
             url = "https://" + esHost + ":" + esPort + "/_bulk";
-        } else {
+         else
             url = "http://" + esHost + ":" + esPort + "/_bulk";
-        }
 
         for (String failedJsonDoc : failedJSONDocs) {
             bulkDataList.append("{\"index\":{\"_index\":\"").append(esIndex)
@@ -235,17 +233,15 @@ class ElasticSearchIndexer {
     void index(JSONObject joIndex) {
 
         // Create the mapping on first request
-        if (isCreatingMapping && indexRequests == 0) {
+        if (isCreatingMapping && indexRequests == 0)
             createMapping();
-        }
 
         String jsonData = joIndex.toString();
         String url = buildURL() + esType + "/";
 
         // If we have some data, it's good to post
-        if (jsonData != null) {
+        if (jsonData != null)
             callElasticAPI("POST", url, jsonData, false);
-        }
 
         // Try it again!
         if (isLastIndexSuccessful && failedJSONDocs.size() > 0 && !isRetryingFailedIndexes) {

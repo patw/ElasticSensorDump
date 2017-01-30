@@ -95,7 +95,7 @@
                 android:textAlignment="textEnd" />
 
             <TextView
-                android:text="@string/sensor_tv"
+                android:text="0"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/sensor_tv"
@@ -122,7 +122,7 @@
                 android:textAlignment="textEnd"/>
 
             <TextView
-                android:text="@string/documents_tv"
+                android:text="0"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/documents_tv"
@@ -151,7 +151,7 @@
                 android:textAlignment="textEnd"/>
 
             <TextView
-                android:text="@string/gps_tv"
+                android:text="0"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/gps_TV"
@@ -180,7 +180,7 @@
                 android:textAlignment="textEnd"/>
 
             <TextView
-                android:text="@string/errors_tv"
+                android:text="0"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/errors_TV"
