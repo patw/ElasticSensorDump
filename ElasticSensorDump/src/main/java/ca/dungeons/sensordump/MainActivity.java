@@ -33,6 +33,7 @@ import org.json.JSONObject;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends Activity implements SensorEventListener {
     // if we are logging, "main power button"
@@ -101,7 +102,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         try {
             // Update timestamp in sensor data structure
             Date logDate = new Date(System.currentTimeMillis());
-            SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
+            SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ", Locale.US);
             String dateString = logDateFormat.format(logDate);
             joSensorData.put("@timestamp", dateString);
 
@@ -162,6 +163,14 @@ public class MainActivity extends Activity implements SensorEventListener {
                 updateScreen();
                 lastUpdate = System.currentTimeMillis();
                 esIndexer.index(joSensorData);
+            }
+
+            // update gps access once per 5 seconds
+            // turn the gps Power true/false
+            if(System.currentTimeMillis() > lastUpdate + 5000){
+                if(gpsAccess)
+                        gpsPower(true);
+
             }
 
         } catch (Exception e) {
@@ -236,10 +245,10 @@ public class MainActivity extends Activity implements SensorEventListener {
             } //intentionally blank
         });
 
-        /* GPS Toggle
-            gps recording on/off
-            gpsPermission() will only return TRUE  IF  we have both access and permission
-        */
+         /*
+        * GPS Toggle
+        * gps recording on/off
+         */
         final ToggleButton toggleButton = (ToggleButton) findViewById(R.id.GPS_Toggle);
         toggleButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -249,21 +258,21 @@ public class MainActivity extends Activity implements SensorEventListener {
         });
     }
 
-    /*  INTENT:
-        write additional preferences
-        form of String Boolean
-    */
+     /*
+    * String asked = preferences key
+    * boolean permission = if the gps button is on && we have gps access
+     */
     void stringBooleanToPrefs(String asked, boolean permission) {
         SharedPreferences.Editor sharedPref_Editor = sharedPrefs.edit();
         sharedPref_Editor.putBoolean(asked, permission);
         sharedPref_Editor.apply();
     }
 
-    /*  INTENT:
-        ask user to grant gps access
-        write result to sharedPrefs
-        true = we have asked for permission, and it was granted
-    */
+     /*
+    * ask user to grant gps access
+    * write result to sharedPrefs
+    * true = we have asked for permission, and it was granted
+     */
     public boolean gpsPermission() {
         // if sharedPrefs does NOT contain a string for ASK for permission
         String tempGpsChosen = sharedPrefs.getString("GPS_ASKEDforPermission", null);
@@ -287,8 +296,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         return sharedPrefs.getBoolean("GPS_Permission", false);
     }
 
-    /*  INTENT:
-        turn gps recording ON or OFF
+     /*
+    * turn gps recording ON or OFF
      */
     public void gpsPower(boolean power) {
         if ( power && gpsPermission() ) {// Light up the GPS if we're allowed
@@ -307,9 +316,11 @@ public class MainActivity extends Activity implements SensorEventListener {
         }else
             Log.e("ERROR: GPS POWER", "ERROR: GPS power function");
     }
-    // Go through the sensor array and light them all up
-    private void startLogging() {
 
+     /*
+    * Go through the sensor array and light them all up
+     */
+    private void startLogging() {
         // Prevent screen from sleeping if logging has started
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         //check for gps access, store in preferences
@@ -336,7 +347,9 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     }
 
-    // Shut down the sensors by stopping listening to them
+     /*
+    * Shut down the sensors by stopping listening to them
+     */
     private void stopLogging() {
         // Disable wakelock if logging has stopped
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
