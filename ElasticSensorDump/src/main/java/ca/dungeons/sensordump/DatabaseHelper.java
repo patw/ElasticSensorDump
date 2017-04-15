@@ -1,10 +1,13 @@
 package ca.dungeons.sensordump;
 
 // This class handles all the database activities
+import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.content.Context;
 import android.content.ContentValues;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.util.Log;
 import org.json.JSONObject;
@@ -26,10 +29,9 @@ class DatabaseHelper extends SQLiteOpenHelper{
     static final String TABLE_NAME = "StorageTable";
 
     /** json text. */
-    static final String dataColumn = "JSON";
+    private static final String dataColumn = "JSON";
 
-    /** Get a new instance of the background Async task. */
-    private UploadAsyncTask backgroundThread;
+    private Context passedContext;
 
     /**
      * Default constructor. Creates a new dataBase if required.
@@ -37,7 +39,7 @@ class DatabaseHelper extends SQLiteOpenHelper{
      */
     DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
-        backgroundThread = new UploadAsyncTask( context.getApplicationContext() );
+        passedContext = context;
     }
 
     /**
@@ -48,7 +50,6 @@ class DatabaseHelper extends SQLiteOpenHelper{
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
-        onCreate(db);
     }
 
     /**
@@ -57,13 +58,12 @@ class DatabaseHelper extends SQLiteOpenHelper{
      * One for KEY storage.
      * One for the json text string.
      * Execute dataBase creation.
-     * @param dataBase Passed dataBase. Needs to be writable.
+     * @param db Passed dataBase. Needs to be writable.
      */
     @Override
-    public void onCreate(SQLiteDatabase dataBase) {
-
+    public void onCreate(SQLiteDatabase db) {
         String query = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (ID INTEGER PRIMARY KEY, JSON TEXT);";
-        dataBase.execSQL( query );
+        db.execSQL( query );
     }
 
     /**
@@ -73,32 +73,38 @@ class DatabaseHelper extends SQLiteOpenHelper{
      * Will also start a background thread to upload the database to Kibana.
      * @param jsonObject Passed object to be inserted.
      */
-    void JsonToDatabase(JSONObject jsonObject){
-        SQLiteDatabase storageWriteDatabase = getWritableDatabase();
+    boolean JsonToDatabase(JSONObject jsonObject){
+
         ContentValues values = new ContentValues();
+        ConnectivityManager connectionManager = (ConnectivityManager) passedContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connectionManager.getActiveNetworkInfo();
+
         values.put(dataColumn, jsonObject.toString() );
-        long checkDB = storageWriteDatabase.insert( TABLE_NAME, null, values);
+        long checkDB = this.getWritableDatabase().insert( TABLE_NAME, null, values);
+
+        //For testing purposes. REMOVE !
+        if(checkDB == -1){
+            Log.e("Failed insert","Failed insert database.");
+            return false;
+        }
 
         // Start the background upload task.
-        if( backgroundThread.getStatus() != AsyncTask.Status.RUNNING ){
-            backgroundThread.execute();
+        if( networkInfo != null ){
+            UploadAsyncTask backgroundThread = new UploadAsyncTask( passedContext );
+            if( backgroundThread.getStatus() != AsyncTask.Status.RUNNING ){
+                backgroundThread.execute();
+            }
         }
-        //For testing purposes. REMOVE !
-        if(checkDB == -1)
-            Log.v("Failed insert","Failed insert database.");
-        else
-            Log.v("Inserted","inserted " + values);
-
+    MainActivity.databaseEntries = DatabaseUtils.queryNumEntries(this.getReadableDatabase(), DatabaseHelper.TABLE_NAME, null );
+    return true;
     }
 
-    /**
-     * Delete top row from the database.
-     */
-    void deleteTopJson(){
-        SQLiteDatabase db = getWritableDatabase();
-        db.execSQL("DELETE FROM " + TABLE_NAME + " WHERE " + dataColumn + "IN (SELECT _id FROM "
-                + TABLE_NAME + " ORDER BY _id LIMIT 1)");
-        Log.v("TOP deleted", String.format("%S%S%S","The top index of ", TABLE_NAME, " was delete."));
+    /** Delete top row from the database. */
+    void deleteTopJson() {
+        String sqlCommand = "DELETE FROM " + TABLE_NAME + " WHERE ID IN (SELECT ID FROM "
+                + TABLE_NAME + " ORDER BY ID ASC LIMIT 1)";
+        this.getWritableDatabase().execSQL(sqlCommand);
+        Log.i("TOP deleted", String.format("%S", "The top index of StorageTable was deleted."));
     }
 
 }

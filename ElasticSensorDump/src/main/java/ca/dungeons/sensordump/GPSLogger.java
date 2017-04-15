@@ -5,33 +5,23 @@ import android.location.LocationListener;
 import android.os.Bundle;
 
 class GPSLogger implements LocationListener {
-
-    boolean gpsHasData = false;
-    double gpsLat;
-    double gpsLong;
-    double gpsAlt;
-    float gpsAccuracy;
-    float gpsBearing;
     String gpsProvider;
-    float gpsSpeed;
-    float gpsSpeedKMH;
-    float gpsSpeedMPH;
     int gpsUpdates = 0;
-    double gpsLatStart;
-    double gpsLongStart;
-    float gpsAcceleration;
-    float gpsAccelerationKMH;
-    float gpsAccelerationMPH;
-    double gpsDistanceMetres;
-    double gpsDistanceFeet;
-    double gpsTotalDistance;
-    double gpsTotalDistanceKM;
-    double gpsTotalDistanceMiles;
-
+    double gpsLat, gpsLong, gpsAlt;
+    double gpsLatStart, gpsLongStart;
+    double gpsDistanceMetres, gpsDistanceFeet, gpsTotalDistance;
+    double gpsTotalDistanceKM, gpsTotalDistanceMiles;
+    float gpsAccuracy, gpsBearing;
+    float gpsSpeed, gpsSpeedKMH, gpsSpeedMPH;
+    float gpsAcceleration, gpsAccelerationKMH, gpsAccelerationMPH;
     private float lastSpeed;
-    private double lastLat;
-    private double lastLong;
+    private double lastLat, lastLong;
+    boolean gpsHasData = false;
 
+    /**
+     * Lister for when the GPS reports a location change.
+     * @param location Current location.
+     */
     @Override
     public void onLocationChanged(Location location) {
 
@@ -52,7 +42,8 @@ class GPSLogger implements LocationListener {
             lastLong = gpsLong;
         }
 
-        this.gpsUpdates += 1;
+        gpsUpdates++;
+        MainActivity.gpsReadings = gpsUpdates;
 
         // Metre per second is not ideal. Adding km/hr and mph as well
         gpsSpeedKMH = gpsSpeed * (float) 3.6;
@@ -87,22 +78,15 @@ class GPSLogger implements LocationListener {
         gpsHasData = true;
     }
 
-    void resetGPS() {
-        gpsUpdates = 0;
-    }
+    /** Reset the gps event counter. */
+    void resetGPS(){ gpsUpdates = 0; }
 
     @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-
-    }
+    public void onStatusChanged(String provider, int status, Bundle extras){}
 
     @Override
-    public void onProviderEnabled(String provider) {
-
-    }
+    public void onProviderEnabled(String provider){}
 
     @Override
-    public void onProviderDisabled(String provider) {
-
-    }
+    public void onProviderDisabled(String provider){}
 }
