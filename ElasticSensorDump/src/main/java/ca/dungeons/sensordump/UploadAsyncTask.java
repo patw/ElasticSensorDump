@@ -72,7 +72,7 @@ class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
             Log.e("Network Connection", "Failed to connect to elastic. " + IOex.getMessage() + "  " + IOex.getCause());
         }
 
-        if( readableDatabase.getMaximumSize() >= 1 && outputStreamWriter != null ) {
+        if( readableDatabase.getMaximumSize() >= 1 ) {
 
             String sqLiteQuery = "SELECT * FROM " + DatabaseHelper.TABLE_NAME + " ORDER BY ID ASC LIMIT 1";
             Cursor cursor = readableDatabase.rawQuery(sqLiteQuery, new String[]{} );
@@ -81,7 +81,7 @@ class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
                 try {
                     JSONObject jsonObject = new JSONObject( cursor.getString(1) );
                     // if the json is not empty, send to kibana
-                    if ( jsonObject.length() != 0 && outputStreamWriter != null) {
+                    if ( jsonObject.length() != 0 ) {
                         if( ElasticSearchIndexer.index( jsonObject ) )
                             dbHelper.deleteTopJson();
                     }

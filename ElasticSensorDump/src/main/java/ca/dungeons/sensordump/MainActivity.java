@@ -208,9 +208,6 @@ public class MainActivity extends Activity implements SensorEventListener {
             // 250ms is the default setting.
             if (System.currentTimeMillis() > lastUpdate + sensorRefreshTime) {
                 updateScreen();
-                // turn the gps Power true/false
-                if(gpsLogging)
-                    gpsPower(true);
                 dbHelper.JsonToDatabase(joSensorData);
                 sensorReadings++;
                 lastUpdate = System.currentTimeMillis();

@@ -72,6 +72,9 @@ final class ElasticSearchIndexer{
     /** Send mapping to elastic for sensor index. */
     private static void createMapping() {
 
+        if(mappingCreated){
+            return;
+        }
         JSONObject mappings = new JSONObject();
         try {
             JSONObject typeGeoPoint = new JSONObject().put("type", "geo_point");
@@ -85,7 +88,8 @@ final class ElasticSearchIndexer{
             mappingCreated = false;
         }
 
-        index( mappings );
+        System.out.print(mappings);
+        //index( mappings );
         mappingCreated = true;
     }
 
@@ -100,12 +104,12 @@ final class ElasticSearchIndexer{
             createMapping();
         }
 
-
         // If we have some data, it's good to post
         if ( jsonObject != null ) {
             try {
                 UploadAsyncTask.outputStreamWriter.write( jsonObject.toString() );
                 checkResponseCode();
+                MainActivity.documentsIndexed++;
             }catch(IOException IOex) {
                 // Error writing to httpConnection.
                 MainActivity.uploadErrors++;
