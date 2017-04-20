@@ -72,24 +72,25 @@ final class ElasticSearchIndexer{
     /** Send mapping to elastic for sensor index. */
     private static void createMapping() {
 
+        //If we have uploaded a map this session.
         if(mappingCreated){
             return;
         }
+        // Json object mappings first packet of data to upload to elastic.
         JSONObject mappings = new JSONObject();
         try {
-            JSONObject typeGeoPoint = new JSONObject().put("type", "geo_point");
-            JSONObject mappingTypes = new JSONObject().put("start_location", typeGeoPoint);
-            mappingTypes.put("location", typeGeoPoint);
-            JSONObject properties = new JSONObject().put("properties",mappingTypes);
-            JSONObject indexType = new JSONObject().put(esType, properties);
-            mappings = new JSONObject().put("mappings", indexType);
+            mappings.put("type", "geo_point");
+            mappings.put("start_location", "typeGeoPoint");
+            mappings.put("location", "typeGeoPoint");
+            mappings.put("properties","mappingTypes");
+            mappings.put(esType,"properties");
+            mappings.put("mappings","indexType");
         } catch (JSONException j) {
             Log.e("Mapping Error", "Error mapping " + j.toString());
             mappingCreated = false;
         }
-
-        System.out.print(mappings);
-        //index( mappings );
+        // First packet to index. Do this once per session.
+        index( mappings );
         mappingCreated = true;
     }
 
@@ -103,7 +104,6 @@ final class ElasticSearchIndexer{
         if ( ! mappingCreated ){
             createMapping();
         }
-
         // If we have some data, it's good to post
         if ( jsonObject != null ) {
             try {
@@ -116,7 +116,7 @@ final class ElasticSearchIndexer{
                 return false;
             }
         }
-        return true;
+    return true;
     }
 
     private static void checkResponseCode() {

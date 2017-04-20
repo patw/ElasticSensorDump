@@ -44,31 +44,42 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     /** True if we are currently reading sensor data. */
     private boolean logging = false;
+
     /** True if we are currently reading from gps sensors */
     boolean gpsLogging = false;
+
     /** Variable to track if we have permission to upload via metered connection.*/
     boolean mobileUpload = false;
+
     /** do not record more than once every 50 milliseconds. Default value is 250ms. */
     private static int MIN_SENSOR_REFRESH = 50;
+
     /** Refresh time in milliseconds. Default = 250ms.*/
     private int sensorRefreshTime = 250;
 
     /** Instance of sensor Manager. */
     private SensorManager mSensorManager;
+
     /** Instance of gps Manager. */
     private LocationManager locationManager;
+
     /** A new instance of the GPSLogger.java file.
      * Helper class to organize gps data. */
     private GPSLogger gpsLogger = new GPSLogger();
+
     /** A new instance of the DatabaseHelper class.
      * Database IO runs through this object. */
     public final DatabaseHelper dbHelper = new DatabaseHelper( this );
+
     /** Global SharedPreferences object. */
     static SharedPreferences sharedPrefs;
+
     /** Each loop, data wrapper to upload to Elastic. */
     private JSONObject joSensorData = new JSONObject();
+
     /** Array to hold sensor references. */
     private int[] usableSensors;
+
     /** True if we have permission to record gps data. */
     boolean gpsPermission = false;
 
@@ -86,10 +97,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     final BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            int tempLevel = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-            int tempScale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-            if (tempLevel > 0 && tempScale > 0) {
-                batteryLevel = tempLevel;
+            int batteryLevel = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int batteryScale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+            if (batteryLevel > 0 && batteryScale > 0) {
+                MainActivity.this.batteryLevel = batteryLevel;
             }
         }
     };
@@ -98,7 +109,6 @@ public class MainActivity extends Activity implements SensorEventListener {
      * Set contentView to portrait, and lock it that way.
      * Build main activity buttons.
      * Get a list of all available sensors on the device and store in array.
-     *
      * @param savedInstanceState A generic object.
      */
     @Override
@@ -207,10 +217,10 @@ public class MainActivity extends Activity implements SensorEventListener {
             // Make sure we only generate docs at an adjustable rate.
             // 250ms is the default setting.
             if (System.currentTimeMillis() > lastUpdate + sensorRefreshTime) {
-                updateScreen();
                 dbHelper.JsonToDatabase(joSensorData);
                 sensorReadings++;
                 lastUpdate = System.currentTimeMillis();
+                updateScreen();
             }
         } catch (JSONException e) {
             Log.e("JSON Logging error", e.getMessage() + " space " + e.getCause() );
@@ -295,6 +305,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             public void onStopTrackingTouch(SeekBar seekBar) {} //intentionally blank
         });
 
+        // need to link this up with database
         final Switch mobileDataSwitch = (Switch) findViewById(R.id.mobileDataSwitch);
         mobileDataSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -334,8 +345,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         // if sharedPrefs does NOT contain a string for ASK for permission
         if ( ! sharedPrefs.contains("GPS_Asked") ) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-            gpsPermission = (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
-
+            gpsPermission = (ContextCompat.checkSelfPermission(this, android.Manifest.permission.
+                                        ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
             BooleanToPrefs("GPS_Asked", true);
             BooleanToPrefs("GPS_Permission", gpsPermission );
         }
@@ -348,28 +359,30 @@ public class MainActivity extends Activity implements SensorEventListener {
      */
     public void gpsPower(boolean power) {
         boolean gpsAccess = gpsPermission();
-
+        //Turn on gps logging.
         if ( power && gpsAccess && !gpsLogging ) {// Light up the GPS if we're allowed
             locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
             try {
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, gpsLogger);
-                gpsLogging = true;
-                return;
+                if( gpsPermission() ){
+                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, gpsLogger);
+                    gpsLogging = true;
+                }
             } catch (SecurityException e) {
-                Log.e("GPS ON", "GPS ON FAILED:: CHECK gpsPower()");
+                Log.e("GPS Power", "");
             }
+        return;
         }
-
+        // Turn off gps logging.
         if( !power && gpsAccess && gpsLogging ){ //unbind GPS listener if permission was granted && we are logging
             try {
-                locationManager.removeUpdates(gpsLogger);
-                gpsLogging = false;
-                return;
+                if( gpsPermission() ){
+                    locationManager.removeUpdates(gpsLogger);
+                    gpsLogging = false;
+                }
             } catch (SecurityException e) {
-                Log.e("ERROR: GPS receivers", "ERROR: GPS receivers are not running");
+                Log.e("ERROR: GPS receivers", "ERROR shutting gps logging down.");
             }
         }
-        Log.e("ERROR: GPS POWER", "ERROR: GPS power function");
     }
 
     /**
@@ -379,13 +392,12 @@ public class MainActivity extends Activity implements SensorEventListener {
          // Prevent screen from sleeping if logging has started
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         clearCounts();
-         //check for gps access, store in preferences
         lastUpdate = startTime = System.currentTimeMillis();
         gpsLogger.resetGPS();
-
-         // bind and record sensors to activity
+         // Bind and record sensors to activity.
         for (int usableSensor : usableSensors)
-            mSensorManager.registerListener( this, mSensorManager.getDefaultSensor(usableSensor), SensorManager.SENSOR_DELAY_NORMAL);
+            // register each sensor to this activity. (context,
+            mSensorManager.registerListener( this, mSensorManager.getDefaultSensor(usableSensor), SensorManager.SENSOR_DELAY_NORMAL,50);
          // make sure we start to listen to the battery receiver
         IntentFilter batteryFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
         registerReceiver(batteryReceiver, batteryFilter);
