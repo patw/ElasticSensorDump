@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="8dp"
+    android:paddingLeft="8dp"
+    android:paddingRight="8dp"
+    android:paddingTop="8dp"
+    tools:context="ca.dungeons.sensordump.MainActivity"
+    android:background="@color/backGroundGreyTint">
+
+    <ImageView
+        android:id="@+id/ivLogo"
+        android:background="@drawable/elastic_logo"
+        android:alpha=".1"
+        android:foregroundGravity="bottom"
+        android:adjustViewBounds="false"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:contentDescription="@string/app_name"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true" />
+
+    <TextView
+        android:id="@+id/tvProgress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/No_Sensor_Readings"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:layout_marginTop="77dp"
+        android:layout_alignTop="@+id/ivLogo"
+        android:layout_centerHorizontal="true" />
+
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="18dp">
+
+        <TextView
+            android:id="@+id/TickText"
+            style="@style/AppTheme"
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:clickable="false"
+            android:ems="10"
+            android:gravity="center_vertical|center"
+            android:selectAllOnFocus="false"
+            android:text="@string/Collection_Interval" />
+
+        <SeekBar
+            style="@style/SeekBarseekBar"
+            android:layout_width="@android:dimen/thumbnail_width"
+            android:layout_height="wrap_content"
+            android:max="1000"
+            android:progress="250"
+            android:id="@+id/seekBar" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        tools:ignore="RelativeOverlap">
+
+        <ToggleButton
+            android:text="@string/togglebutton"
+            android:layout_width="wrap_content"
+            android:layout_height="50dp"
+            android:id="@+id/GPS_Toggle"
+            android:textOff="@string/gps_off"
+            android:textOn="@string/gpsOn"
+            android:textSize="16sp"
+            android:typeface="normal"
+            android:buttonTint="@color/backGroundGreyTint"
+            android:background="@color/backGroundGreyTint" />
+
+        <ImageButton
+            android:id="@+id/ibSetup"
+            android:layout_height="50dp"
+            android:src="@mipmap/ic_gear"
+            android:alpha=".5"
+            android:foregroundGravity="top"
+            android:contentDescription="@string/settings"
+            android:layout_width="50dp" />
+    </LinearLayout>
+
+
+</RelativeLayout>
