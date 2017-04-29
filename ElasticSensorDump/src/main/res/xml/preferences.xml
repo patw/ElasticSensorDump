@@ -21,8 +21,8 @@
     <EditTextPreference
         android:defaultValue="phone_data"
         android:key="type"
-        android:summary="Type name for index documents. Default is fine."
-        android:title="Type"></EditTextPreference>
+        android:summary="Tag sensor data with this string (optional)."
+        android:title="Tag"></EditTextPreference>
     <EditTextPreference
         android:defaultValue=""
         android:key="user"
