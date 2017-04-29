@@ -20,7 +20,7 @@
         android:title="Date Stamp Index"></CheckBoxPreference>
     <EditTextPreference
         android:defaultValue="phone_data"
-        android:key="type"
+        android:key="tag"
         android:summary="Tag sensor data with this string (optional)."
         android:title="Tag"></EditTextPreference>
     <EditTextPreference

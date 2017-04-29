@@ -26,6 +26,7 @@ class ElasticSearchIndexer {
     private String esHost;
     private String esPort;
     private String esIndex;
+    private String esTag;
     private String esType;
     private String esUsername;
     private String esPassword;
@@ -53,10 +54,17 @@ class ElasticSearchIndexer {
         esHost = sharedPrefs.getString("host", "localhost");
         esPort = sharedPrefs.getString("port", "9200");
         esIndex = sharedPrefs.getString("index", "sensor_dump");
-        esType = sharedPrefs.getString("type", "phone_data");
+        esTag = sharedPrefs.getString("tag", "phone_data");
         esSSL = sharedPrefs.getBoolean("ssl", false);
         esUsername = sharedPrefs.getString("user", "");
         esPassword = sharedPrefs.getString("pass", "");
+
+        // This was configurable in early versions.  With multiple types goign away in
+        // Elastic 6.0, I've decided to make a single type and call it ESD.  Users
+        // can now use the Tag option to create a string to constrain their data during
+        // parallel ingests.
+        esType = "esd";
+
 
         // Tag the current date stamp on the index name if set in preferences
         // Thanks GlenRSmith for this idea
@@ -187,23 +195,11 @@ class ElasticSearchIndexer {
     }
 
     // Send mapping to elastic for sensor index using PUT
+    // I'm sorry this is ugly.
     private void createMapping() {
-
-        JSONObject mappings = new JSONObject();
-        try {
-            JSONObject typeGeoPoint = new JSONObject().put("type", "geo_point");
-            JSONObject mappingTypes = new JSONObject().put("start_location", typeGeoPoint);
-            mappingTypes.put("location", typeGeoPoint);
-            JSONObject properties = new JSONObject().put("properties",mappingTypes);
-            JSONObject indexType = new JSONObject().put(esType, properties);
-            mappings = new JSONObject().put("mappings", indexType);
-        } catch (JSONException j) {
-            Log.v("Json Exception", j.toString());
-        }
-        
-        Log.v("Mapping", mappings.toString());
-
-        callElasticAPI("PUT", buildURL(), mappings.toString() , false);
+        String es_mapping = "{\"mappings\": {\"esd\": {\"dynamic_templates\": [{\"long_to_float\": {\"match_mapping_type\": \"long\",\"mapping\": {\"type\": \"float\"}}}],\"properties\":{\"start_location\":{\"type\":\"geo_point\"},\"location\":{\"type\":\"geo_point\"},\"tag\":{\"type\":\"keyword\"},\"gps_provider\":{\"type\":\"keyword\"}}}}}";
+        Log.v("Mapping", es_mapping);
+        callElasticAPI("PUT", buildURL(), es_mapping, false);
     }
 
     // Spam those failed docs!
@@ -237,6 +233,15 @@ class ElasticSearchIndexer {
         // Create the mapping on first request
         if (isCreatingMapping && indexRequests == 0) {
             createMapping();
+        }
+
+        // Before indexing, make sure the user tag is in the document if they've made one
+        try {
+            if(!esTag.equals("")) {
+                joIndex.put("tag", esTag);
+            }
+        } catch (Exception e) {
+            Log.v("JSON Logging error", e.toString());
         }
 
         String jsonData = joIndex.toString();
