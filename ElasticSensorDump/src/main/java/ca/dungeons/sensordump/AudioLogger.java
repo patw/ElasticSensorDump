@@ -5,16 +5,14 @@ import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.util.Log;
 
-public class AudioLogger {
+class AudioLogger {
 
-    boolean isRunning = false; // Indicates if recording / playback should stop
-
+    // These are the values we will store in the ES document
     float loudness = 0;
     float frequency = 0;
 
     private final int SAMPLE_RATE = 44100; // The sampling rate
-
-    private AudioRecord record;
+    private boolean isRunning = false; // Indicates if recording / playback should stop
 
     void startRecording() {
 
@@ -41,7 +39,7 @@ public class AudioLogger {
 
                 short[] audioBuffer = new short[bufferSize / 2];
 
-                record = new AudioRecord(MediaRecorder.AudioSource.DEFAULT,
+                AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.DEFAULT,
                         SAMPLE_RATE,
                         AudioFormat.CHANNEL_IN_MONO,
                         AudioFormat.ENCODING_PCM_16BIT,
@@ -63,29 +61,29 @@ public class AudioLogger {
                     int zeroes = 0;
                     int last_value = 0;
 
-                    for (int i = 0; i < audioBuffer.length; i++) {
+                    for (short anAudioBuffer : audioBuffer) {
 
                         // Detect lowest in sample
-                        if (audioBuffer[i] < lowest) {
-                            lowest = audioBuffer[i];
+                        if (anAudioBuffer < lowest) {
+                            lowest = anAudioBuffer;
                         }
 
                         // Detect highest in sample
-                        if (audioBuffer[i] > highest) {
-                            highest = audioBuffer[i];
+                        if (anAudioBuffer > highest) {
+                            highest = anAudioBuffer;
                         }
 
                         // Down and coming up
-                        if(audioBuffer[i] > 0 && last_value < 0) {
+                        if (anAudioBuffer > 0 && last_value < 0) {
                             zeroes++;
                         }
 
                         // Up and down
-                        if(audioBuffer[i] < 0 && last_value > 0) {
+                        if (anAudioBuffer < 0 && last_value > 0) {
                             zeroes++;
                         }
 
-                        last_value = audioBuffer[i];
+                        last_value = anAudioBuffer;
                     }
 
                     // Calculate highest and lowest peak difference as a % of the max possible
@@ -94,7 +92,7 @@ public class AudioLogger {
 
                     // Take the count of the peaks in the time that we had based on the sample
                     // rate to calculate frequency
-                    float seconds = (float) audioBuffer.length / (float) SAMPLE_RATE;;
+                    float seconds = (float) audioBuffer.length / (float) SAMPLE_RATE;
                     frequency = (float) zeroes / seconds / 2;
                 }
 
