@@ -7,7 +7,7 @@ the Elastic Search server you have configured.
 
 Project can be compiled and run in a recent version of Android Studio
 
-###As of version 1.5.1 this app now requires Elasticsearch 5.x
+### As of version 1.5.1 this app now requires Elasticsearch 5.x
 
 ## Be sure to import the visualization and dashboard objects in the Kibana directory:
 ### Management -> Saved Objects -> Import
