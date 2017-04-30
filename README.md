@@ -9,3 +9,10 @@ Project can be compiled and run in a recent version of Android Studio
 
 ## Be sure to import the visualization and dashboard objects in the Kibana directory:
 ### Management -> Saved Objects -> Import
+
+## Privacy Policy
+
+Elastic Sensor Dump activates the GPS, Sensors and Microphone on your phone/tablet to collect metric data.
+ None of this data is stored outside of the Elasticsearch server *you* configure.  The microphone is only
+   used to collect aggregate volume level and aggregate frequency.  The app does not record and store any
+    actual audio clips.
