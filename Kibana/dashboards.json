@@ -1,0 +1,69 @@
+[
+  {
+    "_id": "d7b045c0-29e6-11e7-a916-c7c8a6fd73d1",
+    "_type": "dashboard",
+    "_source": {
+      "title": "ESD - 3D Magnetic",
+      "hits": 0,
+      "description": "",
+      "panelsJSON": "[{\"col\":5,\"id\":\"248bd450-29e6-11e7-a916-c7c8a6fd73d1\",\"panelIndex\":1,\"row\":1,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":1,\"id\":\"2b3e75a0-29e6-11e7-a916-c7c8a6fd73d1\",\"panelIndex\":2,\"row\":1,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":9,\"id\":\"32b43fe0-29e6-11e7-a916-c7c8a6fd73d1\",\"panelIndex\":3,\"row\":1,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"}]",
+      "optionsJSON": "{\"darkTheme\":false}",
+      "uiStateJSON": "{}",
+      "version": 1,
+      "timeRestore": true,
+      "timeTo": "now",
+      "timeFrom": "now-1m",
+      "refreshInterval": {
+        "display": "5 seconds",
+        "pause": false,
+        "section": 1,
+        "value": 5000
+      },
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\":[{\"query\":{\"query_string\":{\"analyze_wildcard\":true,\"query\":\"*\"}}}]}"
+      }
+    }
+  },
+  {
+    "_id": "89eb7e90-078b-11e7-96a9-7d5e39952656",
+    "_type": "dashboard",
+    "_source": {
+      "title": "ESD Dashboard - Real Time",
+      "hits": 0,
+      "description": "",
+      "panelsJSON": "[{\"col\":4,\"id\":\"ESD-Map\",\"panelIndex\":1,\"row\":1,\"size_x\":4,\"size_y\":4,\"type\":\"visualization\"},{\"col\":1,\"id\":\"ESD-Accel-0\",\"panelIndex\":2,\"row\":5,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":5,\"id\":\"ESD-Accel-1\",\"panelIndex\":3,\"row\":5,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":1,\"id\":\"ESD-Light-Level\",\"panelIndex\":5,\"row\":11,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":1,\"id\":\"ESD-Total-Readings\",\"panelIndex\":7,\"row\":1,\"size_x\":3,\"size_y\":4,\"type\":\"visualization\"},{\"col\":5,\"id\":\"ESD-Speed\",\"panelIndex\":8,\"row\":11,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":8,\"id\":\"ESD-Sensor-Readings\",\"panelIndex\":9,\"row\":1,\"size_x\":5,\"size_y\":4,\"type\":\"visualization\"},{\"col\":9,\"id\":\"ESD-Accel-2\",\"panelIndex\":10,\"row\":5,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":9,\"id\":\"ESD-Altitude\",\"panelIndex\":11,\"row\":11,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":1,\"id\":\"ESD-Orientation-X\",\"panelIndex\":12,\"row\":8,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":5,\"id\":\"ESD-Orientation-Y\",\"panelIndex\":13,\"row\":8,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":9,\"id\":\"ESD-Orientation-Z\",\"panelIndex\":14,\"row\":8,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":1,\"id\":\"d31cdc10-2d35-11e7-878a-032f5ba081fc\",\"panelIndex\":15,\"row\":14,\"size_x\":2,\"size_y\":5,\"type\":\"visualization\"},{\"col\":3,\"id\":\"534fc4b0-2d36-11e7-878a-032f5ba081fc\",\"panelIndex\":16,\"row\":14,\"size_x\":7,\"size_y\":3,\"type\":\"visualization\"}]",
+      "optionsJSON": "{\"darkTheme\":false}",
+      "uiStateJSON": "{\"P-1\":{\"mapCenter\":[44.32914388047882,-79.72160875797272],\"mapZoom\":17},\"P-13\":{\"vis\":{\"legendOpen\":true}}}",
+      "version": 1,
+      "timeRestore": true,
+      "timeTo": "now",
+      "timeFrom": "now-90s",
+      "refreshInterval": {
+        "display": "5 seconds",
+        "pause": false,
+        "section": 1,
+        "value": 5000
+      },
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\":[{\"query\":{\"query_string\":{\"analyze_wildcard\":true,\"query\":\"*\"}}}]}"
+      }
+    }
+  },
+  {
+    "_id": "374324d0-246a-11e7-aba6-15a9a05bb158",
+    "_type": "dashboard",
+    "_source": {
+      "title": "ESD Dashboard - Speed And Prediction",
+      "hits": 0,
+      "description": "",
+      "panelsJSON": "[{\"col\":4,\"id\":\"ESD-Map\",\"panelIndex\":1,\"row\":1,\"size_x\":4,\"size_y\":4,\"type\":\"visualization\"},{\"col\":1,\"id\":\"ESD-Accel-0\",\"panelIndex\":2,\"row\":5,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":5,\"id\":\"ESD-Accel-1\",\"panelIndex\":3,\"row\":5,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":1,\"id\":\"ESD-Light-Level\",\"panelIndex\":5,\"row\":11,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":1,\"id\":\"ESD-Total-Readings\",\"panelIndex\":7,\"row\":1,\"size_x\":3,\"size_y\":4,\"type\":\"visualization\"},{\"col\":5,\"id\":\"ESD-Speed\",\"panelIndex\":8,\"row\":11,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":9,\"id\":\"ESD-Accel-2\",\"panelIndex\":10,\"row\":5,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":9,\"id\":\"ESD-Altitude\",\"panelIndex\":11,\"row\":11,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":1,\"id\":\"ESD-Orientation-X\",\"panelIndex\":12,\"row\":8,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":5,\"id\":\"ESD-Orientation-Y\",\"panelIndex\":13,\"row\":8,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"col\":9,\"id\":\"ESD-Orientation-Z\",\"panelIndex\":14,\"row\":8,\"size_x\":4,\"size_y\":3,\"type\":\"visualization\"},{\"size_x\":5,\"size_y\":4,\"panelIndex\":15,\"type\":\"visualization\",\"id\":\"e1bdd550-2469-11e7-824e-9fb584d8d162\",\"col\":8,\"row\":1}]",
+      "optionsJSON": "{\"darkTheme\":false}",
+      "uiStateJSON": "{\"P-1\":{\"mapCenter\":[28.357114670505815,-81.5905237197876],\"mapZoom\":14}}",
+      "version": 1,
+      "timeRestore": false,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\":[{\"query\":{\"query_string\":{\"analyze_wildcard\":true,\"query\":\"*\"}}}]}"
+      }
+    }
+  }
+]

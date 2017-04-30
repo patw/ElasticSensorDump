@@ -6,3 +6,6 @@ The application will enumerate all sensors your phone has on-board, and begin to
 the Elastic Search server you have configured.
 
 Project can be compiled and run in a recent version of Android Studio
+
+## Be sure to import the visualization and dashboard objects in the Kibana directory:
+### Management -> Saved Objects -> Import
