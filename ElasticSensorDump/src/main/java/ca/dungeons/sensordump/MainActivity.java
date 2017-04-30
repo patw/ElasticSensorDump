@@ -37,6 +37,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private TextView tvProgress = null;
     private GPSLogger gpsLogger = new GPSLogger();
+    private AudioLogger audioLogger = new AudioLogger();
     private ElasticSearchIndexer esIndexer;
 
     // JSON structure for sensor and gps data
@@ -167,6 +168,10 @@ public class MainActivity extends Activity implements SensorEventListener {
                 joSensorData.put("total_distance_miles", gpsLogger.gpsTotalDistanceMiles);
             }
 
+            // Dump audio data
+            joSensorData.put("loudness", audioLogger.loudness);
+            joSensorData.put("frequency", audioLogger.frequency);
+
             // Store sensor update into sensor data structure
             for (int i = 0; i < event.values.length; i++) {
 
@@ -217,6 +222,13 @@ public class MainActivity extends Activity implements SensorEventListener {
             mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(usableSensor), SensorManager.SENSOR_DELAY_NORMAL);
         }
 
+        // Record audio if we're allowed
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            audioLogger.startRecording();
+        } else {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, 1);
+        }
+
         // Light up the GPS if we're allowed
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -236,6 +248,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         tvProgress = (TextView) findViewById(R.id.tvProgress);
         tvProgress.setText( getString(R.string.loggingStopped) );
         mSensorManager.unregisterListener(this);
+        audioLogger.stopRecording();
 
         // Disable GPS if we allowed it.
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -269,6 +282,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
                         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, gpsLogger);
+                    }
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        audioLogger.startRecording();
                     }
                 }
             }
