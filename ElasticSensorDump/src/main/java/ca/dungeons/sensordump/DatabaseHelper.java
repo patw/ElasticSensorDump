@@ -95,7 +95,7 @@ class DatabaseHelper extends SQLiteOpenHelper{
                 backgroundThread.execute();
             }
         }
-    MainActivity.databaseEntries = DatabaseUtils.queryNumEntries(this.getReadableDatabase(), DatabaseHelper.TABLE_NAME, null );
+    SensorThread.setDatabaseEntries( DatabaseUtils.queryNumEntries(this.getReadableDatabase(), DatabaseHelper.TABLE_NAME, null) );
     return true;
     }
 

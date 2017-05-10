@@ -24,19 +24,21 @@ import java.net.URL;
 class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
 
     private DatabaseHelper dbHelper;
-
     static HttpURLConnection httpCon;
     static OutputStreamWriter outputStreamWriter;
 
+    private Context passedContext;
+
     /** Default Constructor using the application context. */
     UploadAsyncTask( Context context  ) {
-        dbHelper = new DatabaseHelper( context );
+        passedContext = context;
     }
 
     /** Required override method. Use to do initial housekeeping. */
     @Override
     protected void onPreExecute() {
         super.onPreExecute();
+        dbHelper = new DatabaseHelper( passedContext );
     }
 
     /**
@@ -46,13 +48,14 @@ class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
       */
     @Override
     protected Void doInBackground(Void... params) {
-        URL url;
-        url = ElasticSearchIndexer.buildURL();
-        SQLiteDatabase readableDatabase = dbHelper.getReadableDatabase();
+        boolean outputStreamStatus;
+        // Set default authenticator
+        URL url = ElasticSearchIndexer.buildURL();
+
         final String elasticUserName = ElasticSearchIndexer.esUsername;
         final String elasticPassword = ElasticSearchIndexer.esPassword;
 
-        // Send authentication if required
+        // Authentication if required
         if ( elasticUserName.length() > 0 && elasticPassword.length() > 0) {
             Authenticator.setDefault(new Authenticator() {
                 protected PasswordAuthentication getPasswordAuthentication() {
@@ -60,7 +63,6 @@ class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
                 }
             });
         }
-
         try {
             httpCon = (HttpURLConnection) url.openConnection();
             httpCon.setConnectTimeout(2000);
@@ -68,19 +70,21 @@ class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
             httpCon.setDoOutput(true);
             httpCon.setRequestMethod("PUT");
             outputStreamWriter = new OutputStreamWriter( httpCon.getOutputStream() );
+            outputStreamStatus = true;
         }catch (IOException IOex) {
             Log.e("Network Connection", "Failed to connect to elastic. " + IOex.getMessage() + "  " + IOex.getCause());
+            outputStreamStatus = false;
         }
 
-        if( readableDatabase.getMaximumSize() >= 1 ) {
+        SQLiteDatabase readableDatabase = dbHelper.getReadableDatabase();
 
+        if( readableDatabase.getMaximumSize() >= 1 && outputStreamStatus ) {
             String sqLiteQuery = "SELECT * FROM " + DatabaseHelper.TABLE_NAME + " ORDER BY ID ASC LIMIT 1";
             Cursor cursor = readableDatabase.rawQuery(sqLiteQuery, new String[]{} );
             cursor.moveToFirst();
             do{
                 try {
                     JSONObject jsonObject = new JSONObject( cursor.getString(1) );
-                    // if the json is not empty, send to kibana
                     if ( jsonObject.length() != 0 ) {
                         if( ElasticSearchIndexer.index( jsonObject ) )
                             dbHelper.deleteTopJson();
@@ -88,13 +92,13 @@ class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
                 } catch (JSONException e) {
                     Log.e("error creating JSON", e.getMessage() + e.getCause() );
                 }
-
             }while( cursor.moveToNext() );
+
             cursor.close();
+            long count = DatabaseUtils.queryNumEntries(readableDatabase, DatabaseHelper.TABLE_NAME, null );
+            publishProgress( count );
         }
-        long count = DatabaseUtils.queryNumEntries(readableDatabase, DatabaseHelper.TABLE_NAME, null );
-        publishProgress( count );
-        return null;
+    return null;
     }
 
     /**
@@ -116,16 +120,8 @@ class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
     @Override
     protected void onPostExecute(Void Void) {
         dbHelper.close();
-        closeHttpConnection();
-    }
-
-    /** to be called by uploadAsyncTask to close the connection when thread closes. */
-    private void closeHttpConnection(){
         httpCon.disconnect();
     }
-
-
-
 
 
 }

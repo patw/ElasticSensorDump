@@ -42,8 +42,7 @@ class GPSLogger implements LocationListener {
             lastLong = gpsLong;
         }
 
-        gpsUpdates++;
-        MainActivity.gpsReadings = gpsUpdates;
+        SensorThread.incrementGpsReadings();
 
         // Metre per second is not ideal. Adding km/hr and mph as well
         gpsSpeedKMH = gpsSpeed * (float) 3.6;
@@ -77,9 +76,6 @@ class GPSLogger implements LocationListener {
         // We're live!
         gpsHasData = true;
     }
-
-    /** Reset the gps event counter. */
-    void resetGPS(){ gpsUpdates = 0; }
 
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras){}

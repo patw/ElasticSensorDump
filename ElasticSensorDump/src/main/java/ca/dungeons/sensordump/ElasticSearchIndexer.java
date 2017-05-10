@@ -12,9 +12,6 @@ import java.util.Date;
 import java.util.Locale;
 
 final class ElasticSearchIndexer{
-
-    /** Number of successful uploads. */
-    private static long indexSuccess = 0;
     /** Elastic search web address. */
     private static String esHost, esPort, esIndex, esType;
     static String esUsername = "";
@@ -72,26 +69,23 @@ final class ElasticSearchIndexer{
     /** Send mapping to elastic for sensor index. */
     private static void createMapping() {
 
-        //If we have uploaded a map this session.
-        if(mappingCreated){
-            return;
+        if( !mappingCreated ) {
+            // Json object mappings first packet of data to upload to elastic.
+            JSONObject mappings = new JSONObject();
+            try {
+                mappings.put("type", "geo_point");
+                mappings.put("start_location", "typeGeoPoint");
+                mappings.put("location", "typeGeoPoint");
+                mappings.put("properties", "mappingTypes");
+                mappings.put(esType, "properties");
+                mappings.put("mappings", "indexType");
+                mappingCreated = true;
+                index(mappings);
+            } catch (JSONException j) {
+                Log.e("Mapping Error", "Error mapping " + j.toString());
+                mappingCreated = false;
+            }
         }
-        // Json object mappings first packet of data to upload to elastic.
-        JSONObject mappings = new JSONObject();
-        try {
-            mappings.put("type", "geo_point");
-            mappings.put("start_location", "typeGeoPoint");
-            mappings.put("location", "typeGeoPoint");
-            mappings.put("properties","mappingTypes");
-            mappings.put(esType,"properties");
-            mappings.put("mappings","indexType");
-        } catch (JSONException j) {
-            Log.e("Mapping Error", "Error mapping " + j.toString());
-            mappingCreated = false;
-        }
-        // First packet to index. Do this once per session.
-        index( mappings );
-        mappingCreated = true;
     }
 
     /**
@@ -100,36 +94,31 @@ final class ElasticSearchIndexer{
      */
     static boolean index(JSONObject jsonObject) {
 
-        // Create the mapping on first request
-        if ( ! mappingCreated ){
+        // Create the mapping as the first index request per session.
+        if ( !mappingCreated ){
             createMapping();
         }
         // If we have some data, it's good to post
-        if ( jsonObject != null ) {
+        if ( jsonObject != null && mappingCreated ) {
             try {
                 UploadAsyncTask.outputStreamWriter.write( jsonObject.toString() );
                 checkResponseCode();
-                MainActivity.documentsIndexed++;
             }catch(IOException IOex) {
                 // Error writing to httpConnection.
-                MainActivity.uploadErrors++;
+                SensorThread.incrementUploadErrors();
+                System.out.print("Failed to upload!!!");
                 return false;
             }
         }
     return true;
     }
 
-    private static void checkResponseCode() {
-        try {
-            UploadAsyncTask.httpCon.getInputStream();
-            // Something bad happened. I expect only the finest of 200's
-            int responseCode = UploadAsyncTask.httpCon.getResponseCode();
-            if (200 <= responseCode && responseCode <= 299) {
-                indexSuccess++;
-                MainActivity.documentsIndexed = indexSuccess;
-            }
-        }catch(IOException IOex) {
-            Log.e("Bad response code", " Response code returned upload failure.");
+    private static void checkResponseCode() throws IOException {
+        UploadAsyncTask.httpCon.getInputStream();
+        // Something bad happened. I expect only the finest of 200's
+        int responseCode = UploadAsyncTask.httpCon.getResponseCode();
+        if (200 <= responseCode && responseCode <= 299) {
+            SensorThread.incrementDocumentsIndexed();
         }
     }
 
