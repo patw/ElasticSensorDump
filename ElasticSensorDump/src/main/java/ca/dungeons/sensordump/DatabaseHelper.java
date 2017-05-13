@@ -1,6 +1,5 @@
 package ca.dungeons.sensordump;
 
-// This class handles all the database activities
 import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -28,10 +27,13 @@ class DatabaseHelper extends SQLiteOpenHelper{
     /** Table name for database. */
     static final String TABLE_NAME = "StorageTable";
 
-    /** json text. */
+    /** Json data column name. */
     private static final String dataColumn = "JSON";
 
+    /** Passed main activity context. */
     private Context passedContext;
+
+
 
     /**
      * Default constructor. Creates a new dataBase if required.
@@ -40,6 +42,11 @@ class DatabaseHelper extends SQLiteOpenHelper{
     DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
         passedContext = context;
+    }
+
+    /** Get number of database entries.*/
+    public long databaseEntries(){
+        return DatabaseUtils.queryNumEntries( this.getReadableDatabase(), DatabaseHelper.TABLE_NAME, null);
     }
 
     /**
@@ -75,14 +82,14 @@ class DatabaseHelper extends SQLiteOpenHelper{
      */
     boolean JsonToDatabase(JSONObject jsonObject){
 
+        SQLiteDatabase writableDatabase = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         ConnectivityManager connectionManager = (ConnectivityManager) passedContext.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = connectionManager.getActiveNetworkInfo();
 
         values.put(dataColumn, jsonObject.toString() );
-        long checkDB = this.getWritableDatabase().insert( TABLE_NAME, null, values);
+        long checkDB = writableDatabase.insert( TABLE_NAME, null, values);
 
-        //For testing purposes. REMOVE !
         if(checkDB == -1){
             Log.e("Failed insert","Failed insert database.");
             return false;
@@ -90,21 +97,23 @@ class DatabaseHelper extends SQLiteOpenHelper{
 
         // Start the background upload task.
         if( networkInfo != null ){
-            UploadAsyncTask backgroundThread = new UploadAsyncTask( passedContext );
-            if( backgroundThread.getStatus() != AsyncTask.Status.RUNNING ){
-                backgroundThread.execute();
+            UploadAsyncTask uploadAsyncTask = new UploadAsyncTask( passedContext );
+            if( uploadAsyncTask.getStatus() != AsyncTask.Status.RUNNING ){
+                //uploadAsyncTask.execute();
             }
         }
-    SensorThread.setDatabaseEntries( DatabaseUtils.queryNumEntries(this.getReadableDatabase(), DatabaseHelper.TABLE_NAME, null) );
+    writableDatabase.close();
     return true;
     }
 
     /** Delete top row from the database. */
     void deleteTopJson() {
+        SQLiteDatabase writableDatabase = this.getWritableDatabase();
         String sqlCommand = "DELETE FROM " + TABLE_NAME + " WHERE ID IN (SELECT ID FROM "
                 + TABLE_NAME + " ORDER BY ID ASC LIMIT 1)";
-        this.getWritableDatabase().execSQL(sqlCommand);
+        writableDatabase.execSQL(sqlCommand);
         Log.i("TOP deleted", String.format("%S", "The top index of StorageTable was deleted."));
+        writableDatabase.close();
     }
 
 }

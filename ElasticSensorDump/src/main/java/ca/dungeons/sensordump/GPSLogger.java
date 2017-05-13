@@ -3,8 +3,10 @@ package ca.dungeons.sensordump;
 import android.location.Location;
 import android.location.LocationListener;
 import android.os.Bundle;
+import android.util.Log;
 
 class GPSLogger implements LocationListener {
+
     String gpsProvider;
     int gpsUpdates = 0;
     double gpsLat, gpsLong, gpsAlt;
@@ -19,7 +21,7 @@ class GPSLogger implements LocationListener {
     boolean gpsHasData = false;
 
     /**
-     * Lister for when the GPS reports a location change.
+     * Method to record gps.
      * @param location Current location.
      */
     @Override
@@ -75,14 +77,16 @@ class GPSLogger implements LocationListener {
 
         // We're live!
         gpsHasData = true;
+        Log.e("GPSLogger", "GPS status == True");
     }
 
+    /** Required over ride. Not used. */
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras){}
-
+    /** Required over ride. Not used. */
     @Override
     public void onProviderEnabled(String provider){}
-
+    /** Required over ride. Not used. */
     @Override
     public void onProviderDisabled(String provider){}
 }

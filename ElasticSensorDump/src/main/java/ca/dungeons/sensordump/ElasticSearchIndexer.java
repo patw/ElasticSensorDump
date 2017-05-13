@@ -12,23 +12,26 @@ import java.util.Date;
 import java.util.Locale;
 
 final class ElasticSearchIndexer{
+
     /** Elastic search web address. */
     private static String esHost, esPort, esIndex, esType;
+    /** Elastic username. */
     static String esUsername = "";
+    /** Elastic password. */
     static String esPassword = "";
     /** Represents if the server utilizes SSL security. */
     private static boolean esSSL;
+    /** Reference to application preferences. */
     private static SharedPreferences sharedPreferences = MainActivity.sharedPrefs;
+    /** True if we have already uploaded a mapping to Elastic. */
     private static boolean mappingCreated = false;
 
-    /**
-     * On create, update the url from shared preferences.
-     * Then create and open a HTTP connection to url.
+    /** Constructor: No parameters.
      */
     private ElasticSearchIndexer(){}
 
     /**
-     * Extract config information to build connection strings.
+     * Extract config information from sharedPreferences.
      * Tag the current date stamp on the index name if set in preferences. Credit: GlenRSmith.
      */
     private static void updateURL() {
@@ -55,8 +58,9 @@ final class ElasticSearchIndexer{
         URL tempOutput = null;
 
         String httpString = "http://";
-        if (esSSL)
+        if (esSSL){
             httpString = "https://";
+        }
 
         try{
             tempOutput = new URL( String.format("%s%s:%s/%s/",httpString ,esHost ,esPort ,esIndex ));
@@ -66,7 +70,7 @@ final class ElasticSearchIndexer{
         return tempOutput;
     }
 
-    /** Send mapping to elastic for sensor index. */
+    /** Create a map and send to elastic for sensor index. */
     private static void createMapping() {
 
         if( !mappingCreated ) {
@@ -89,7 +93,7 @@ final class ElasticSearchIndexer{
     }
 
     /**
-     * Send JSON data to elastic using POST
+     * Send JSON data to elastic using POST.
      * @param jsonObject The supplied json object to be uploaded.
      */
     static boolean index(JSONObject jsonObject) {
@@ -98,7 +102,7 @@ final class ElasticSearchIndexer{
         if ( !mappingCreated ){
             createMapping();
         }
-        // If we have some data, it's good to post
+        // If data exists, we are cleared to upload.
         if ( jsonObject != null && mappingCreated ) {
             try {
                 UploadAsyncTask.outputStreamWriter.write( jsonObject.toString() );
@@ -113,6 +117,7 @@ final class ElasticSearchIndexer{
     return true;
     }
 
+    /** Test to make sure the upload was successful.*/
     private static void checkResponseCode() throws IOException {
         UploadAsyncTask.httpCon.getInputStream();
         // Something bad happened. I expect only the finest of 200's

@@ -29,6 +29,8 @@ class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
 
     private Context passedContext;
 
+    private boolean stopThread = false;
+
     /** Default Constructor using the application context. */
     UploadAsyncTask( Context context  ) {
         passedContext = context;
@@ -48,55 +50,53 @@ class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
       */
     @Override
     protected Void doInBackground(Void... params) {
-        boolean outputStreamStatus;
-        // Set default authenticator
+        SQLiteDatabase readableDatabase = dbHelper.getReadableDatabase();
         URL url = ElasticSearchIndexer.buildURL();
+        boolean outputStreamStatus;
 
+        // Set default authenticator if required
         final String elasticUserName = ElasticSearchIndexer.esUsername;
         final String elasticPassword = ElasticSearchIndexer.esPassword;
-
-        // Authentication if required
-        if ( elasticUserName.length() > 0 && elasticPassword.length() > 0) {
+        if (elasticUserName.length() > 0 && elasticPassword.length() > 0) {
             Authenticator.setDefault(new Authenticator() {
                 protected PasswordAuthentication getPasswordAuthentication() {
                     return new PasswordAuthentication(elasticUserName, elasticPassword.toCharArray());
                 }
             });
         }
+        // Try to establish a connection with Elastic server.
         try {
             httpCon = (HttpURLConnection) url.openConnection();
             httpCon.setConnectTimeout(2000);
             httpCon.setReadTimeout(2000);
             httpCon.setDoOutput(true);
             httpCon.setRequestMethod("PUT");
-            outputStreamWriter = new OutputStreamWriter( httpCon.getOutputStream() );
+            outputStreamWriter = new OutputStreamWriter(httpCon.getOutputStream());
             outputStreamStatus = true;
-        }catch (IOException IOex) {
+        } catch (IOException IOex) {
             Log.e("Network Connection", "Failed to connect to elastic. " + IOex.getMessage() + "  " + IOex.getCause());
             outputStreamStatus = false;
         }
 
-        SQLiteDatabase readableDatabase = dbHelper.getReadableDatabase();
-
-        if( readableDatabase.getMaximumSize() >= 1 && outputStreamStatus ) {
-            String sqLiteQuery = "SELECT * FROM " + DatabaseHelper.TABLE_NAME + " ORDER BY ID ASC LIMIT 1";
-            Cursor cursor = readableDatabase.rawQuery(sqLiteQuery, new String[]{} );
-            cursor.moveToFirst();
-            do{
-                try {
-                    JSONObject jsonObject = new JSONObject( cursor.getString(1) );
-                    if ( jsonObject.length() != 0 ) {
-                        if( ElasticSearchIndexer.index( jsonObject ) )
+        while(!stopThread ) {
+            if (readableDatabase.getMaximumSize() >= 1 && outputStreamStatus) {
+                String sqLiteQuery = "SELECT * FROM " + DatabaseHelper.TABLE_NAME + " ORDER BY ID ASC LIMIT 1";
+                Cursor cursor = readableDatabase.rawQuery(sqLiteQuery, new String[]{});
+                cursor.moveToFirst();
+                do{
+                    try{
+                        JSONObject jsonObject = new JSONObject(cursor.getString(1));
+                        if( jsonObject.length() != 0 && ElasticSearchIndexer.index(jsonObject) )
                             dbHelper.deleteTopJson();
+                    }catch( JSONException e ){
+                        Log.e( "error creating JSON", e.getMessage() + e.getCause() );
                     }
-                } catch (JSONException e) {
-                    Log.e("error creating JSON", e.getMessage() + e.getCause() );
-                }
-            }while( cursor.moveToNext() );
+                } while( cursor.moveToNext() && !stopThread );
 
-            cursor.close();
-            long count = DatabaseUtils.queryNumEntries(readableDatabase, DatabaseHelper.TABLE_NAME, null );
-            publishProgress( count );
+                cursor.close();
+                long count = DatabaseUtils.queryNumEntries(readableDatabase, DatabaseHelper.TABLE_NAME, null);
+                publishProgress(count);
+            }
         }
     return null;
     }
@@ -110,7 +110,7 @@ class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
     @Override
     protected void onProgressUpdate(Long... progress) {
         super.onProgressUpdate(progress);
-        MainActivity.databaseEntries = progress[0];
+
     }
 
     /**
@@ -123,5 +123,8 @@ class UploadAsyncTask extends AsyncTask<Void,Long,Void>{
         httpCon.disconnect();
     }
 
-
+    @Override
+    protected void onCancelled() {
+        stopThread = true;
+    }
 }
