@@ -13,9 +13,9 @@
 
 
     <ImageView
-        android:id="@+id/imageView"
+        android:id="@+id/elasticLogo"
         android:layout_width="match_parent"
-        android:layout_height="300dp"
+        android:layout_height="350dp"
         android:layout_centerHorizontal="false"
         android:layout_centerInParent="true"
         android:layout_centerVertical="false"
@@ -24,60 +24,58 @@
         android:contentDescription="@string/app_name"
         android:longClickable="false" />
 
-    <ToggleButton
-        android:id="@+id/toggleGPS"
-        android:layout_width="wrap_content"
-        android:layout_height="35dp"
-        android:layout_alignParentTop="true"
-        android:layout_marginEnd="10dp"
-        android:layout_toStartOf="@+id/ibSetup"
-        android:background="@color/Light_blue_transparent"
-        android:text="@string/toggleGPS"
-        android:textOff="@string/gps_off"
-        android:textOn="@string/gpsOn"
-        tools:ignore="RelativeOverlap" />
-
     <ImageButton
-        android:id="@+id/ibSetup"
-        android:layout_width="40dp"
+        android:id="@+id/settings"
+        android:layout_width="wrap_content"
         android:layout_height="35dp"
         android:layout_alignParentEnd="true"
         android:layout_alignParentTop="true"
         android:background="@color/backGroundGreyTint"
         android:contentDescription="@string/settings"
-        android:foregroundGravity="top"
         android:src="@drawable/ic_action_navigation_more_vert" />
+
+    <ToggleButton
+        android:id="@+id/toggleGPS"
+        android:layout_width="100dp"
+        android:layout_height="55dp"
+        android:background="@color/Light_blue_transparent"
+        android:text="@string/toggleGPS"
+        android:textOff="@string/gps_off"
+        android:textOn="@string/gpsOn"
+        android:textSize="12sp"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true" />
 
     <LinearLayout
         android:id="@+id/MainUILayout"
         android:layout_width="match_parent"
-        android:layout_height="400dp"
-        android:layout_alignParentStart="true"
-        android:layout_below="@+id/toggleGPS"
-        android:layout_marginTop="30dp"
-        android:gravity="center_horizontal"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="false"
+        android:layout_alignTop="@+id/elasticLogo"
         android:orientation="vertical">
 
         <ToggleButton
             android:id="@+id/toggleStart"
-            android:layout_width="100dp"
-            android:layout_height="35dp"
+            android:layout_width="150dp"
+            android:layout_height="55dp"
+            android:layout_gravity="center"
             android:layout_marginBottom="10dp"
             android:background="@color/Light_blue_transparent"
-            android:checked="false"
             android:gravity="center"
             android:text="@string/buttonStart"
             android:textColorLink="@color/Light_blue_transparent"
             android:textOff="@string/buttonStart"
-            android:textOn="@string/buttonStop" />
+            android:textOn="@string/buttonStop"
+            android:textSize="12sp" />
 
         <TextView
             android:id="@+id/TickText"
             style="@style/AppTheme"
             android:layout_width="wrap_content"
             android:layout_height="30dp"
+            android:layout_gravity="center"
             android:clickable="false"
-            android:gravity="center_vertical|center"
+            android:gravity="center"
             android:selectAllOnFocus="false"
             android:text="@string/Collection_Interval" />
 
@@ -104,8 +102,7 @@
         <LinearLayout
             android:id="@+id/DataReadings"
             android:layout_width="match_parent"
-            android:layout_height="250dp"
-            android:layout_marginBottom="29dp"
+            android:layout_height="wrap_content"
             android:gravity="center_vertical|center_horizontal"
             android:orientation="vertical">
 

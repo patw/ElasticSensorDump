@@ -5,17 +5,19 @@ import android.location.LocationListener;
 import android.os.Bundle;
 import android.util.Log;
 
-class GPSLogger implements LocationListener {
+import org.json.JSONException;
+import org.json.JSONObject;
 
-    String gpsProvider;
-    int gpsUpdates = 0;
-    double gpsLat, gpsLong, gpsAlt;
-    double gpsLatStart, gpsLongStart;
-    double gpsDistanceMetres, gpsDistanceFeet, gpsTotalDistance;
-    double gpsTotalDistanceKM, gpsTotalDistanceMiles;
-    float gpsAccuracy, gpsBearing;
-    float gpsSpeed, gpsSpeedKMH, gpsSpeedMPH;
-    float gpsAcceleration, gpsAccelerationKMH, gpsAccelerationMPH;
+class GPSLogger implements LocationListener {
+    private String gpsProvider;
+    private int gpsUpdates = 0;
+    private double gpsLat, gpsLong, gpsAlt;
+    private double gpsLatStart, gpsLongStart;
+    private double gpsDistanceMetres, gpsDistanceFeet, gpsTotalDistance;
+    private double gpsTotalDistanceKM, gpsTotalDistanceMiles;
+    private float gpsAccuracy, gpsBearing;
+    private float gpsSpeed, gpsSpeedKMH, gpsSpeedMPH;
+    private float gpsAcceleration, gpsAccelerationKMH, gpsAccelerationMPH;
     private float lastSpeed;
     private double lastLat, lastLong;
     boolean gpsHasData = false;
@@ -36,15 +38,13 @@ class GPSLogger implements LocationListener {
         gpsSpeed = location.getSpeed();
 
         // Store the lat/long for the first reading we got
-        if (gpsUpdates == 0) {
+        if( gpsUpdates == 0 ){
             gpsLatStart = gpsLat;
             gpsLongStart = gpsLong;
             lastSpeed = gpsSpeed;
             lastLat = gpsLat;
             lastLong = gpsLong;
         }
-
-        SensorThread.incrementGpsReadings();
 
         // Metre per second is not ideal. Adding km/hr and mph as well
         gpsSpeedKMH = gpsSpeed * (float) 3.6;
@@ -77,7 +77,6 @@ class GPSLogger implements LocationListener {
 
         // We're live!
         gpsHasData = true;
-        Log.e("GPSLogger", "GPS status == True");
     }
 
     /** Required over ride. Not used. */
@@ -89,4 +88,41 @@ class GPSLogger implements LocationListener {
     /** Required over ride. Not used. */
     @Override
     public void onProviderDisabled(String provider){}
+
+    /**
+     * Take the passed json object, add the collected gps data.
+     * @param passedJson A reference to the SensorThread json file that will be uploaded.
+     * @return The json that now included the gps data.
+     */
+    JSONObject getGpsData( JSONObject passedJson ){
+
+        if( passedJson != null ){
+            try{
+                // Function to update the joSensorData list.
+                passedJson.put("location", "" + gpsLat + "," + gpsLong);
+                passedJson.put("start_location", "" + gpsLatStart + "," + gpsLongStart);
+                passedJson.put("altitude", gpsAlt);
+                passedJson.put("accuracy", gpsAccuracy);
+                passedJson.put("bearing", gpsBearing);
+                passedJson.put("gps_provider", gpsProvider);
+                passedJson.put("speed", gpsSpeed);
+                passedJson.put("speed_kmh", gpsSpeedKMH);
+                passedJson.put("speed_mph", gpsSpeedMPH);
+                passedJson.put("gps_updates", gpsUpdates);
+                passedJson.put("acceleration", gpsAcceleration);
+                passedJson.put("acceleration_kmh", gpsAccelerationKMH);
+                passedJson.put("acceleration_mph", gpsAccelerationMPH);
+                passedJson.put("distance_metres", gpsDistanceMetres);
+                passedJson.put("distance_feet", gpsDistanceFeet);
+                passedJson.put("total_distance_metres", gpsTotalDistance);
+                passedJson.put("total_distance_km", gpsTotalDistanceKM);
+                passedJson.put("total_distance_miles", gpsTotalDistanceMiles);
+            }catch(JSONException JsonEx ){
+                Log.e( "GPSLogger", "Error creating Json. " );
+                return null;
+            }
+        }
+
+        return passedJson;
+    }
 }

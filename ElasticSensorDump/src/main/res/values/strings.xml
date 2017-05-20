@@ -24,6 +24,7 @@
     <string name="databaseText">Database:</string>
     <string name="Log">Log</string>
     <string name="toggleGPS">toggleGPS</string>
+    <string name="WiFiData">Wifi Data</string>
 
 
 </resources>

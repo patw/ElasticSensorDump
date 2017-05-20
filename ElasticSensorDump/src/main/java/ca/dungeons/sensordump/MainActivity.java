@@ -2,15 +2,21 @@ package ca.dungeons.sensordump;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.CompoundButton;
@@ -26,37 +32,47 @@ import android.widget.ToggleButton;
  */
 public class MainActivity extends Activity{
 
-      /** Global SharedPreferences object. */
-    static SharedPreferences sharedPrefs;
-
-      /** Use SensorThread class to start the logging process.*/
-    SensorThread sensorThread;
-
-      /** True if we are currently reading sensor data. */
+        /** Global SharedPreferences object. */
+    public static SharedPreferences sharedPrefs;
+        /** Use SensorThread class to start the logging process. */
+    SensorThread sensorTask;
+        /** UploadTask controls the data flow between the local database and Elastic server. */
+    UploadTask uploadTask;
+        /** Used to determine if we are allowed to upload via Mobile Data. */
+    ConnectivityManager connectivityManager;
+        /** Allows us to keep track of our current, if existing, UPLOAD async task. */
+    private AsyncTask.Status uploadTaskStatus;
+        /** True if we are currently reading sensor data. */
     public static boolean logging = false;
-
-      /** do not record more than once every 50 milliseconds. Default value is 250ms. */
+        /** True if user gave permission to log GPS data. */
+    private static boolean gpsLogging = false;
+        /** do not record more than once every 50 milliseconds. Default value is 250ms. */
     private static final int MIN_SENSOR_REFRESH = 50;
-
-      /** Refresh time in milliseconds. Default = 250ms.*/
+        /** Refresh time in milliseconds. Default = 250ms.*/
     private int sensorRefreshTime = 250;
+        /** Number of sensor readings this session */
+    public static long sensorReadings, documentsIndexed, gpsReadings, uploadErrors, databaseEntries = 0;
+    private long screenRefreshTimer = System.currentTimeMillis();
 
-      /** Number of sensor readings this session */
-    public static long sensorReadings, documentsIndexed, gpsReadings,
-                                                            uploadErrors, databaseEntries = 0;
-
-      /** Set up Handler */
+        /** Set up Handler */
     Handler uiHandler = new Handler(new Handler.Callback(){
         @Override
         public boolean handleMessage(Message msg) {
+        // Sensor Readings. Arg1 = sensor updates. Arg2 = gpsUpdates.
+        if( msg.what == SensorThread.SENSOR_THREAD_ID ){
+            sensorReadings = msg.arg1;
+            gpsReadings = msg.arg2;
+        }
+        // Upload task variables.
+        if( msg.what == UploadTask.UPLOAD_TASK_ID){
             Bundle tempBundle = msg.getData();
-            sensorReadings = tempBundle.getLong("sensorReadings");
-            documentsIndexed = tempBundle.getLong("documentsIndexed");
-            gpsReadings = tempBundle.getLong("gpsReadings");
-            uploadErrors = tempBundle.getLong("uploadErrors");
+            // Population of database.
             databaseEntries = tempBundle.getLong("databaseEntries");
-            updateScreen();
-            return false;
+            documentsIndexed = tempBundle.getLong("documentsIndexed");
+            uploadErrors = tempBundle.getLong("uploadErrors");
+        }
+        updateScreen();
+        return false;
         }
     });
 
@@ -70,16 +86,7 @@ public class MainActivity extends Activity{
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate( savedInstanceState);
         setContentView( R.layout.activity_main);
-
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
-        sharedPrefs = this.getPreferences( Activity.MODE_PRIVATE);
-
-        buildButtonLogic();
-        sensorThread = new SensorThread( this, uiHandler );
-        DatabaseHelper databaseHelper = new DatabaseHelper(this);
-        databaseEntries = databaseHelper.databaseEntries();
-        databaseHelper.close();
-        updateScreen();
+        setRequestedOrientation( ActivityInfo.SCREEN_ORIENTATION_LOCKED );
     }
 
       /**
@@ -100,12 +107,18 @@ public class MainActivity extends Activity{
         documentsTV.setText( String.valueOf( documentsIndexed ) );
         gpsTV.setText( String.valueOf( gpsReadings ) );
         errorsTV.setText( String.valueOf( uploadErrors ) );
-        dbEntries.setText(String.valueOf( databaseEntries ));
+        if( System.currentTimeMillis() > screenRefreshTimer + 500 ){
+            dbEntries.setText( String.valueOf( getDatabasePopulation()) );
+            screenRefreshTimer = System.currentTimeMillis();
+        }
+
 
         if ( logging )
             mainBanner.setText(getString(R.string.logging));
         else
             mainBanner.setText(getString(R.string.loggingStopped));
+
+
     }
 
       /**
@@ -117,25 +130,50 @@ public class MainActivity extends Activity{
        */
     void buildButtonLogic() {
 
-        final ToggleButton toggleLogging = (ToggleButton) findViewById(R.id.toggleStart);
-        toggleLogging.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        final ToggleButton startButton = (ToggleButton) findViewById(R.id.toggleStart);
+        startButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged( CompoundButton buttonView, boolean isChecked ) {
                 if( isChecked ){
-                    logging = true;
+                    Log.e("MainActivity", "Start button ON !");
                     startLogging();
                 }else{
-                    logging = false;
+                    Log.e("MainActivity", "Start button OFF !");
                     stopLogging();
                 }
             }
         });
 
-        final ImageButton ibSetup = (ImageButton) findViewById(R.id.ibSetup);
-        ibSetup.setOnClickListener(new View.OnClickListener() {
+        final ImageButton settingsButton = (ImageButton) findViewById(R.id.settings);
+        settingsButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                final Intent settingsIntent = new Intent(getBaseContext(), SettingsActivity.class);
-                startActivity(settingsIntent);
+            final Intent settingsIntent = new Intent(getBaseContext(), SettingsActivity.class);
+            startActivity(settingsIntent);
+            }
+        });
+
+
+        final ToggleButton gpsToggle = (ToggleButton) findViewById(R.id.toggleGPS);
+        gpsToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+
+                if( isChecked ){
+                    if( gpsPermission( true ) ){
+                        gpsLogging = true;
+                        stopLogging();
+                        startLogging();
+                    }else{
+                        gpsLogging = false;
+                        Toast.makeText( getApplicationContext(), "Failed to get access to GPS sensors.", Toast.LENGTH_SHORT ).show();
+                    }
+                }else{
+                    if( gpsLogging ){
+                        gpsLogging = false;
+                        stopLogging();
+                        startLogging();
+                    }
+                }
             }
         });
 
@@ -150,9 +188,9 @@ public class MainActivity extends Activity{
                     Toast.makeText(getApplicationContext(),"Minimum sensor refresh is 50 ms",Toast.LENGTH_SHORT).show();
                 }else{
                     sensorRefreshTime = progress * 10;
-                    sensorThread.setSensorRefreshTime(sensorRefreshTime);
+                    sensorTask.setSensorRefreshTime(sensorRefreshTime);
                 }
-            tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + sensorRefreshTime + getString(R.string.milliseconds));
+                tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + sensorRefreshTime + getString(R.string.milliseconds));
             }
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {} //intentionally blank
@@ -161,19 +199,6 @@ public class MainActivity extends Activity{
             public void onStopTrackingTouch(SeekBar seekBar) {} //intentionally blank
         });
 
-        final ToggleButton gpsToggle = (ToggleButton) findViewById(R.id.toggleGPS);
-        gpsToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-            if( isChecked ){
-                if( gpsPermission() ){
-                    sensorThread.setGPSlogging(true);
-                } else {
-                    sensorThread.setGPSlogging(false);
-                }
-            }
-            }
-        });
     }
 
       /**
@@ -187,14 +212,15 @@ public class MainActivity extends Activity{
     private void startLogging() {
           // Prevent screen from sleeping if logging has started
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-          // Create a new thread to record sensor data.
-        if( logging ){
-            if( sensorThread.isAlive() ){
-                sensorThread.setLogging( true );
-            }else if( !sensorThread.isAlive() ){
-                sensorReadings = documentsIndexed = gpsReadings = uploadErrors = 0;
-                sensorThread.start();
-            }
+        // Create a new Async task to record sensor data.
+        sensorTask = new SensorThread( this, uiHandler );
+        AsyncTask.Status sensorTaskStatus = sensorTask.getStatus();
+        sensorReadings = documentsIndexed = gpsReadings = uploadErrors = 0;
+        logging = true;
+
+        if( sensorTaskStatus == AsyncTask.Status.PENDING ){
+            sensorTask.execute( gpsLogging );
+            Log.e("MainActivity", "Thread executed" );
         }
     }
 
@@ -207,22 +233,85 @@ public class MainActivity extends Activity{
     private void stopLogging() {
           // Disable wakelock if logging has stopped
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        if( sensorThread.isAlive() ){
-            sensorThread.setLogging(false);
-            updateScreen();
+        if( logging ){
+            logging = false;
+            sensorTask.cancel( true );
+            if( sensorTask.getStatus() == AsyncTask.Status.FINISHED ){
+                sensorTask = null;
+            }else{
+                Log.e("MainActivity", "Error shutting down sensorTask." + sensorTask.getStatus().toString() );
+            }
+        updateScreen();
         }
     }
 
+    /**
+     * Start Upload async task:
+     * New async task for uploading data to server.
+     * Make sure we are connected to the net before starting the task.
+     * Check our upload task status to make sure the process is pending.
+     * If both our task is pending, and we have internet connectivity, execute the task.
+     */
+    private void startUpload(){
+
+        uploadTask = new UploadTask( getApplicationContext(), uiHandler, sharedPrefs );
+        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+
+        uploadTaskStatus = uploadTask.getStatus();
+        boolean taskStatusPending = ( uploadTaskStatus == AsyncTask.Status.PENDING );
+        boolean connectedToData = ( networkInfo.getState() == NetworkInfo.State.CONNECTED );
+
+        if( taskStatusPending && connectedToData ) {
+            uploadTask.execute();
+        }
+    }
+
+    /**
+     * Stop upload async task.
+     * Verify that the task is running.
+     * Cancel the task.
+     */
+    private void stopUpload(){
+        uploadTaskStatus = uploadTask.getStatus();
+        if( uploadTaskStatus == AsyncTask.Status.RUNNING ){
+            uploadTask.cancel( true );
+            uploadTask = null;
+        }
+    }
+
+    /** If our activity is paused, we need to close out the resources in use. */
     @Override
     protected void onPause() {
         super.onPause();
-        stopLogging();
+        stopUpload();
+        if( logging ){
+            stopLogging();
+        }
     }
 
+    /** When the activity starts or resumes, we start the upload process immediately.
+     *  If we were logging, we need to start the logging process.
+     */
     @Override
     protected void onResume() {
         super.onResume();
-        startLogging();
+        buildButtonLogic();
+
+        getDatabasePopulation();
+
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences( getBaseContext() );
+        connectivityManager = ( ConnectivityManager ) getSystemService( Context.CONNECTIVITY_SERVICE );
+
+        updateScreen();
+        startUpload();
+
+    }
+
+    private long getDatabasePopulation(){
+        DatabaseHelper databaseHelper = new DatabaseHelper( this );
+        databaseEntries = databaseHelper.databaseEntries();
+        databaseHelper.close();
+        return databaseEntries;
     }
 
     /**
@@ -241,9 +330,10 @@ public class MainActivity extends Activity{
      * Write this result to shared preferences.
      * @return True if we asked for permission and it was granted.
      */
-    public boolean gpsPermission() {
+    public boolean gpsPermission( boolean askAgain ){
+
         // if sharedPrefs does NOT contain a string for ASK for permission
-        if ( ! sharedPrefs.contains("GPS_Asked") ) {
+        if ( ! sharedPrefs.contains("GPS_Asked") || askAgain ) {
             ActivityCompat.requestPermissions( this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
             boolean gpsPermission = (ContextCompat.checkSelfPermission( this, android.Manifest.permission.
                     ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
@@ -252,5 +342,6 @@ public class MainActivity extends Activity{
         }
         return sharedPrefs.getBoolean("GPS_Permission", false);
     }
+
 
 }

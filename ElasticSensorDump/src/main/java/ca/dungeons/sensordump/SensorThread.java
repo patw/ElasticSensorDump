@@ -11,9 +11,8 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 
+import android.os.AsyncTask;
 import android.os.BatteryManager;
-import android.os.Bundle;
-import android.os.Looper;
 import android.os.Message;
 import android.os.Handler;
 import android.util.Log;
@@ -32,67 +31,49 @@ import java.util.Locale;
  * @author Gurtok.
  * @version First version of upload Async thread.
  */
-class SensorThread extends Thread implements SensorEventListener {
+class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventListener {
 
-      /** Each loop, data wrapper to upload to Elastic. */
+    static final int SENSOR_THREAD_ID = 654321;
+        @SuppressWarnings("SpellCheckingInspection")
+    private static final SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ", Locale.US);
+        /** Each loop, data wrapper to upload to Elastic. */
     private JSONObject joSensorData = new JSONObject();
-
-      /** Helper class to organize gps data. */
+        /** Helper class to organize gps data. */
     private static GPSLogger gpsLogger = new GPSLogger();
-
+        /** Used to get access to GPS. */
     private static LocationManager locationManager;
-
-      /** Main activity context. */
+        /** Main activity context. */
     private Context passedContext;
-
-      /** Reference handler to send messages back to the UI thread. */
+        /** Reference handler to send messages back to the UI thread. */
     private Handler uiHandler;
-
+        /** Handler for sensor data. */
     private Handler sensorHandler;
-
-      /** Instance of sensor Manager. */
+        /** Instance of sensor Manager. */
     private SensorManager mSensorManager;
-
-    private BatteryManager batteryManager;
-
-      /** Gives access to the local database via a helper class.*/
+        /** Gives access to the local database via a helper class.*/
     private DatabaseHelper dbHelper;
-
-      /** Array to hold sensor references. */
+        /** Array to hold sensor references. */
     private List<Integer> usableSensorList;
-
-      /** Battery level in percentages. */
-    private double batteryLevel = 0;
-
-      /** Timers, the schema is defined else where. */
-    private long startTime, lastUpdate;
-
-      /** True if we are able to read gps sensors */
-    private static boolean gpsLogging = false;
-
-    private boolean listenersRegistered = false;
-
-      /** Refresh time in milliseconds. Default = 250ms.*/
-    private int sensorRefreshTime = 250;
-
-      /** Number of sensor readings this session, default 0. */
-    private static long sensorReadings = 0;
-    /** Number of documents sent to server this session, default 0. */
-    private static long documentsIndexed = 0;
-    /** Number of gps readings this session, default 0. */
-    private static long gpsReadings = 0;
-    /** Number of failed upload transactions this session, default 0. */
-    private static long uploadErrors = 0;
-
-    /** Boolean to indicate if we should be recording data. */
-    private boolean logging = false;
-
-    /** Boolean to help shut down the thread when required. */
-    private boolean stopThread = false;
-
-    /** Listener for battery updates. */
+        /** Listener for battery updates. */
     private BroadcastReceiver batteryReceiver;
 
+    private boolean gpsLogging;
+
+
+    /** Battery level in percentages. */
+    private double batteryLevel = 0;
+    /** Timers, the schema is defined else where. */
+    private long startTime, lastUpdate;
+    /** If listeners are active. */
+    private boolean listenersRegistered = false;
+    /** Refresh time in milliseconds. Default = 250ms.*/
+    private int sensorRefreshTime = 250;
+    /** Number of sensor readings this session, default 0. */
+    private static int sensorReadings = 0;
+    /** Number of gps readings this session, default 0. */
+    private static int gpsReadings = 0;
+
+    void setSensorRefreshTime(int updatedRefresh ){ sensorRefreshTime = updatedRefresh; }
 
       /** Constructor:
        * Initialize the sensor manager.
@@ -105,24 +86,7 @@ class SensorThread extends Thread implements SensorEventListener {
         locationManager = (LocationManager) passedContext.getSystemService( Context.LOCATION_SERVICE );
         dbHelper = new DatabaseHelper( passedContext );
         startTime = lastUpdate = System.currentTimeMillis();
-        parseSensorList();
     }
-
-    void setLogging(boolean enableLogging){
-        if(enableLogging){
-            registerListeners();
-        }else{
-            logging = false;
-        }
-
-    }
-
-    void setGPSlogging( boolean enableGPS){
-        gpsLogging = enableGPS;
-    }
-
-    void setSensorRefreshTime(int updatedRefresh ){ sensorRefreshTime = updatedRefresh; }
-
 
     /** Main work here:
      * Spin up message thread for this thread with Looper.
@@ -131,21 +95,50 @@ class SensorThread extends Thread implements SensorEventListener {
      * UI thread interrupts this thread, which throws an
      *    InterruptException to unregister the listeners.
      */
+
     @Override
-    public void run() {
-        Looper.prepare();
-        Looper.loop();
+    protected Void doInBackground(Boolean... params) {
+        gpsLogging = params[0];
+
+        if( this.isCancelled() ){
+            unregisterListeners();
+            return null;
+        }
+        if( !listenersRegistered ){
+            registerListeners();
+        }
+        return null;
     }
 
-    /** Setter method for the number of documents successfully uploaded to Elastic. */
-    static void incrementDocumentsIndexed(){ documentsIndexed++; }
-      /** Setter method for the number of GPS readings recorded from GPSLogger. */
-    static void incrementGpsReadings(){
-        gpsReadings++;
+    /** RUNS ON UI THREAD!
+     *  Generate array with sensor IDs to reference. */
+    @Override
+    protected void onPreExecute() {
+        Log.e("SensorThread", "OnPreExecute");
     }
-      /** Setter method for the number of documents that failed to be uploaded. */
-    static void incrementUploadErrors(){ uploadErrors++; }
 
+    /** RUNS ON UI THREAD! */
+    @Override
+    protected void onPostExecute(Void aVoid) {
+        Log.e("SensorThread", "OnPostExecute");
+    }
+
+    @Override
+    protected void onProgressUpdate(Void...params) {
+        Log.e("SensorThread", "OnProgressUpdate");
+        Message outMessage = uiHandler.obtainMessage();
+        outMessage.arg1 = sensorReadings;
+        outMessage.arg2 = gpsReadings;
+        outMessage.what = SENSOR_THREAD_ID;
+        uiHandler.sendMessage(outMessage);
+    }
+
+    /** RUNS ON UI THREAD! */
+    @Override
+    protected void onCancelled() {
+        Log.e("SensorThread", "OnCancelled");
+        onProgressUpdate();
+    }
 
       /**
        * This is the main recording loop. One reading per sensor per loop.
@@ -160,98 +153,43 @@ class SensorThread extends Thread implements SensorEventListener {
     @Override
     public final void onSensorChanged(SensorEvent event) {
 
-        /* Control variable to help stop the thread when not needed. */
-        if( stopThread ){
-            Thread thisThread = Thread.currentThread();
-            // UploadAsyncTask needs to be informed to finish as well.
-            unregisterSensorListeners();
-            thisThread.interrupt();
-            return;
-        }
+        // Make sure we only generate docs at an adjustable rate.
+        // 250ms is the default setting.
+        if( System.currentTimeMillis() > lastUpdate + sensorRefreshTime && !this.isCancelled() ) {
+            String sensorName;
+            String[] sensorHierarchyName;
 
-        if( logging ) {
-            Log.e("SensorThread", "Sensor Event: " + event.toString());
             try {
-                Date logDate = new Date(System.currentTimeMillis());
+                joSensorData.put("@timestamp", logDateFormat.format( new Date(System.currentTimeMillis())) );
+                joSensorData.put("start_time", logDateFormat.format( new Date( startTime ) ) );
+                joSensorData.put("log_duration_seconds", ( System.currentTimeMillis() - startTime ) / 1000 );
 
-                @SuppressWarnings("SpellCheckingInspection")
-                SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ", Locale.US);
-                String dateString = logDateFormat.format(logDate);
-                joSensorData.put("@timestamp", dateString);
-
-                Date startDate = new Date(startTime);
-                String startDateString = logDateFormat.format(startDate);
-                joSensorData.put("start_time", startDateString);
-
-                long logDuration = (System.currentTimeMillis() - startTime) / 1000;
-                joSensorData.put("log_duration_seconds", logDuration);
-
-                if (gpsLogger.gpsHasData) {
-                    // Function to update the joSensorData list.
-                    joSensorData.put("location", "" + gpsLogger.gpsLat + "," + gpsLogger.gpsLong);
-                    joSensorData.put("start_location", "" + gpsLogger.gpsLatStart + "," + gpsLogger.gpsLongStart);
-                    joSensorData.put("altitude", gpsLogger.gpsAlt);
-                    joSensorData.put("accuracy", gpsLogger.gpsAccuracy);
-                    joSensorData.put("bearing", gpsLogger.gpsBearing);
-                    joSensorData.put("gps_provider", gpsLogger.gpsProvider);
-                    joSensorData.put("speed", gpsLogger.gpsSpeed);
-                    joSensorData.put("speed_kmh", gpsLogger.gpsSpeedKMH);
-                    joSensorData.put("speed_mph", gpsLogger.gpsSpeedMPH);
-                    joSensorData.put("gps_updates", gpsLogger.gpsUpdates);
-                    joSensorData.put("acceleration", gpsLogger.gpsAcceleration);
-                    joSensorData.put("acceleration_kmh", gpsLogger.gpsAccelerationKMH);
-                    joSensorData.put("acceleration_mph", gpsLogger.gpsAccelerationMPH);
-                    joSensorData.put("distance_metres", gpsLogger.gpsDistanceMetres);
-                    joSensorData.put("distance_feet", gpsLogger.gpsDistanceFeet);
-                    joSensorData.put("total_distance_metres", gpsLogger.gpsTotalDistance);
-                    joSensorData.put("total_distance_km", gpsLogger.gpsTotalDistanceKM);
-                    joSensorData.put("total_distance_miles", gpsLogger.gpsTotalDistanceMiles);
+                if( gpsLogging && gpsLogger.gpsHasData ){
+                    joSensorData = gpsLogger.getGpsData( joSensorData );
+                    gpsReadings++;
                 }
 
-                if (batteryLevel > 0) {
+                if( batteryLevel > 0 ){
                     joSensorData.put("battery_percentage", batteryLevel);
                 }
 
-                // Store sensor update into sensor data structure
-                for (int i = 0; i < event.values.length; i++) {
-                    // We don't need the android.sensor. and motorola.sensor. stuff
-                    // Split it out and just get the sensor name
-                    String sensorName;
-                    String[] sensorHierarchyName = event.sensor.getStringType().split("\\.");
-                    if (sensorHierarchyName.length == 0) {
-                        sensorName = event.sensor.getStringType();
-                    } else {
-                        sensorName = sensorHierarchyName[sensorHierarchyName.length - 1] + i;
-                    }
-                    // Store the actual sensor data now unless it's returning NaN or something crazy big or small
-                    Float sensorValue = event.values[i];
-                    if (!sensorValue.isNaN() && sensorValue < Long.MAX_VALUE && sensorValue > Long.MIN_VALUE) {
-                        joSensorData.put(sensorName, sensorValue);
+                for( Float cursor: event.values ){
+                    if( !cursor.isNaN() && cursor < Long.MAX_VALUE && cursor > Long.MIN_VALUE ){
+                        sensorHierarchyName = event.sensor.getStringType().split("\\.");
+                        sensorName = ( sensorHierarchyName.length == 0 ? event.sensor.getStringType() : sensorHierarchyName[sensorHierarchyName.length - 1] );
+                        joSensorData.put(sensorName, cursor );
                     }
                 }
-                // Make sure we only generate docs at an adjustable rate.
-                // 250ms is the default setting.
-                if (System.currentTimeMillis() > lastUpdate + sensorRefreshTime) {
-                    dbHelper.JsonToDatabase(joSensorData);
-                    sensorReadings++;
-                    lastUpdate = System.currentTimeMillis();
 
-                    Bundle dataBundle = new Bundle(5);
-                    dataBundle.putLong("sensorReadings", sensorReadings);
-                    dataBundle.putLong("documentsIndexed", documentsIndexed);
-                    dataBundle.putLong("gpsReadings", gpsReadings);
-                    dataBundle.putLong("uploadErrors", uploadErrors);
-                    dataBundle.putLong("databaseEntries", dbHelper.databaseEntries());
-                    Message outMessage = uiHandler.obtainMessage();
-                    outMessage.setData(dataBundle);
-                    uiHandler.sendMessage(outMessage);
-                }
+                dbHelper.JsonToDatabase(joSensorData);
+                sensorReadings++;
+                lastUpdate = System.currentTimeMillis();
+                onProgressUpdate();
 
-            } catch (JSONException e) {
-                Log.e("JSON Logging error", e.getMessage() + " space " + e.getCause());
+            } catch (JSONException JsonEx) {
+                Log.e("JSON Logging error", JsonEx.getMessage() + " || " + JsonEx.getCause());
             }
         }
-
 
     }
 
@@ -264,37 +202,12 @@ class SensorThread extends Thread implements SensorEventListener {
     public final void onAccuracyChanged(Sensor sensor, int accuracy){
     }
 
-    /**
-     * Power button for gps recording.
-     * @param power True if we should be recording gps data. False to remove gps listeners.
-     */
-    private void gpsPower(boolean power){
-        try{
-            if( power && !gpsLogging ){
-                locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, sensorRefreshTime, 0, gpsLogger );
-                gpsLogging = true;
-            }else if( !power ){
-                locationManager.removeUpdates( gpsLogger );
-                gpsLogging = false;
-            }
-        } catch ( SecurityException SecEx ) {
-            Log.e( "GPS Power", "Failure turning gps on/off." );
-        }
-    }
-
-    /** Generate array with sensor IDs to reference. */
-    private void parseSensorList(){
-        mSensorManager = (SensorManager) passedContext.getSystemService( Context.SENSOR_SERVICE );
-        List<Sensor> deviceSensors = mSensorManager.getSensorList( Sensor.TYPE_ALL );
-        usableSensorList = new ArrayList<>( deviceSensors.size() );
-        for( Sensor i: deviceSensors ){
-            usableSensorList.add( i.getType() );
-        }
-    }
 
     /** Method to register listeners upon logging. */
     private void registerListeners(){
+
         if( ! listenersRegistered ) {
+            parseSensorArray();
             // Register each sensor to this activity.
             for (int cursorInt : usableSensorList) {
                 mSensorManager.registerListener( this, mSensorManager.getDefaultSensor(cursorInt),
@@ -302,19 +215,51 @@ class SensorThread extends Thread implements SensorEventListener {
             }
             IntentFilter batteryFilter = new IntentFilter( Intent.ACTION_BATTERY_CHANGED );
             passedContext.registerReceiver( this.batteryReceiver, batteryFilter, null, sensorHandler);
-            gpsPower( true );
+
+            if( gpsLogging ){
+                try{
+                    locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, sensorRefreshTime, 0, gpsLogger );
+                }catch ( SecurityException SecEx ) {
+                    Log.e( "GPS Power", "Failure turning gps on/off." );
+                }
+            }
             listenersRegistered = true;
         }
+
     }
 
-    private void unregisterSensorListeners(){
+    /** Unregister listeners. */
+    private void unregisterListeners(){
         if( listenersRegistered ){
             passedContext.unregisterReceiver( this.batteryReceiver );
             mSensorManager.unregisterListener( this );
-            gpsPower( false );
+            if( gpsLogging ){
+                locationManager.removeUpdates( gpsLogger );
+            }
             listenersRegistered = false;
         }
     }
 
+    private void parseSensorArray(){
+
+        mSensorManager = (SensorManager) passedContext.getSystemService( Context.SENSOR_SERVICE );
+        List<Sensor> deviceSensors = mSensorManager.getSensorList( Sensor.TYPE_ALL );
+        usableSensorList = new ArrayList<>( deviceSensors.size() );
+        for( Sensor i: deviceSensors ){
+            usableSensorList.add( i.getType() );
+        }
+
+        batteryReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                int batteryData = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int batteryScale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                if ( batteryData > 0 && batteryScale > 0 ) {
+                    batteryLevel = batteryData;
+                }
+            }
+        };
+
+    }
 
 }

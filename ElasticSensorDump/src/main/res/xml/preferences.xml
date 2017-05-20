@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <EditTextPreference
+        android:defaultValue="localhost"
         android:key="host"
         android:summary="Host or IP for elastic search server"
         android:title="ES Host"></EditTextPreference>
