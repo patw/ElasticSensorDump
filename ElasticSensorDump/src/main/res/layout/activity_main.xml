@@ -37,14 +37,14 @@
     <ToggleButton
         android:id="@+id/toggleGPS"
         android:layout_width="100dp"
-        android:layout_height="55dp"
-        android:background="@color/Light_blue_transparent"
+        android:layout_height="50dp"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:background="@drawable/start_button_shape_off"
         android:text="@string/toggleGPS"
         android:textOff="@string/gps_off"
         android:textOn="@string/gpsOn"
-        android:textSize="12sp"
-        android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true" />
+        android:textSize="12sp" />
 
     <LinearLayout
         android:id="@+id/MainUILayout"
@@ -57,10 +57,10 @@
         <ToggleButton
             android:id="@+id/toggleStart"
             android:layout_width="150dp"
-            android:layout_height="55dp"
+            android:layout_height="50dp"
             android:layout_gravity="center"
-            android:layout_marginBottom="10dp"
-            android:background="@color/Light_blue_transparent"
+            android:layout_marginBottom="20dp"
+            android:background="@drawable/start_button_shape_off"
             android:gravity="center"
             android:text="@string/buttonStart"
             android:textColorLink="@color/Light_blue_transparent"
