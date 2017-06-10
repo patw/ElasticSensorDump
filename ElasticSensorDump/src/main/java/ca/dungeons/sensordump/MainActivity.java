@@ -52,7 +52,6 @@ public class MainActivity extends Activity{
     private int sensorRefreshTime = 250;
         /** Number of sensor readings this session */
     public static long sensorReadings, documentsIndexed, gpsReadings, uploadErrors, databaseEntries = 0;
-    private long screenRefreshTimer = System.currentTimeMillis();
 
         /** Set up Handler */
     Handler uiHandler = new Handler(new Handler.Callback(){
@@ -65,11 +64,8 @@ public class MainActivity extends Activity{
         }
         // Upload task variables.
         if( msg.what == UploadTask.UPLOAD_TASK_ID){
-            Bundle tempBundle = msg.getData();
-            // Population of database.
-            databaseEntries = tempBundle.getLong("databaseEntries");
-            documentsIndexed = tempBundle.getLong("documentsIndexed");
-            uploadErrors = tempBundle.getLong("uploadErrors");
+            documentsIndexed = msg.arg1;
+            uploadErrors = msg.arg2;
         }
         updateScreen();
         return false;
@@ -87,6 +83,10 @@ public class MainActivity extends Activity{
         super.onCreate( savedInstanceState);
         setContentView( R.layout.activity_main);
         setRequestedOrientation( ActivityInfo.SCREEN_ORIENTATION_LOCKED );
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences( getBaseContext() );
+        connectivityManager = ( ConnectivityManager ) getSystemService( Context.CONNECTIVITY_SERVICE );
+        buildButtonLogic();
+        updateScreen();
     }
 
       /**
@@ -95,23 +95,20 @@ public class MainActivity extends Activity{
        *
        */
     void updateScreen() {
-
         TextView mainBanner = (TextView) findViewById(R.id.main_Banner);
+
         TextView sensorTV = (TextView) findViewById(R.id.sensor_tv);
         TextView documentsTV = (TextView) findViewById(R.id.documents_tv);
         TextView gpsTV = (TextView) findViewById(R.id.gps_TV);
         TextView errorsTV = (TextView) findViewById(R.id.errors_TV);
-        TextView dbEntries = (TextView) findViewById(R.id.databaseCount);
 
         sensorTV.setText( String.valueOf(sensorReadings) );
         documentsTV.setText( String.valueOf( documentsIndexed ) );
         gpsTV.setText( String.valueOf( gpsReadings ) );
         errorsTV.setText( String.valueOf( uploadErrors ) );
-        if( System.currentTimeMillis() > screenRefreshTimer + 500 ){
-            dbEntries.setText( String.valueOf( getDatabasePopulation()) );
-            screenRefreshTimer = System.currentTimeMillis();
-        }
 
+        TextView dbEntries = (TextView) findViewById(R.id.databaseCount);
+        dbEntries.setText( String.valueOf( getDatabasePopulation()) );
 
         if ( logging )
             mainBanner.setText(getString(R.string.logging));
@@ -136,9 +133,11 @@ public class MainActivity extends Activity{
             public void onCheckedChanged( CompoundButton buttonView, boolean isChecked ) {
                 if( isChecked ){
                     Log.e("MainActivity", "Start button ON !");
+                    startButton.setBackgroundResource( R.drawable.main_button_shape_on);
                     startLogging();
                 }else{
                     Log.e("MainActivity", "Start button OFF !");
+                    startButton.setBackgroundResource( R.drawable.main_button_shape_off);
                     stopLogging();
                 }
             }
@@ -157,21 +156,27 @@ public class MainActivity extends Activity{
         gpsToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-
+                // If gps button is turned ON.
                 if( isChecked ){
+                    // Check for permissions, ask if required.
                     if( gpsPermission( true ) ){
+                        gpsToggle.setBackgroundResource( R.drawable.main_button_shape_on);
+                        // If we have permission, change gpsLogging to true.
                         gpsLogging = true;
-                        stopLogging();
-                        startLogging();
+                        // Signal sensor task to register gps listeners.
+                        sensorTask.setGpsPower(true);
                     }else{
                         gpsLogging = false;
+                        // Because we failed to get gps access, toggle the button back for continuity.
+                        gpsToggle.toggle();
                         Toast.makeText( getApplicationContext(), "Failed to get access to GPS sensors.", Toast.LENGTH_SHORT ).show();
                     }
+                // If gps button has been turned OFF.
                 }else{
+                    gpsLogging = false;
+                    gpsToggle.setBackgroundResource( R.drawable.main_button_shape_off);
                     if( gpsLogging ){
-                        gpsLogging = false;
-                        stopLogging();
-                        startLogging();
+                        sensorTask.setGpsPower(false);
                     }
                 }
             }
@@ -213,15 +218,19 @@ public class MainActivity extends Activity{
           // Prevent screen from sleeping if logging has started
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         // Create a new Async task to record sensor data.
-        sensorTask = new SensorThread( this, uiHandler );
-        AsyncTask.Status sensorTaskStatus = sensorTask.getStatus();
-        sensorReadings = documentsIndexed = gpsReadings = uploadErrors = 0;
-        logging = true;
 
-        if( sensorTaskStatus == AsyncTask.Status.PENDING ){
-            sensorTask.execute( gpsLogging );
-            Log.e("MainActivity", "Thread executed" );
+        sensorTask = null;
+        sensorTask = new SensorThread( getApplicationContext(), uiHandler );
+        Log.e("MainActivity", sensorTask.getStatus() + "");
+        sensorReadings = documentsIndexed = gpsReadings = uploadErrors = 0;
+        sensorTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        if( sensorTask.getStatus() == AsyncTask.Status.RUNNING ){
+            logging = true;
+            Log.i("MainActivity", "Logging Started. ");
+        }else{
+            Log.e("MainActivity", sensorTask.getStatus() + "");
         }
+
     }
 
       /**
@@ -231,17 +240,17 @@ public class MainActivity extends Activity{
        * 3. Update main thread to initialize UI changes.
        */
     private void stopLogging() {
-          // Disable wakelock if logging has stopped
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if( logging ){
-            logging = false;
-            sensorTask.cancel( true );
-            if( sensorTask.getStatus() == AsyncTask.Status.FINISHED ){
-                sensorTask = null;
+            // Disable wakelock if logging has stopped
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            if( sensorTask.cancel( true ) ){
+                logging = false;
+                Log.i("MainActivity", "Logging Stopped. ");
             }else{
-                Log.e("MainActivity", "Error shutting down sensorTask." + sensorTask.getStatus().toString() );
+                Log.e("MainActivity", "Failed to shut down sensor thread." );
+                stopLogging();
             }
-        updateScreen();
+            updateScreen();
         }
     }
 
@@ -262,7 +271,7 @@ public class MainActivity extends Activity{
         boolean connectedToData = ( networkInfo.getState() == NetworkInfo.State.CONNECTED );
 
         if( taskStatusPending && connectedToData ) {
-            uploadTask.execute();
+            uploadTask.executeOnExecutor( AsyncTask.THREAD_POOL_EXECUTOR );
         }
     }
 
@@ -295,16 +304,9 @@ public class MainActivity extends Activity{
     @Override
     protected void onResume() {
         super.onResume();
-        buildButtonLogic();
-
         getDatabasePopulation();
-
-        sharedPrefs = PreferenceManager.getDefaultSharedPreferences( getBaseContext() );
-        connectivityManager = ( ConnectivityManager ) getSystemService( Context.CONNECTIVITY_SERVICE );
-
         updateScreen();
         startUpload();
-
     }
 
     private long getDatabasePopulation(){

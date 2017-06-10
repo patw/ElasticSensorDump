@@ -29,6 +29,8 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
 
     private DatabaseHelper dbHelper;
 
+    private Long globalUploadTimer = System.currentTimeMillis();
+
 
     /** Reference handler to send messages back to the UI thread. */
     private Handler uiHandler;
@@ -59,51 +61,40 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
     @Override
     protected Void doInBackground( Void... params) {
 
-        ElasticSearchIndexer esIndexer = new ElasticSearchIndexer( sharedPreferences );
-        String sqLiteQuery = "SELECT * FROM " + DatabaseHelper.TABLE_NAME + " ORDER BY ID ASC LIMIT 1";
-        SQLiteDatabase readableDatabase = dbHelper.getReadableDatabase();
-        Cursor cursor = readableDatabase.rawQuery(sqLiteQuery, new String[]{});
+        //ElasticSearchIndexer esIndexer = new ElasticSearchIndexer( sharedPreferences );
+        // esIndexer.connect();
+
         JSONObject jsonObject;
+        // Loop to keep uploading at a limit of 10 outs per second, while the main thread doesn't cancel.
+        while( !this.isCancelled() ){
 
-        esIndexer.connect();
+            if( System.currentTimeMillis() > globalUploadTimer + 1000 ){
 
-        long lastTime = System.currentTimeMillis();
-
-        // Loop to keep uploading at a limit of 4 outs per second, while the main thread doesn't cancel.
-        while( !this.isCancelled()  ) {
-
-            if( System.currentTimeMillis() > (lastTime + 250) ) {
-
-                while( cursor.moveToNext() ) {
                     try {
-                        jsonObject = new JSONObject( cursor.getString(1) );
-                        Log.e("UploadTest", "JsonObject = " + jsonObject.toString() );
+                        String tempJsonString = dbHelper.getNextCursor();
                         // If the json has data; if the upload to elastic succeeded.
-                        if (jsonObject.length() != 0 && esIndexer.index(jsonObject)) {
+                        if( tempJsonString != null ) {
+                            jsonObject = new JSONObject( tempJsonString );
+                            //esIndexer.index(jsonObject));
                             documentsIndexed++;
-                            dbHelper.deleteTopJson();
-                        } else {
-                            throw new JSONException("");
+                            dbHelper.deleteJson();
                         }
                     } catch (JSONException JsonEx) {
                         uploadErrors++;
-                        Log.e("UploadTask", "Error creating json.");
+                        //Log.e("UploadTask", "Error creating json.");
                     }
+
+                    Message outMessage = uiHandler.obtainMessage();
+                    outMessage.what = UPLOAD_TASK_ID;
+                    outMessage.arg1 = documentsIndexed;
+                    outMessage.arg2 = uploadErrors;
+
+                    uiHandler.sendMessage(outMessage);
+                    globalUploadTimer = System.currentTimeMillis();
                 }
 
-                Message outMessage = uiHandler.obtainMessage();
-                outMessage.what = UPLOAD_TASK_ID;
-                Bundle dataBundle = new Bundle(2);
-                dataBundle.putLong("documentsIndexed", documentsIndexed);
-                dataBundle.putLong("uploadErrors", uploadErrors);
-
-                outMessage.setData(dataBundle);
-                uiHandler.sendMessage(outMessage);
-                lastTime = System.currentTimeMillis();
-            }
         }
-        esIndexer.disconnect();
-        cursor.close();
+
     return null;
     }
 
@@ -126,6 +117,9 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
 
     @Override
     protected void onCancelled() {
+        //esIndexer.disconnect();
+        dbHelper.closeDatabase();
+
     }
 
 }

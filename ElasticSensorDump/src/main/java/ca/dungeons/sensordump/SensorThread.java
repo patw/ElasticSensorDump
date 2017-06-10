@@ -1,10 +1,13 @@
 package ca.dungeons.sensordump;
 
+import android.annotation.TargetApi;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.hardware.SensorManager;
+import android.hardware.TriggerEvent;
+import android.hardware.TriggerEventListener;
 import android.location.LocationManager;
 
 import android.hardware.Sensor;
@@ -13,6 +16,7 @@ import android.hardware.SensorEventListener;
 
 import android.os.AsyncTask;
 import android.os.BatteryManager;
+import android.os.Looper;
 import android.os.Message;
 import android.os.Handler;
 import android.util.Log;
@@ -31,7 +35,7 @@ import java.util.Locale;
  * @author Gurtok.
  * @version First version of upload Async thread.
  */
-class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventListener {
+class SensorThread extends AsyncTask<Void,Void,Void> implements SensorEventListener {
 
     static final int SENSOR_THREAD_ID = 654321;
         @SuppressWarnings("SpellCheckingInspection")
@@ -39,9 +43,10 @@ class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventLi
         /** Each loop, data wrapper to upload to Elastic. */
     private JSONObject joSensorData = new JSONObject();
         /** Helper class to organize gps data. */
-    private static GPSLogger gpsLogger = new GPSLogger();
+    private GPSLogger gpsLogger;
+
         /** Used to get access to GPS. */
-    private static LocationManager locationManager;
+    private LocationManager locationManager;
         /** Main activity context. */
     private Context passedContext;
         /** Reference handler to send messages back to the UI thread. */
@@ -56,10 +61,10 @@ class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventLi
     private List<Integer> usableSensorList;
         /** Listener for battery updates. */
     private BroadcastReceiver batteryReceiver;
-
-    private boolean gpsLogging;
-
-
+        /** Control variable to record gps data. */
+    private boolean gpsRecording;
+    /** Control for telling if we have already registered the gps listeners. */
+    private boolean gpsRegistered;
     /** Battery level in percentages. */
     private double batteryLevel = 0;
     /** Timers, the schema is defined else where. */
@@ -83,7 +88,7 @@ class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventLi
         passedContext = context;
         uiHandler = passedHandler;
         sensorHandler = new Handler();
-        locationManager = (LocationManager) passedContext.getSystemService( Context.LOCATION_SERVICE );
+
         dbHelper = new DatabaseHelper( passedContext );
         startTime = lastUpdate = System.currentTimeMillis();
     }
@@ -97,47 +102,43 @@ class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventLi
      */
 
     @Override
-    protected Void doInBackground(Boolean... params) {
-        gpsLogging = params[0];
-
+    protected Void doInBackground(Void... params) {
+        Log.e("SensorThread", "doInBackground.");
+        Looper.prepare();
         if( this.isCancelled() ){
             unregisterListeners();
             return null;
+        }else if( listenersRegistered ){
+            unregisterListeners();
         }
-        if( !listenersRegistered ){
-            registerListeners();
-        }
+        registerListeners();
+        Looper.loop();
         return null;
     }
 
     /** RUNS ON UI THREAD!
      *  Generate array with sensor IDs to reference. */
     @Override
-    protected void onPreExecute() {
-        Log.e("SensorThread", "OnPreExecute");
-    }
+    protected void onPreExecute(){}
 
     /** RUNS ON UI THREAD! */
     @Override
-    protected void onPostExecute(Void aVoid) {
-        Log.e("SensorThread", "OnPostExecute");
-    }
+    protected void onPostExecute(Void aVoid){}
 
     @Override
     protected void onProgressUpdate(Void...params) {
-        Log.e("SensorThread", "OnProgressUpdate");
         Message outMessage = uiHandler.obtainMessage();
         outMessage.arg1 = sensorReadings;
         outMessage.arg2 = gpsReadings;
         outMessage.what = SENSOR_THREAD_ID;
         uiHandler.sendMessage(outMessage);
+        Log.i("SensorThread", "Progress message sent.");
     }
 
     /** RUNS ON UI THREAD! */
     @Override
     protected void onCancelled() {
-        Log.e("SensorThread", "OnCancelled");
-        onProgressUpdate();
+
     }
 
       /**
@@ -153,18 +154,30 @@ class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventLi
     @Override
     public final void onSensorChanged(SensorEvent event) {
 
-        // Make sure we only generate docs at an adjustable rate.
-        // 250ms is the default setting.
-        if( System.currentTimeMillis() > lastUpdate + sensorRefreshTime && !this.isCancelled() ) {
+        if( this.isCancelled() ){
+            if( listenersRegistered ){
+                unregisterListeners();
+            }
+            if( gpsRegistered ){
+                unRegisterGpsSensors();
+            }
+
+        }else if( System.currentTimeMillis() > lastUpdate + sensorRefreshTime ) {
+            // Make sure we only generate docs at an adjustable rate.
+            // 250ms is the default setting.
+
+            // On each loop, check if we should be recording gps data.
+            checkGpsAccess();
+
+            // Log.e("SensorThread", "SENSOR EVENT"); // For diagnostics.
             String sensorName;
             String[] sensorHierarchyName;
-
             try {
                 joSensorData.put("@timestamp", logDateFormat.format( new Date(System.currentTimeMillis())) );
                 joSensorData.put("start_time", logDateFormat.format( new Date( startTime ) ) );
                 joSensorData.put("log_duration_seconds", ( System.currentTimeMillis() - startTime ) / 1000 );
 
-                if( gpsLogging && gpsLogger.gpsHasData ){
+                if( gpsRecording && gpsLogger.gpsHasData ){
                     joSensorData = gpsLogger.getGpsData( joSensorData );
                     gpsReadings++;
                 }
@@ -181,7 +194,7 @@ class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventLi
                     }
                 }
 
-                dbHelper.JsonToDatabase(joSensorData);
+                dbHelper.JsonToDatabase( joSensorData );
                 sensorReadings++;
                 lastUpdate = System.currentTimeMillis();
                 onProgressUpdate();
@@ -205,8 +218,7 @@ class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventLi
 
     /** Method to register listeners upon logging. */
     private void registerListeners(){
-
-        if( ! listenersRegistered ) {
+        if( !listenersRegistered ) {
             parseSensorArray();
             // Register each sensor to this activity.
             for (int cursorInt : usableSensorList) {
@@ -215,15 +227,10 @@ class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventLi
             }
             IntentFilter batteryFilter = new IntentFilter( Intent.ACTION_BATTERY_CHANGED );
             passedContext.registerReceiver( this.batteryReceiver, batteryFilter, null, sensorHandler);
-
-            if( gpsLogging ){
-                try{
-                    locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, sensorRefreshTime, 0, gpsLogger );
-                }catch ( SecurityException SecEx ) {
-                    Log.e( "GPS Power", "Failure turning gps on/off." );
-                }
-            }
             listenersRegistered = true;
+            Log.e("SensorThread", "Registered listeners. ");
+        }else{
+            Log.e("SensorThread", "Error, listeners registered illegally.");
         }
 
     }
@@ -233,20 +240,23 @@ class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventLi
         if( listenersRegistered ){
             passedContext.unregisterReceiver( this.batteryReceiver );
             mSensorManager.unregisterListener( this );
-            if( gpsLogging ){
-                locationManager.removeUpdates( gpsLogger );
-            }
             listenersRegistered = false;
+            Log.e("SensorThread", "Unregistered listeners. ");
         }
     }
 
+    @TargetApi(21)
     private void parseSensorArray(){
 
         mSensorManager = (SensorManager) passedContext.getSystemService( Context.SENSOR_SERVICE );
         List<Sensor> deviceSensors = mSensorManager.getSensorList( Sensor.TYPE_ALL );
         usableSensorList = new ArrayList<>( deviceSensors.size() );
         for( Sensor i: deviceSensors ){
-            usableSensorList.add( i.getType() );
+            //Log.e("SensorThread", i.getName() );
+            // Use this to filter out trigger(One-shot) sensors, which are dealt with differently.
+            if( i.getReportingMode() != Sensor.REPORTING_MODE_ONE_SHOT ){
+                usableSensorList.add( i.getType() );
+            }
         }
 
         batteryReceiver = new BroadcastReceiver() {
@@ -260,6 +270,39 @@ class SensorThread extends AsyncTask<Boolean,Void,Void> implements SensorEventLi
             }
         };
 
+    }
+
+    // Register gps sensors to enable recording.
+    private void registerGpsSensors(){
+        gpsLogger = new GPSLogger();
+        locationManager = (LocationManager) passedContext.getSystemService( Context.LOCATION_SERVICE );
+        try{
+            locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, sensorRefreshTime, 0, gpsLogger );
+        }catch ( SecurityException SecEx ) {
+            Log.e( "GPS Power", "Failure turning gps on/off." );
+        }catch( RuntimeException runTimeEx ){
+            Log.e( "GPS Power", "StackTrace: " );
+            runTimeEx.printStackTrace();
+        }
+    }
+
+    // Unregister gps sensors
+    private void unRegisterGpsSensors(){
+        locationManager.removeUpdates( gpsLogger );
+        gpsRecording = gpsRegistered = false;
+    }
+
+    // Control method to enable/disable gps recording.
+    void setGpsPower( boolean power ){
+        gpsRecording = power;
+    }
+
+    private void checkGpsAccess(){
+        if( gpsRecording && !gpsRegistered ){
+            registerGpsSensors();
+        }else if( !gpsRecording && gpsRegistered ){
+            unRegisterGpsSensors();
+        }
     }
 
 }
