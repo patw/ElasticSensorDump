@@ -34,17 +34,35 @@
         android:contentDescription="@string/settings"
         android:src="@drawable/ic_action_navigation_more_vert" />
 
-    <ToggleButton
-        android:id="@+id/toggleGPS"
-        android:layout_width="100dp"
-        android:layout_height="50dp"
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
-        android:background="@drawable/start_button_shape_off"
-        android:text="@string/toggleGPS"
-        android:textOff="@string/gps_off"
-        android:textOn="@string/gpsOn"
-        android:textSize="12sp" />
+        android:orientation="horizontal">
+
+        <ToggleButton
+            android:id="@+id/toggleGPS"
+            android:layout_width="100dp"
+            android:layout_height="50dp"
+            android:layout_marginEnd="5dp"
+            android:background="@drawable/main_button_shape_off"
+            android:text="@string/toggleGPS"
+            android:textOff="@string/gps_off"
+            android:textOn="@string/gpsOn"
+            android:textSize="12sp" />
+
+        <ToggleButton
+            android:id="@+id/toggleAudio"
+            android:layout_width="100dp"
+            android:layout_height="50dp"
+            android:layout_marginStart="5dp"
+            android:background="@drawable/main_button_shape_off"
+            android:text="@string/toggleGPS"
+            android:textOff="@string/audio_off"
+            android:textOn="@string/audio_on"
+            android:textSize="12sp" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/MainUILayout"
@@ -60,7 +78,7 @@
             android:layout_height="50dp"
             android:layout_gravity="center"
             android:layout_marginBottom="20dp"
-            android:background="@drawable/start_button_shape_off"
+            android:background="@drawable/main_button_shape_off"
             android:gravity="center"
             android:text="@string/buttonStart"
             android:textColorLink="@color/Light_blue_transparent"

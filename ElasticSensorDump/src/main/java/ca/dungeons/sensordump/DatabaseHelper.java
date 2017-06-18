@@ -9,7 +9,6 @@ import android.content.ContentValues;
 import android.util.Log;
 import org.json.JSONObject;
 
-import java.sql.PreparedStatement;
 
 /**
  * A class to buffer generated data to a dataBase for later upload.

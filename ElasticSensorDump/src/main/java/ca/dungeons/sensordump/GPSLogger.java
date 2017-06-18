@@ -29,6 +29,7 @@ class GPSLogger implements LocationListener {
     @Override
     public void onLocationChanged(Location location) {
 
+        Log.i("GPSLogger", "LocationChanged.");
         gpsLat = location.getLatitude();
         gpsLong = location.getLongitude();
         gpsAlt = location.getAltitude();
@@ -119,10 +120,11 @@ class GPSLogger implements LocationListener {
                 passedJson.put("total_distance_miles", gpsTotalDistanceMiles);
             }catch(JSONException JsonEx ){
                 Log.e( "GPSLogger", "Error creating Json. " );
-                return null;
+                return passedJson;
             }
         }
-
         return passedJson;
     }
+
+
 }

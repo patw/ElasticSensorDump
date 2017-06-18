@@ -1,5 +1,6 @@
 package ca.dungeons.sensordump;
 
+import android.accounts.NetworkErrorException;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -29,8 +30,9 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
 
     private DatabaseHelper dbHelper;
 
-    private Long globalUploadTimer = System.currentTimeMillis();
+    private ElasticSearchIndexer esIndexer;
 
+    private Long globalUploadTimer = System.currentTimeMillis();
 
     /** Reference handler to send messages back to the UI thread. */
     private Handler uiHandler;
@@ -61,8 +63,7 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
     @Override
     protected Void doInBackground( Void... params) {
 
-        //ElasticSearchIndexer esIndexer = new ElasticSearchIndexer( sharedPreferences );
-        // esIndexer.connect();
+        esIndexer = new ElasticSearchIndexer( sharedPreferences );
 
         JSONObject jsonObject;
         // Loop to keep uploading at a limit of 10 outs per second, while the main thread doesn't cancel.
@@ -70,18 +71,23 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
 
             if( System.currentTimeMillis() > globalUploadTimer + 1000 ){
 
-                    try {
+                    try{
                         String tempJsonString = dbHelper.getNextCursor();
                         // If the json has data; if the upload to elastic succeeded.
                         if( tempJsonString != null ) {
                             jsonObject = new JSONObject( tempJsonString );
-                            //esIndexer.index(jsonObject));
+                            if( ! esIndexer.index(jsonObject)  ){
+                                Log.e("UploadTask", jsonObject.toString() );
+                                throw new NetworkErrorException("Failed to upload data to elastic. ");
+                            }
                             documentsIndexed++;
                             dbHelper.deleteJson();
                         }
-                    } catch (JSONException JsonEx) {
+                    }catch( JSONException JsonEx ){
                         uploadErrors++;
-                        //Log.e("UploadTask", "Error creating json.");
+                        Log.e("UploadTask", "Error creating json." );
+                    }catch( NetworkErrorException networkErrEx ){
+                        Log.e("UploadTask", "Failed to index json object." );
                     }
 
                     Message outMessage = uiHandler.obtainMessage();
@@ -117,7 +123,7 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
 
     @Override
     protected void onCancelled() {
-        //esIndexer.disconnect();
+        esIndexer.disconnect();
         dbHelper.closeDatabase();
 
     }

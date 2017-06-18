@@ -25,6 +25,8 @@
     <string name="Log">Log</string>
     <string name="toggleGPS">toggleGPS</string>
     <string name="WiFiData">Wifi Data</string>
+    <string name="audio_off">Audio OFF</string>
+    <string name="audio_on">Audio ON</string>
 
 
 </resources>

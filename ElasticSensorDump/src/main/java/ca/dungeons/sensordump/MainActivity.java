@@ -35,7 +35,7 @@ public class MainActivity extends Activity{
         /** Global SharedPreferences object. */
     public static SharedPreferences sharedPrefs;
         /** Use SensorThread class to start the logging process. */
-    SensorThread sensorTask;
+    SensorThread sensorThread;
         /** UploadTask controls the data flow between the local database and Elastic server. */
     UploadTask uploadTask;
         /** Used to determine if we are allowed to upload via Mobile Data. */
@@ -46,6 +46,8 @@ public class MainActivity extends Activity{
     public static boolean logging = false;
         /** True if user gave permission to log GPS data. */
     private static boolean gpsLogging = false;
+    /** True if user gave permission to log AUDIO data. */
+    private static boolean audioLogging = false;
         /** do not record more than once every 50 milliseconds. Default value is 250ms. */
     private static final int MIN_SENSOR_REFRESH = 50;
         /** Refresh time in milliseconds. Default = 250ms.*/
@@ -67,6 +69,7 @@ public class MainActivity extends Activity{
             documentsIndexed = msg.arg1;
             uploadErrors = msg.arg2;
         }
+
         updateScreen();
         return false;
         }
@@ -110,11 +113,16 @@ public class MainActivity extends Activity{
         TextView dbEntries = (TextView) findViewById(R.id.databaseCount);
         dbEntries.setText( String.valueOf( getDatabasePopulation()) );
 
-        if ( logging )
+        if ( logging ){
             mainBanner.setText(getString(R.string.logging));
-        else
+        }else{
             mainBanner.setText(getString(R.string.loggingStopped));
+        }
 
+        if( sensorThread != null ) {
+            sensorThread.setGpsPower( gpsLogging );
+            sensorThread.setAudioPower( audioLogging );
+        }
 
     }
 
@@ -156,29 +164,41 @@ public class MainActivity extends Activity{
         gpsToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                // If gps button is turned ON.
-                if( isChecked ){
-                    // Check for permissions, ask if required.
-                    if( gpsPermission( true ) ){
-                        gpsToggle.setBackgroundResource( R.drawable.main_button_shape_on);
-                        // If we have permission, change gpsLogging to true.
-                        gpsLogging = true;
-                        // Signal sensor task to register gps listeners.
-                        sensorTask.setGpsPower(true);
-                    }else{
-                        gpsLogging = false;
-                        // Because we failed to get gps access, toggle the button back for continuity.
-                        gpsToggle.toggle();
-                        Toast.makeText( getApplicationContext(), "Failed to get access to GPS sensors.", Toast.LENGTH_SHORT ).show();
-                    }
-                // If gps button has been turned OFF.
+            // If gps button is turned ON.
+            if( isChecked ){
+                // Check for permissions, ask if required.
+                // If we are logging, signal sensor task to register gps listeners.
+                if( gpsPermission() ){
+                    // If we have permission, change gpsLogging to true.
+                    gpsLogging = true;
+                    gpsToggle.setBackgroundResource( R.drawable.main_button_shape_on);
                 }else{
                     gpsLogging = false;
-                    gpsToggle.setBackgroundResource( R.drawable.main_button_shape_off);
-                    if( gpsLogging ){
-                        sensorTask.setGpsPower(false);
-                    }
+                    // Because we failed to get gps access, toggle the button back.
+                    gpsToggle.toggle();
+                    Toast.makeText( getApplicationContext(), "Failed to get access to GPS sensors.", Toast.LENGTH_SHORT ).show();
                 }
+            // If gps button has been turned OFF.
+            }else{
+                gpsToggle.setBackgroundResource( R.drawable.main_button_shape_off);
+                gpsLogging = false;
+            }
+            }
+        });
+
+        final ToggleButton audioToggle = (ToggleButton) findViewById( R.id.toggleAudio );
+        audioToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                // If audio button is turned ON.
+                if( isChecked ){
+                    audioToggle.setBackgroundResource( R.drawable.main_button_shape_on);
+                    audioLogging = true;
+                }else{
+                    audioToggle.setBackgroundResource( R.drawable.main_button_shape_off);
+                    audioLogging = false;
+                }
+
             }
         });
 
@@ -193,7 +213,7 @@ public class MainActivity extends Activity{
                     Toast.makeText(getApplicationContext(),"Minimum sensor refresh is 50 ms",Toast.LENGTH_SHORT).show();
                 }else{
                     sensorRefreshTime = progress * 10;
-                    sensorTask.setSensorRefreshTime(sensorRefreshTime);
+                    sensorThread.setSensorRefreshTime(sensorRefreshTime);
                 }
                 tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + sensorRefreshTime + getString(R.string.milliseconds));
             }
@@ -219,16 +239,16 @@ public class MainActivity extends Activity{
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         // Create a new Async task to record sensor data.
 
-        sensorTask = null;
-        sensorTask = new SensorThread( getApplicationContext(), uiHandler );
-        Log.e("MainActivity", sensorTask.getStatus() + "");
+        sensorThread = null;
+        sensorThread = new SensorThread( getApplicationContext(), uiHandler );
+
         sensorReadings = documentsIndexed = gpsReadings = uploadErrors = 0;
-        sensorTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        if( sensorTask.getStatus() == AsyncTask.Status.RUNNING ){
+        sensorThread.start();
+        if( sensorThread.isAlive() ){
             logging = true;
             Log.i("MainActivity", "Logging Started. ");
         }else{
-            Log.e("MainActivity", sensorTask.getStatus() + "");
+            Log.e("MainActivity", sensorThread.getState() + "");
         }
 
     }
@@ -243,12 +263,14 @@ public class MainActivity extends Activity{
         if( logging ){
             // Disable wakelock if logging has stopped
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            if( sensorTask.cancel( true ) ){
+
+            sensorThread.stopSensorThread();
+
+            if( !sensorThread.isAlive() ){
                 logging = false;
                 Log.i("MainActivity", "Logging Stopped. ");
             }else{
                 Log.e("MainActivity", "Failed to shut down sensor thread." );
-                stopLogging();
             }
             updateScreen();
         }
@@ -332,10 +354,10 @@ public class MainActivity extends Activity{
      * Write this result to shared preferences.
      * @return True if we asked for permission and it was granted.
      */
-    public boolean gpsPermission( boolean askAgain ){
+    public boolean gpsPermission(){
 
         // if sharedPrefs does NOT contain a string for ASK for permission
-        if ( ! sharedPrefs.contains("GPS_Asked") || askAgain ) {
+        if ( ! sharedPrefs.contains("GPS_Asked") ) {
             ActivityCompat.requestPermissions( this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
             boolean gpsPermission = (ContextCompat.checkSelfPermission( this, android.Manifest.permission.
                     ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
