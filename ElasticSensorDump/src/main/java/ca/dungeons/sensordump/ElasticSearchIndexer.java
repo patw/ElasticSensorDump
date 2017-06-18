@@ -5,10 +5,8 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Authenticator;
@@ -43,6 +41,7 @@ final class ElasticSearchIndexer{
         /** Base constructor. */
     ElasticSearchIndexer(SharedPreferences passedPreferences ){
         sharedPreferences = passedPreferences;
+
 
     }
 
@@ -97,30 +96,35 @@ final class ElasticSearchIndexer{
             // Connect to elastic using PUT to make elastic understand this payload is a mapping.
             connect("PUT");
             try {
-                // Our main container for explicit typing of fields.
+
+                // GPS coordinates --TYPING
+                final JSONObject typeGeoPoint = new JSONObject().put("type", "geo_point");
+                // Lowest json level, contains explicit typing of sensor data.
                 JSONObject mappingTypes = new JSONObject();
-                // Explicit typing of gps coordinates.
-                JSONObject typeGeoPoint = new JSONObject().put("type", "geo_point");
-                // To put start_location and location under geo_point type.
+                // Type "start_location" && "location" using pre-defined typeGeoPoint. ^^
                 mappingTypes.put("start_location", typeGeoPoint);
                 mappingTypes.put("location", typeGeoPoint);
-                // Put our new geo_point type under properties field.
+                // Put the two newly typed fields under properties.
                 JSONObject properties = new JSONObject().put("properties", mappingTypes);
-                // This specifies the index type.
-                JSONObject indexType = new JSONObject().put(esType, properties);
-                // Finally we take this nested json and specify that we want to use this as mapping.
-                JSONObject mappings = new JSONObject().put("mappings", indexType);
+                // Mappings should be nested under index_type.
+                JSONObject esTypeObj = new JSONObject().put(esType, properties);
+                // File this new properties json under _mappings.
+                JSONObject mappings = new JSONObject().put("mappings", esTypeObj);
 
                 // Write out to elastic using the passed outputStream that is connected.
-                if( outputStream != null )
-                    outputStream.write(mappings.toString());
+                if( outputStream != null ){
+
+                    String outString = mappings.toString(4);
+                    Log.e("ESI-CreateMapping", outString );
+                    outputStream.write( outString );
+                }
 
                 String responseMessage = httpCon.getResponseMessage();
                 int responseCode = httpCon.getResponseCode();
                 String responseString = httpCon.getURL().toString();
 
                 if (200 <= responseCode && responseCode <= 299) {
-                    Log.e("ESI-Create Mapping", "Mapping successful.");
+                    Log.e("ESI-Create Mapping", "Mapping successful using: " + mappings.toString() );
                     disconnect();
                 } else {
                     // Something bad happened. I expect only the finest of 200's
@@ -165,6 +169,7 @@ final class ElasticSearchIndexer{
             try {
                 // Connect to elastic using POST.
                 connect("POST");
+                Log.e("ESI-INDEX", httpCon.getRequestMethod() + " " + httpCon.getURL() );
                 if( outputStream != null ){
                     outputStream.write(jsonObject.toString());
                 }
@@ -177,13 +182,13 @@ final class ElasticSearchIndexer{
                     BufferedReader errorStream = new BufferedReader(new InputStreamReader(httpCon.getErrorStream() ) );
                     String errorMessage;
                     while( ( errorMessage = errorStream.readLine() ) != null ){
-                        Log.e("ESI-Index", errorMessage );
+                        Log.e("ESI-Index", "Message = " + errorMessage );
                     }
                     throw new IOException( responseCode + "" );
                 }
             }catch( IOException IOex ){
                 // Error writing to httpConnection.
-                Log.e("ESI-Index", IOex.getMessage() );
+                Log.e("ESI-Index", "Error CODE: " + IOex.getMessage() );
                 return false;
             }
         }
@@ -211,6 +216,7 @@ final class ElasticSearchIndexer{
             httpCon.setConnectTimeout(2000);
             httpCon.setReadTimeout(2000);
             httpCon.setRequestMethod(verb);
+            httpCon.setRequestProperty("Content-Type", "application/json");
             httpCon.setDoOutput(true);
             outputStream = new OutputStreamWriter( httpCon.getOutputStream() );
             Log.e( "ESI-Connect", "Successful connection to elastic using verb: " + verb );
