@@ -24,6 +24,4 @@ dependencies {
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:25.1.0'
     compile 'com.android.support:support-v4:25.1.0'
-    compile 'com.android.support.constraint:constraint-layout:1.0.2'
-    compile 'org.apache.httpcomponents.client5:httpclient5-parent:5.0-alpha2'
 }

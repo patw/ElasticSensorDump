@@ -75,7 +75,7 @@ final class ElasticSearchIndexer{
         String urlString = String.format( "%s%s:%s/%s/", httpString ,esHost ,esPort ,esIndex );
 
         if( verb.equals("POST") ){
-            urlString = urlString + esType + "/";
+            urlString = String.format("%s%s/", urlString, esType );
         }
 
         try{
@@ -143,17 +143,14 @@ final class ElasticSearchIndexer{
 
                     errorStream.close();
                     disconnect();
-                    throw new IOException();
                 }
                 mappingCreated = true;
             } catch (JSONException j) {
                 Log.e("ESI-Create Mapping", "JSON error: " + j.toString());
                 mappingCreated = false;
-                disconnect();
             } catch (IOException IoEx) {
                 IoEx.printStackTrace();
                 mappingCreated = false;
-                disconnect();
             }
         }
     }
@@ -169,9 +166,10 @@ final class ElasticSearchIndexer{
             try {
                 // Connect to elastic using POST.
                 connect("POST");
-                Log.e("ESI-INDEX", httpCon.getRequestMethod() + " " + httpCon.getURL() );
+                //Log.e("ESI-INDEX", httpCon.getRequestMethod() + " " + httpCon.getURL() );
                 if( outputStream != null ){
-                    outputStream.write(jsonObject.toString());
+                    String outString = jsonObject.toString();
+                    outputStream.write( outString );
                 }
 
                 int responseCode = httpCon.getResponseCode();
@@ -215,8 +213,10 @@ final class ElasticSearchIndexer{
             httpCon = (HttpURLConnection) elasticURL.openConnection();
             httpCon.setConnectTimeout(2000);
             httpCon.setReadTimeout(2000);
+            httpCon.setUseCaches(false);
             httpCon.setRequestMethod(verb);
-            httpCon.setRequestProperty("Content-Type", "application/json");
+            httpCon.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            Log.e("ESI-CONNECT", httpCon.getRequestProperties().toString() );
             httpCon.setDoOutput(true);
             outputStream = new OutputStreamWriter( httpCon.getOutputStream() );
             Log.e( "ESI-Connect", "Successful connection to elastic using verb: " + verb );
@@ -234,11 +234,11 @@ final class ElasticSearchIndexer{
         try {
             // When above while loop breaks, we need to close out our resources.
             if( outputStream != null )
+                outputStream.flush();
                 outputStream.close();
                 outputStream = null;
         }catch( IOException IoEx){
-
-            //Log.e("ESI-Disconnect", "Error closing out stream writer. " + IoEx.getCause() + IoEx.getMessage() );
+            Log.e("ESI-Disconnect", "Error closing out stream writer. " + IoEx.getCause() + IoEx.getMessage() );
         }catch( NullPointerException NullEx ){
             Log.e("ESI-Disconnect", "The connection failed to close, possible null ptr.");
         }
