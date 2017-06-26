@@ -3,7 +3,7 @@
     <EditTextPreference
         android:defaultValue="localhost"
         android:key="host"
-        android:summary="Host or IP for elastic search server"
+        android:summary="Host or IP for elastic search server."
         android:title="ES Host"></EditTextPreference>
     <EditTextPreference
         android:defaultValue="9200"
@@ -13,26 +13,30 @@
     <EditTextPreference
         android:defaultValue="sensor_dump"
         android:key="index"
-        android:summary="Index to find your data"
+        android:summary="Index name for sensor dump. Default is fine."
         android:title="ES Index"></EditTextPreference>
+    <CheckBoxPreference
+        android:key="index_date"
+        android:summary="Add current date to index name"
+        android:title="Date Stamp Index"></CheckBoxPreference>
     <EditTextPreference
-        android:defaultValue="phone_data"
-        android:key="type"
-        android:title="ES Type"
-        android:summary="phone_index = default"></EditTextPreference>
+        android:defaultValue="esd"
+        android:key="tag"
+        android:summary="Tag sensor data with this string (optional)."
+        android:title="ES Tag"></EditTextPreference>
     <EditTextPreference
         android:defaultValue=""
         android:key="user"
-        android:summary="Authenticate with user (requires Shield)"
+        android:summary="Authenticate with user (requires Shield.)"
         android:title="ES Username"></EditTextPreference>
     <EditTextPreference
         android:defaultValue=""
         android:key="pass"
-        android:summary="Authenticate with password (requires Shield)"
+        android:summary="Authenticate with password (requires Shield)."
         android:title="ES Password"></EditTextPreference>
     <CheckBoxPreference
         android:key="ssl"
-        android:summary="Connect to elastic using SSL (requires Shield)"
+        android:summary="Connect to elastic using SSL (requires Shield)."
         android:title="Use SSL"></CheckBoxPreference>
 
 </PreferenceScreen>

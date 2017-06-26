@@ -94,6 +94,7 @@ class SensorThread extends Thread implements SensorEventListener {
     /** Number of gps readings this session, default 0. */
     private static int gpsReadings = 0;
 
+
 // Guts.
       /** Constructor:
        * Initialize the sensorMessageHandler manager.
@@ -122,9 +123,9 @@ class SensorThread extends Thread implements SensorEventListener {
      */
     @Override
     public void run() {
-        Log.e("SensorThread", "SensorThread is running.");
         if( !sensorsRegistered){
             registerSensorListeners();
+            Log.e("SensorThread", "SensorThread is running.");
         }
     }
 
@@ -150,19 +151,17 @@ class SensorThread extends Thread implements SensorEventListener {
     @Override
     public final void onSensorChanged(SensorEvent event) {
 
-        if(stopSensorThread){
+        if( stopSensorThread ){
             onProgressUpdate();
             if(sensorsRegistered) {
                 unregisterSensorListeners();
-            }
-            if( gpsRegistered ){
-                unRegisterGpsSensors();
-            }
-            if( audioRegistered ){
-                unregisterAudioSensors();
+                if( gpsRegistered )
+                    unRegisterGpsSensors();
+                if( audioRegistered )
+                    unregisterAudioSensors();
             }
         }else if( System.currentTimeMillis() > lastUpdate + sensorRefreshTime ) {
-            // Make sure we only generate docs at an adjustable rate.
+            // ^^ Make sure we generate docs at an adjustable rate.
             // 250ms is the default setting.
 
             // On each loop, check if we should be recording gps data.
@@ -171,11 +170,10 @@ class SensorThread extends Thread implements SensorEventListener {
             // On each loop, check if we should be recording audio data.
             checkAudioAccess();
 
-            // Log.e("SensorThread", "SENSOR EVENT"); // For diagnostics.
             String sensorName;
             String[] sensorHierarchyName;
             try {
-                joSensorData.put("@timestamp", logDateFormat.format( new Date(System.currentTimeMillis())) );
+                joSensorData.put("@timestamp", logDateFormat.format( new Date( System.currentTimeMillis() )) );
                 joSensorData.put("start_time", logDateFormat.format( new Date( startTime ) ) );
                 joSensorData.put("log_duration_seconds", ( System.currentTimeMillis() - startTime ) / 1000 );
 
@@ -202,11 +200,10 @@ class SensorThread extends Thread implements SensorEventListener {
 
                 dbHelper.JsonToDatabase( joSensorData );
                 sensorReadings++;
-                lastUpdate = System.currentTimeMillis();
                 onProgressUpdate();
-
+                lastUpdate = System.currentTimeMillis();
             } catch (JSONException JsonEx) {
-                Log.e("JSON Logging error", JsonEx.getMessage() + " || " + JsonEx.getCause());
+                Log.e("Sensors-sensorChanged", JsonEx.getMessage() + " || " + JsonEx.getCause());
             }
         }
     }
@@ -228,16 +225,15 @@ class SensorThread extends Thread implements SensorEventListener {
         IntentFilter batteryFilter = new IntentFilter( Intent.ACTION_BATTERY_CHANGED );
         passedContext.registerReceiver( this.batteryReceiver, batteryFilter, null, null);
         sensorsRegistered = true;
-        Log.e("SensorThread", "Registered listeners. ");
+        Log.e("Sensors", "Registered listeners. ");
     }
 
     /** Unregister listeners. */
     private void unregisterSensorListeners(){
-        Log.e("SensorThread", "Unregistered listeners. ");
         passedContext.unregisterReceiver( this.batteryReceiver );
         mSensorManager.unregisterListener( this );
         sensorsRegistered = false;
-
+        Log.e("Sensors", "Unregistered listeners. ");
     }
 
     /** Generate a list of on-board phone sensors. */
@@ -248,7 +244,6 @@ class SensorThread extends Thread implements SensorEventListener {
         List<Sensor> deviceSensors = mSensorManager.getSensorList( Sensor.TYPE_ALL );
         usableSensorList = new ArrayList<>( deviceSensors.size() );
         for( Sensor i: deviceSensors ){
-            //Log.e("SensorThread", i.getName() );
             // Use this to filter out trigger(One-shot) sensors, which are dealt with differently.
             if( i.getReportingMode() != Sensor.REPORTING_MODE_ONE_SHOT ){
                 usableSensorList.add( i.getType() );
@@ -265,7 +260,6 @@ class SensorThread extends Thread implements SensorEventListener {
                 }
             }
         };
-
     }
 
 
@@ -273,12 +267,15 @@ class SensorThread extends Thread implements SensorEventListener {
     /** Register gps sensors to enable recording. */
     private void registerGpsSensors(){
         try{
-            locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, sensorRefreshTime, 0, gpsLogger );
-            Log.i("SensorThread", "GPS listeners registered.");
-        }catch ( SecurityException SecEx ) {
-            Log.e( "GPS Power", "Failure turning gps on/off." );
+            if( !gpsRegistered ){
+                locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, sensorRefreshTime, 0, gpsLogger );
+                Log.i("Sensors-GPS Power", "GPS listeners registered.");
+                gpsRegistered = true;
+            }
+        }catch ( SecurityException secEx ) {
+            Log.e( "Sensors-GPS Power", "Failure turning gps on/off. Cause: " + secEx.getMessage() );
         }catch( RuntimeException runTimeEx ){
-            Log.e( "GPS Power", "StackTrace: " );
+            Log.e( "Sensors-GPS Power", "StackTrace: " );
             runTimeEx.printStackTrace();
         }
     }
@@ -287,7 +284,7 @@ class SensorThread extends Thread implements SensorEventListener {
     private void unRegisterGpsSensors(){
         locationManager.removeUpdates( gpsLogger );
         gpsRecording = gpsRegistered = false;
-        Log.i("SensorThread", "GPS unregistered.");
+        Log.i("Sensors-UnregisterGPS", "GPS unregistered.");
     }
 
     /** Control method to enable/disable gps recording. */
@@ -315,6 +312,7 @@ class SensorThread extends Thread implements SensorEventListener {
         if( !audioLogger.isAlive() && !audioRegistered){
             audioLogger.start();
             audioRegistered = true;
+            Log.i("Sensors-RegisterAudio", "Registered audio sensors." );
         }
     }
 
@@ -323,6 +321,7 @@ class SensorThread extends Thread implements SensorEventListener {
         if(audioRegistered){
             audioLogger.setStopAudioThread(true);
             audioRegistered = false;
+            Log.i("Sensors-UnregisterAudio", "Unregistered audio sensors." );
         }
     }
 

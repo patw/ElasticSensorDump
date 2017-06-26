@@ -17,8 +17,10 @@ import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+
 import android.view.View;
 import android.view.WindowManager;
+
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
@@ -26,36 +28,38 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
-
 /**
- *
+ * Elastic Sensor Dump.
+ * Enumerates the sensors from an android device.
+ * Record the sensor data and upload it to your elastic search server.
  */
 public class MainActivity extends Activity{
 
-        /** Global SharedPreferences object. */
+    /** Global SharedPreferences object. */
     public static SharedPreferences sharedPrefs;
-        /** Use SensorThread class to start the logging process. */
+    /** Use SensorThread class to start the logging process. */
     SensorThread sensorThread;
-        /** UploadTask controls the data flow between the local database and Elastic server. */
+    /** UploadTask controls the data flow between the local database and Elastic server. */
     UploadTask uploadTask;
-        /** Used to determine if we are allowed to upload via Mobile Data. */
+    /** Used to determine if we are allowed to upload via Mobile Data. */
     ConnectivityManager connectivityManager;
-        /** Allows us to keep track of our current, if existing, UPLOAD async task. */
-    private AsyncTask.Status uploadTaskStatus;
-        /** True if we are currently reading sensor data. */
+    /** True if we are currently reading sensor data. */
     public static boolean logging = false;
-        /** True if user gave permission to log GPS data. */
+    /** True if user gave permission to log GPS data. */
     private static boolean gpsLogging = false;
     /** True if user gave permission to log AUDIO data. */
     private static boolean audioLogging = false;
-        /** do not record more than once every 50 milliseconds. Default value is 250ms. */
+    /** do not record more than once every 50 milliseconds. Default value is 250ms. */
     private static final int MIN_SENSOR_REFRESH = 50;
-        /** Refresh time in milliseconds. Default = 250ms.*/
-    private int sensorRefreshTime = 250;
-        /** Number of sensor readings this session */
-    public static long sensorReadings, documentsIndexed, gpsReadings, uploadErrors, databaseEntries = 0;
 
-        /** Set up Handler */
+    private long uploadTimerRefresh = 0L;
+
+    /** Refresh time in milliseconds. Default = 250ms.*/
+    private int sensorRefreshTime = 250;
+    /** Number of sensor readings this session */
+    public static long sensorReadings, documentsIndexed, gpsReadings, uploadErrors;
+
+    /** Set up Handler */
     Handler uiHandler = new Handler(new Handler.Callback(){
         @Override
         public boolean handleMessage(Message msg) {
@@ -88,6 +92,7 @@ public class MainActivity extends Activity{
         setRequestedOrientation( ActivityInfo.SCREEN_ORIENTATION_LOCKED );
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences( getBaseContext() );
         connectivityManager = ( ConnectivityManager ) getSystemService( Context.CONNECTIVITY_SERVICE );
+        uploadTask = new UploadTask( getApplicationContext(), uiHandler, sharedPrefs );
         buildButtonLogic();
         updateScreen();
     }
@@ -97,6 +102,7 @@ public class MainActivity extends Activity{
        * Need to update UI based on the passed data intent.
        *
        */
+
     void updateScreen() {
         TextView mainBanner = (TextView) findViewById(R.id.main_Banner);
 
@@ -111,7 +117,10 @@ public class MainActivity extends Activity{
         errorsTV.setText( String.valueOf( uploadErrors ) );
 
         TextView dbEntries = (TextView) findViewById(R.id.databaseCount);
-        dbEntries.setText( String.valueOf( getDatabasePopulation()) );
+        if( uploadTask != null ){
+            String dbCount = String.format("%s", Long.toString( uploadTask.getDatabasePopulation() ) );
+            dbEntries.setText( dbCount );
+        }
 
         if ( logging ){
             mainBanner.setText(getString(R.string.logging));
@@ -126,12 +135,15 @@ public class MainActivity extends Activity{
 
     }
 
+
+
       /**
        * Go through the sensor array and light them all up
        * btnStart: Click a button, get some sensor data.
        * ibSetup: Settings screen.
        * seekBar: Adjust the collection rate of data.
-       * gpsToggle: Turn gps collection or/off.
+       * gpsToggle: Turn gps collection on/off.
+       * audioToggle: Turn audio recording on/off.
        */
     void buildButtonLogic() {
 
@@ -237,7 +249,6 @@ public class MainActivity extends Activity{
     private void startLogging() {
           // Prevent screen from sleeping if logging has started
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        // Create a new Async task to record sensor data.
 
         sensorThread = null;
         sensorThread = new SensorThread( getApplicationContext(), uiHandler );
@@ -250,7 +261,6 @@ public class MainActivity extends Activity{
         }else{
             Log.e("MainActivity", sensorThread.getState() + "");
         }
-
     }
 
       /**
@@ -263,9 +273,7 @@ public class MainActivity extends Activity{
         if( logging ){
             // Disable wakelock if logging has stopped
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
             sensorThread.stopSensorThread();
-
             if( !sensorThread.isAlive() ){
                 logging = false;
                 Log.i("MainActivity", "Logging Stopped. ");
@@ -276,6 +284,8 @@ public class MainActivity extends Activity{
         }
     }
 
+
+
     /**
      * Start Upload async task:
      * New async task for uploading data to server.
@@ -284,17 +294,24 @@ public class MainActivity extends Activity{
      * If both our task is pending, and we have internet connectivity, execute the task.
      */
     private void startUpload(){
+    Log.e("MainAct-StartUpload", "StartUpload running" );
+        boolean uploadTaskRunning = ( uploadTask == null || uploadTask.getStatus().equals( AsyncTask.Status.FINISHED )  );
 
-        uploadTask = new UploadTask( getApplicationContext(), uiHandler, sharedPrefs );
-        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
 
-        uploadTaskStatus = uploadTask.getStatus();
-        boolean taskStatusPending = ( uploadTaskStatus == AsyncTask.Status.PENDING );
-        boolean connectedToData = ( networkInfo.getState() == NetworkInfo.State.CONNECTED );
 
-        if( taskStatusPending && connectedToData ) {
-            uploadTask.executeOnExecutor( AsyncTask.THREAD_POOL_EXECUTOR );
+        if( System.currentTimeMillis() > uploadTimerRefresh + 30000 && uploadTaskRunning  ){
+            NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+
+            uploadTask = new UploadTask( this, uiHandler, sharedPrefs );
+            boolean connectedToData = networkInfo.getState() == NetworkInfo.State.CONNECTED;
+
+            if( connectedToData ){
+                uploadTask.executeOnExecutor( AsyncTask.THREAD_POOL_EXECUTOR );
+            }
+
+            uploadTimerRefresh = System.currentTimeMillis();
         }
+
     }
 
     /**
@@ -303,10 +320,11 @@ public class MainActivity extends Activity{
      * Cancel the task.
      */
     private void stopUpload(){
-        uploadTaskStatus = uploadTask.getStatus();
+        AsyncTask.Status uploadTaskStatus = uploadTask.getStatus();
         if( uploadTaskStatus == AsyncTask.Status.RUNNING ){
             uploadTask.cancel( true );
             uploadTask = null;
+            Log.i("MainAct: stopUpload", "Upload task stopped." );
         }
     }
 
@@ -314,7 +332,9 @@ public class MainActivity extends Activity{
     @Override
     protected void onPause() {
         super.onPause();
-        stopUpload();
+        if( uploadTask != null ){
+            stopUpload();
+        }
         if( logging ){
             stopLogging();
         }
@@ -326,17 +346,10 @@ public class MainActivity extends Activity{
     @Override
     protected void onResume() {
         super.onResume();
-        getDatabasePopulation();
-        updateScreen();
         startUpload();
+        updateScreen();
     }
 
-    private long getDatabasePopulation(){
-        DatabaseHelper databaseHelper = new DatabaseHelper( this );
-        databaseEntries = databaseHelper.databaseEntries();
-        databaseHelper.close();
-        return databaseEntries;
-    }
 
     /**
      * Update preferences with new permissions.

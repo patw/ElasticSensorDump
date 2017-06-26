@@ -1,104 +1,83 @@
 package ca.dungeons.sensordump;
 
-import android.content.SharedPreferences;
-import android.util.Log;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.io.BufferedReader;
-import java.io.IOException;
+import java.io.DataOutputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.OutputStream;
 import java.net.Authenticator;
+import java.net.PasswordAuthentication;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.PasswordAuthentication;
 import java.net.URL;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
 
-final class ElasticSearchIndexer{
+import android.util.Log;
+import java.io.IOException;
+import org.json.JSONObject;
+import org.json.JSONException;
 
-        /** Elastic search web address. */
-    private static String esType, esIndex;
-        /** Elastic username. */
-    private static String esUsername = "";
-        /** Elastic password. */
-    private static String esPassword = "";
+final class ElasticSearchIndexer extends Thread{
 
-    private URL elasticURL;
-        /** Reference to application preferences. */
-    private SharedPreferences sharedPreferences;
+    // /** Assigned tag for easy ID of documents.  */
+    // private static String esTag;
 
-        /** True if we have already uploaded a mapping to Elastic. */
-    private static boolean mappingCreated = false;
-        /** Our connection to the outside world. */
-    private static OutputStreamWriter outputStream;
-        /** Used to establish outside connection. */
-    private static HttpURLConnection httpCon;
+    /** Elastic username. */
+    private String esUsername = "";
+    /** Elastic password. */
+    private String esPassword = "";
+
+    /** The "json" to be indexed. */
+    private String uploadString;
+
+    /** True if we have already uploaded a mapping to Elastic. */
+    private boolean mappingCreated = false;
+    private boolean putMapping = false;
+
+
+    /** Used to establish outside connection. */
+    private HttpURLConnection httpCon;
+    private URL elasticUrl;
+    private OutputStream outputStream;
 
         /** Base constructor. */
-    ElasticSearchIndexer(SharedPreferences passedPreferences ){
-        sharedPreferences = passedPreferences;
-
-
+    ElasticSearchIndexer(String indexString, URL url ){
+        uploadString = indexString;
+        elasticUrl = url;
+    }
+    /** Base constructor. */
+    ElasticSearchIndexer( URL url ){
+        elasticUrl = url;
+        putMapping = true;
     }
 
-        /** Extract config information from sharedPreferences.
-         *  Tag the current date stamp on the index name if set in preferences. Credit: GlenRSmith.
-         */
-    private void updateURL(String verb) {
-
-        boolean esSSL = sharedPreferences.getBoolean("ssl", false);
-        esUsername = sharedPreferences.getString("user", "");
-        esPassword = sharedPreferences.getString("pass", "");
-
-
-        String esHost = sharedPreferences.getString("host", "localhost");
-        String esPort = sharedPreferences.getString("port", "9200");
-        esIndex = sharedPreferences.getString("index", "test_index");
-        esType = sharedPreferences.getString("type", "phone_data");
-
-
-        if ( sharedPreferences.getBoolean("index_date", false) ){
-            Date logDate = new Date(System.currentTimeMillis());
-            SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyyMMdd", Locale.US);
-            String dateString = logDateFormat.format(logDate);
-            esIndex = esIndex + "-" + dateString;
+    @Override
+    public void run() {
+        if( putMapping ){
+            createMapping();
+        }else{
+            index();
         }
-
-        String httpString = "http://";
-        if( esSSL )
-            httpString = "https://";
-
-        String urlString = String.format( "%s%s:%s/%s/", httpString ,esHost ,esPort ,esIndex );
-
-        if( verb.equals("POST") ){
-            urlString = String.format("%s%s/", urlString, esType );
-        }
-
-        try{
-            elasticURL = new URL( urlString );
-            //Log.e("ElasticSearchIndexer", elasticURL.toString() );
-        }catch(MalformedURLException urlEx){
-            Log.e("ESI-Update URL", "Error building URL.");
-        }
-
     }
 
+    void setAuthorization( String userName, String password ){
+        esUsername = userName;
+        esPassword = password;
+    }
 
-        /** Create a map and send to elastic for sensor index. */
+    /** Create a map and send to elastic for sensor index. */
     private void createMapping() {
         // Json object mappings first packet of data to upload to elastic.
         // Each json is a container for similar data.
         if( !mappingCreated ) {
-            // Connect to elastic using PUT to make elastic understand this payload is a mapping.
-            connect("PUT");
-            try {
+            String esType = "esd";
 
-                // GPS coordinates --TYPING
-                final JSONObject typeGeoPoint = new JSONObject().put("type", "geo_point");
+            connect("PUT");
+            // Connect to elastic using PUT to make elastic understand this payload is a mapping.
+            DataOutputStream dataOutputStream = new DataOutputStream( outputStream );
+
+            try {
+                // GPS coordinates -- A new Type.
+                JSONObject typeGeoPoint = new JSONObject().put("type", "geo_point");
                 // Lowest json level, contains explicit typing of sensor data.
                 JSONObject mappingTypes = new JSONObject();
                 // Type "start_location" && "location" using pre-defined typeGeoPoint. ^^
@@ -112,137 +91,125 @@ final class ElasticSearchIndexer{
                 JSONObject mappings = new JSONObject().put("mappings", esTypeObj);
 
                 // Write out to elastic using the passed outputStream that is connected.
-                if( outputStream != null ){
-
-                    String outString = mappings.toString(4);
-                    Log.e("ESI-CreateMapping", outString );
-                    outputStream.write( outString );
-                }
-
-                String responseMessage = httpCon.getResponseMessage();
-                int responseCode = httpCon.getResponseCode();
-                String responseString = httpCon.getURL().toString();
-
-                if (200 <= responseCode && responseCode <= 299) {
-                    Log.e("ESI-Create Mapping", "Mapping successful using: " + mappings.toString() );
-                    disconnect();
-                } else {
-                    // Something bad happened. I expect only the finest of 200's
-                    Log.e("ESI-Create Mapping", String.format("%s%s\n%s%s\n%s%s\n%s%s",
-                            "Bad response code: ", responseCode,
-                            "Response Message: ", responseMessage,
-                            "Failed mapping: ", mappings.toString(),
-                            "URL: ", responseString
-                    ));
-
-                    BufferedReader errorStream = new BufferedReader(new InputStreamReader(httpCon.getErrorStream() ) );
-                    String errorMessage;
-                    while( ( errorMessage = errorStream.readLine() ) != null ){
-                        Log.e("ESI-Create Mapping", errorMessage );
-                    }
-
-                    errorStream.close();
-                    disconnect();
-                }
+                dataOutputStream.writeBytes(  mappings.toString());
                 mappingCreated = true;
             } catch (JSONException j) {
                 Log.e("ESI-Create Mapping", "JSON error: " + j.toString());
-                mappingCreated = false;
-            } catch (IOException IoEx) {
-                IoEx.printStackTrace();
-                mappingCreated = false;
+            }catch (IOException IoEx) {
+                Log.e("ESI-Create Mapping", "Failed to write to outputStreamWriter." );
             }
         }
     }
 
-        /** Send JSON data to elastic using POST.
-         *  @param jsonObject The supplied json object to be uploaded.
-         */
-    boolean index(JSONObject jsonObject) {
+        /** Send JSON data to elastic using POST. */
+    private void index() {
 
-        createMapping();
+        if( uploadString != null  ) {
 
-        if( jsonObject != null ) {
             try {
-                // Connect to elastic using POST.
+                // POST our documents to elastic.
                 connect("POST");
-                //Log.e("ESI-INDEX", httpCon.getRequestMethod() + " " + httpCon.getURL() );
                 if( outputStream != null ){
-                    String outString = jsonObject.toString();
-                    outputStream.write( outString );
-                }
-
-                int responseCode = httpCon.getResponseCode();
-                if( 200 <= responseCode && responseCode <= 299 ){
-                    return true;
-                }else{
-                    // Something bad happened. I expect only the finest of 200's.
-                    BufferedReader errorStream = new BufferedReader(new InputStreamReader(httpCon.getErrorStream() ) );
-                    String errorMessage;
-                    while( ( errorMessage = errorStream.readLine() ) != null ){
-                        Log.e("ESI-Index", "Message = " + errorMessage );
+                    DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
+                    //Log.e("ESI-INDEX", uploadString );
+                    dataOutputStream.writeBytes( uploadString );
+                    Log.e("ESI-INDEX", "Uploaded: " + uploadString );
+                    // Check status of post operation.
+                    if( checkResponseCode() ){
+                        UploadTask.uploadSuccess();
+                    }else{
+                        UploadTask.uploadFailed();
                     }
-                    throw new IOException( responseCode + "" );
+                }else{
+                    throw new IOException("OutputStream is null. Bad connection?" );
                 }
             }catch( IOException IOex ){
+                httpCon.disconnect();
                 // Error writing to httpConnection.
-                Log.e("ESI-Index", "Error CODE: " + IOex.getMessage() );
-                return false;
+                Log.e("ESI-Index", IOex.getMessage() );
             }
         }
-    return true;
     }
 
 
     /** Open a connection with the server. */
-    private boolean connect(String verb){
-        updateURL(verb);
+    private void connect(String verb){
 
-        // Set default authenticator if required
-        final String elasticUserName = ElasticSearchIndexer.esUsername;
-        final String elasticPassword = ElasticSearchIndexer.esPassword;
-        if (elasticUserName.length() > 0 && elasticPassword.length() > 0) {
+        // Send authentication if required
+        if (esUsername.length() > 0 && esPassword.length() > 0) {
             Authenticator.setDefault(new Authenticator() {
                 protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(elasticUserName, elasticPassword.toCharArray());
+                    return new PasswordAuthentication(esUsername, esPassword.toCharArray());
                 }
             });
         }
-        // Get connection.
+
+
+        // Establish connection.
         try {
-            httpCon = (HttpURLConnection) elasticURL.openConnection();
+            httpCon = (HttpURLConnection) elasticUrl.openConnection();
+            if( httpCon == null ){
+                Log.e("ESI-Connect", "Failed to connect with URL: " + elasticUrl );
+                this.interrupt();
+                return;
+            }
             httpCon.setConnectTimeout(2000);
             httpCon.setReadTimeout(2000);
-            httpCon.setUseCaches(false);
-            httpCon.setRequestMethod(verb);
-            httpCon.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-            Log.e("ESI-CONNECT", httpCon.getRequestProperties().toString() );
             httpCon.setDoOutput(true);
-            outputStream = new OutputStreamWriter( httpCon.getOutputStream() );
-            Log.e( "ESI-Connect", "Successful connection to elastic using verb: " + verb );
-
-        } catch (IOException IOex) {
+            httpCon.setRequestMethod(verb);
+            httpCon.connect();
+            outputStream = httpCon.getOutputStream();
+        }catch(MalformedURLException urlEx){
+            Log.e("ESI-Update URL", "Error building URL.");
+        }catch (IOException IOex) {
             Log.e("ESI-Connect", "Failed to connect to elastic. " + IOex.getMessage() + "  " + IOex.getCause());
-            return false;
         }
-        return true;
+
     }
 
-    /** Close our resources. */
-    void disconnect(){
-        //httpCon.disconnect();
-        try {
-            // When above while loop breaks, we need to close out our resources.
-            if( outputStream != null )
-                outputStream.flush();
-                outputStream.close();
-                outputStream = null;
-        }catch( IOException IoEx){
-            Log.e("ESI-Disconnect", "Error closing out stream writer. " + IoEx.getCause() + IoEx.getMessage() );
-        }catch( NullPointerException NullEx ){
-            Log.e("ESI-Disconnect", "The connection failed to close, possible null ptr.");
+    private boolean checkResponseCode(){
+        String responseMessage = "responseMessage";
+        int responseCode = 0;
+        String errorString = "Error Message: ";
+        String errorStreamMessage;
+
+        BufferedReader errorStream = null;
+        InputStream httpInputStream = httpCon.getErrorStream();
+        InputStreamReader inputStreamReader;
+
+        try{
+            responseMessage = httpCon.getResponseMessage();
+            responseCode = httpCon.getResponseCode();
+            if( httpInputStream != null ){
+                inputStreamReader = new InputStreamReader( httpInputStream );
+                errorStream = new BufferedReader( inputStreamReader );
+            }
+            if( errorStream != null ){
+                while( ( errorStreamMessage = errorStream.readLine() ) != null ){
+                    errorString = errorString + "\n" + errorStreamMessage;
+                }
+                errorStream.close();
+            }
+        }catch( IOException ioEx ){
+            Log.e("ESI-checkResponseCode", "Failed to retrieve response codes for REST operation." );
         }
+
+        if( 200 <= responseCode && responseCode <= 299 ){
+            httpCon.disconnect();
+            return true;
+        }else{
+            // Something bad happened. I expect only the finest of 200's
+            Log.e("ESI-checkResponseCode", String.format("%s%s\n%s%s\n%s",
+                    "Bad response code: ", responseCode,
+                    "Response Message: ", responseMessage,
+                    errorString
+            ));
+        }
+        httpCon.disconnect();
+        return false;
+
     }
+
 
 
 }
