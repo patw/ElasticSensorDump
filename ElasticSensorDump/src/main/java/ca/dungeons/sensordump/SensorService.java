@@ -1,20 +1,23 @@
 package ca.dungeons.sensordump;
 
 import android.annotation.TargetApi;
+import android.app.Service;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.hardware.SensorManager;
-import android.location.LocationManager;
-
+import android.content.ServiceConnection;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
-
+import android.hardware.SensorManager;
+import android.location.LocationManager;
 import android.os.BatteryManager;
-import android.os.Message;
 import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -26,12 +29,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Listener class to record sensorMessageHandler data.
- * @author Gurtok.
- * @version First version of upload Async thread.
- */
-class SensorThread extends Thread implements SensorEventListener {
+
+public class SensorService extends Service implements SensorEventListener {
 
     /** Unique ID for broadcasting information to UI thread. */
     static final int SENSOR_THREAD_ID = 654321;
@@ -94,12 +93,13 @@ class SensorThread extends Thread implements SensorEventListener {
     /** Number of gps readings this session, default 0. */
     private static int gpsReadings = 0;
 
+
 // Guts.
     /** Constructor:
      * Initialize the sensorMessageHandler manager.
      * Enumerate available sensors and store into a list.
      */
-    SensorThread(Context context, Handler passedHandler) {
+    SensorService(Context context, Handler passedHandler) {
         passedContext = context;
         uiHandler = passedHandler;
         dbHelper = new DatabaseHelper( passedContext );
@@ -107,49 +107,22 @@ class SensorThread extends Thread implements SensorEventListener {
         startTime = lastUpdate = System.currentTimeMillis();
     }
 
-
     /** A control method for collection intervals. */
     void setSensorRefreshTime(int updatedRefresh ){ sensorRefreshTime = updatedRefresh; }
 
     /** Control method to shut down ALL sensor recording. */
     void stopSensorThread(){ stopSensorThread = true; }
 
-    /** Main work here:
-     * Spin up message thread for this thread with Looper.
-     * Set up
-     * Time the messages to be every 250ms, instead of unlimited.
-     * UI thread interrupts this thread, which throws an
-     *    InterruptException to unregister the listeners.
-     */
+
     @Override
-    public void run() {
-        if( !sensorsRegistered){
-            registerSensorListeners();
-            Log.e("SensorThread", "SensorThread is running.");
-        }
+    public int onStartCommand(Intent intent, int flags, int startId) {
+
+        return flags;
     }
 
-    /** Our main connection to the UI thread for communication. */
-    private void onProgressUpdate() {
-        Message outMessage = uiHandler.obtainMessage();
-        outMessage.arg1 = sensorReadings;
-        outMessage.arg2 = gpsReadings;
-        outMessage.what = SENSOR_THREAD_ID;
-        uiHandler.sendMessage(outMessage);
-    }
 
-      /**
-       * This is the main recording loop. One reading per sensorMessageHandler per loop.
-       * Update timestamp in sensorMessageHandler data structure.
-       * Store the logging start time with each document.
-       * Store the duration of the sensorMessageHandler log with each document.
-       * Dump gps data into document if it's ready.
-       * Put battery status percentage into the Json.
-       *
-       * @param event A reference to the event object.
-       */
     @Override
-    public final void onSensorChanged(SensorEvent event) {
+    public final void onSensorChanged( SensorEvent event ){
 
         if( stopSensorThread ){
             onProgressUpdate();
@@ -206,11 +179,8 @@ class SensorThread extends Thread implements SensorEventListener {
                 Log.e("Sensors-sensorChanged", JsonEx.getMessage() + " || " + JsonEx.getCause());
             }
         }
-    }
 
-    /** Required stub. Not used. */
-    @Override
-    public final void onAccuracyChanged(Sensor sensor, int accuracy){} // <- Empty
+    }
 
 
 // Phone Sensors
@@ -334,6 +304,72 @@ class SensorThread extends Thread implements SensorEventListener {
         }
     }
 
+
+//BINDS
+    @Override
+    public boolean bindService(Intent service, ServiceConnection conn, int flags) {
+        return super.bindService(service, conn, flags);
+    }
+
+    @Override
+    public void unbindService(ServiceConnection conn) {
+        super.unbindService(conn);
+    }
+
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+
+
+// POWER BUTTONS
+    @Override
+    public ComponentName startService(Intent service) {
+
+
+        return super.startService(service);
+    }
+
+    @Override
+    public boolean stopService(Intent name) {
+
+
+        return super.stopService(name);
+    }
+
+    @Override
+    public void onDestroy() {
+
+
+        super.onDestroy();
+    }
+
+
+
+
+
+
+// Message passing.
+    /** If the main application is active and is the users focus, update our counts continuously. */
+    private void onProgressUpdate() {
+        Message outMessage = uiHandler.obtainMessage();
+        outMessage.arg1 = sensorReadings;
+        outMessage.arg2 = gpsReadings;
+        outMessage.what = SENSOR_THREAD_ID;
+        uiHandler.sendMessage(outMessage);
+    }
+
+
+
+
+    /** Not used. */
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i) {
+
+    }
 
 
 

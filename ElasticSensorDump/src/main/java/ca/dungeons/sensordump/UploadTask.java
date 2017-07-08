@@ -2,7 +2,6 @@ package ca.dungeons.sensordump;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -20,20 +19,22 @@ import java.util.Locale;
  * @author Gurtok.
  * @version First version of upload Async thread.
  */
-class UploadTask extends AsyncTask< Void, Void, Void>{
+class UploadTask extends Thread{
 
     /** Used to identify the origin of the message sent to the UI thread. */
     static final int UPLOAD_TASK_ID = 123456;
     /** Used to gain access to the application database. */
     private Context passedContext;
+
+    private boolean stopUploadThread = false;
+    private static boolean uploadSuccess = false;
+
     /** A reference to the apps stored preferences. */
     private SharedPreferences sharedPreferences;
     /** Used to authenticate with elastic server. */
     private String esUsername = "";
     /** Used to authenticate with elastic server. */
     private String esPassword = "";
-    /** New instance of database abstraction. */
-    private DatabaseHelper dbHelper;
     /** Used to keep track of how many POST requests we are allowed to do each second. */
     private Long globalUploadTimer = System.currentTimeMillis();
     /** Reference handler to send messages back to the UI thread. */
@@ -51,17 +52,17 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
     }
 
     /** Used by ElasticSearchIndexer to report home on upload status. */
-    static void uploadSuccess(){
+    static void indexSuccessCount(){
         documentsIndexed++;
     }
     /** Used by ElasticSearchIndexer to report home on upload status. */
-    static void uploadFailed(){
+    static void indexFailureCount(){
         uploadErrors++;
     }
+    /** Control method to shut down upload thread. */
+    void stopSensorThread(){ stopUploadThread= true; }
 
-    /** Required override method. Not used. */
-    @Override
-    protected void onPreExecute() {}
+    static void indexSuccess(boolean test ){ uploadSuccess = test; }
 
     long getDatabasePopulation(){
         DatabaseHelper databaseHelper = new DatabaseHelper( passedContext );
@@ -70,57 +71,59 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
         return databaseEntries;
     }
 
-    /**
-     * Check for internet connectivity.
-     * If connected, start up the async thread to send.
-     * @return Super requires a return value. In this case it will always be null.
-      */
     @Override
-    protected Void doInBackground( Void... params ) {
-        checkHostLoop();
+    public void run() {
 
-        if( getDatabasePopulation() > 20 ) {
-            dbHelper = new DatabaseHelper(passedContext);
-            URL destinationURL = updateURL();
-            boolean indexAlreadyMapped = sharedPreferences.getBoolean("IndexMapped", false);
-            ElasticSearchIndexer esIndexer;
+        if( !checkForElasticHost() ){
+            this.stopSensorThread();
+            return;
+        }
 
-            // Loop to keep uploading at a limit of 10 outs per second, while the main thread doesn't cancel.
-            while (!this.isCancelled()) {
+        DatabaseHelper dbHelper = new DatabaseHelper(passedContext);
+        URL destinationURL = updateURL();
+        boolean indexAlreadyMapped = sharedPreferences.getBoolean("IndexMapped", false);
+        ElasticSearchIndexer esIndexer;
 
-                if (!indexAlreadyMapped) {
-                    esIndexer = new ElasticSearchIndexer(destinationURL);
-                    if (esUsername.length() > 0 && esPassword.length() > 0) {
-                        esIndexer.setAuthorization(esUsername, esPassword);
-                    }
-                    esIndexer.start();
-                    sharedPreferences.edit().putBoolean("IndexMapped", true).apply();
-                } else if (System.currentTimeMillis() > globalUploadTimer + 200) {
-
-                    String nextString = dbHelper.getNextCursor();
-
-                    esIndexer = new ElasticSearchIndexer(nextString, destinationURL);
-                    if (esUsername.length() > 0 && esPassword.length() > 0) {
-                        esIndexer.setAuthorization(esUsername, esPassword);
-                    }
-
-                    // If nextString has data.
-                    if (nextString != null) {
-                        esIndexer.start();
-                        dbHelper.deleteJson();
-                    }
-                    Message outMessage = uiHandler.obtainMessage();
-                    outMessage.what = UPLOAD_TASK_ID;
-                    outMessage.arg1 = documentsIndexed;
-                    outMessage.arg2 = uploadErrors;
-
-                    uiHandler.sendMessage(outMessage);
-                    globalUploadTimer = System.currentTimeMillis();
+        // Loop to keep uploading at a limit of 5 outs per second, while the main thread doesn't cancel.
+        while( !stopUploadThread ){
+            if( !indexAlreadyMapped ){
+                esIndexer = new ElasticSearchIndexer(destinationURL);
+                if (esUsername.length() > 0 && esPassword.length() > 0) {
+                    esIndexer.setAuthorization(esUsername, esPassword);
                 }
+                esIndexer.start();
+                sharedPreferences.edit().putBoolean("IndexMapped", true).apply();
+            } else if (System.currentTimeMillis() > globalUploadTimer + 200) {
+
+                String nextString = dbHelper.getNextCursor();
+
+                esIndexer = new ElasticSearchIndexer(nextString, destinationURL);
+
+                if (esUsername.length() > 0 && esPassword.length() > 0) {
+                    esIndexer.setAuthorization(esUsername, esPassword);
+                }
+
+                // If nextString has data.
+                if ( nextString != null ) {
+                    esIndexer.start();
+                    while( esIndexer.isAlive() ){
+                        // Wait til the indexer finishes.
+                    }
+                    if( uploadSuccess )
+                        dbHelper.deleteJson();
+                }
+                Message outMessage = uiHandler.obtainMessage();
+                outMessage.what = UPLOAD_TASK_ID;
+                outMessage.arg1 = documentsIndexed;
+                outMessage.arg2 = uploadErrors;
+
+                uiHandler.sendMessage(outMessage);
+                globalUploadTimer = System.currentTimeMillis();
             }
         }
-    return null;
+
     }
+
 
     /** Extract config information from sharedPreferences.
      *  Tag the current date stamp on the index name if set in preferences. Credit: GlenRSmith.
@@ -163,7 +166,7 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
         try{
             returnURL = new URL(urlString);
         }catch( MalformedURLException malFormedUrlEx){
-            Log.e("ESI-updateURL", "Failed to create a new URL. Bad string?" );
+            Log.e("UploadThread-CheckHost", "Failed to create a new URL. Bad string?" );
         }
 
         return returnURL;
@@ -173,7 +176,7 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
 
         boolean responseCodeSuccess = false;
 
-        HttpURLConnection httpConnection;
+        HttpURLConnection httpConnection = null;
         String esHost, esPort;
         URL esUrl;
         esHost = sharedPreferences.getString("host", "localhost" );
@@ -181,66 +184,33 @@ class UploadTask extends AsyncTask< Void, Void, Void>{
         String esHostUrlString = String.format("http://%s:%s/", esHost, esPort );
 
         try{
-            Log.e("MainAct-checkForHost", esHostUrlString );
+            //Log.e("UploadThread-CheckHost", esHostUrlString ); // DIAGNOSTICS
             esUrl = new URL( esHostUrlString );
 
             httpConnection = (HttpURLConnection) esUrl.openConnection();
             httpConnection.setConnectTimeout(2000);
             httpConnection.setReadTimeout(2000);
             httpConnection.connect();
+
             int responseCode = httpConnection.getResponseCode();
             if( responseCode >= 200 && responseCode <= 299 ){
                 responseCodeSuccess = true;
             }
-            httpConnection.disconnect();
         }catch( MalformedURLException malformedUrlEx ){
-            Log.e("MainAct-checkElastic", "MalformedURL cause: " + malformedUrlEx.getCause() );
+            Log.e("UploadThread-CheckHost", "MalformedURL cause: " + malformedUrlEx.getCause() );
             malformedUrlEx.printStackTrace();
         }catch(IOException IoEx ){
-            Log.e("MainAct-checkElastic", "Failure to open connection cause: " + IoEx.getCause() );
+
+            Log.e("UploadThread-CheckHost", "Failure to open connection cause: " + IoEx.getMessage());
+        }
+
+        if( httpConnection != null ){
+            httpConnection.disconnect();
         }
 
         // Returns true if the response code was valid.
         return responseCodeSuccess;
     }
 
-    private void checkHostLoop(){
-
-        while( !checkForElasticHost() ){
-            try{
-                Log.i("UploadTask-CheckHost", "Count not find the host specified in preferences." +
-                        "Sleeping uploadTask for 30 seconds. " );
-                this.wait(30000);
-            }catch( InterruptedException InterruptEx ){
-                Log.i("UploadTask-CheckHost", "Error pausing upload task thread." );
-            }
-
-        }
-    }
-
-    /**
-     * This is the work loop for uploading.
-     * Called each loop of doInBackground method.
-     * String array parameter contains only ONE value, stored at index[0].
-     * @param progress A string value to be converted to JSON.
-     */
-    @Override
-    protected void onProgressUpdate(Void... progress){}
-
-    /**
-     * This runs after the dataBase is emptied or upload is interrupted.
-     * @param Void Not used. Required.
-     */
-    @Override
-    protected void onPostExecute(Void Void) {
-    }
-
-    @Override
-    protected void onCancelled() {
-        if( dbHelper != null ){
-            dbHelper.closeDatabase();
-        }
-
-    }
 
 }

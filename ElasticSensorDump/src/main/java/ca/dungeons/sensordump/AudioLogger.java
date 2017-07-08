@@ -8,41 +8,36 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/**
- * Created by Gurtok on 6/14/2017.
- *
- */
-
 class AudioLogger extends Thread {
 
     /* Unique ID for broadcasting information to UI thread. */
     //static final int AUDIO_THREAD_ID = 246810;
+    /** We use this to indicate to the sensor thread if we have data to send. */
+    boolean hasData = false;
+
+    /** Indicates if recording / playback should stop. */
+    private boolean stopThread = false;
+
+    /** A reference to Androids built in audio recording API. */
+    private AudioRecord audioRecord;
 
     /** A reference to the current audio sample "loudness" in terms of percentage of mic capability.*/
     private float amplitude = 0;
     /** A reference to the current audio sample frequency. */
     private float frequency = 0;
-    /** We use this to indicate to the sensor thread if we have data to send. */
-    boolean hasData = false;
-
     /** The sampling rate of the audio recording. */
     private final int SAMPLE_RATE = 44100;
-
-    /** Indicates if recording / playback should stop. */
-    private boolean stopThread = false;
-    /** A reference to Androids built in audio recording API. */
-    private AudioRecord audioRecord;
     /** Short type array to feed to the recording API. */
     private short[] audioBuffer;
 
     /** Constructor.
      * Here we set static variables used for all recording. */
     AudioLogger(){
-        // buffer size in bytes
+        // Buffer size in bytes.
         int bufferSize = AudioRecord.getMinBufferSize(
                 SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
         );
-        // A check to make sure we are doing math on valid objects??
+        // A check to make sure we are doing math on valid objects.
         if( bufferSize == AudioRecord.ERROR || bufferSize == AudioRecord.ERROR_BAD_VALUE ){
             bufferSize = SAMPLE_RATE * 2;
         }
@@ -84,25 +79,26 @@ class AudioLogger extends Thread {
         int zeroes = 0;
         int last_value = 0;
 
-        for (short anAudioBuffer : audioBuffer) {
+        // Exploring the buffer. Record the highest and lowest readings
+        for( short anAudioBuffer : audioBuffer ){
 
             // Detect lowest in sample
-            if (anAudioBuffer < lowest) {
+            if( anAudioBuffer < lowest ){
                 lowest = anAudioBuffer;
             }
 
             // Detect highest in sample
-            if (anAudioBuffer > highest) {
+            if( anAudioBuffer > highest ){
                 highest = anAudioBuffer;
             }
 
             // Down and coming up
-            if (anAudioBuffer > 0 && last_value < 0) {
+            if( anAudioBuffer > 0 && last_value < 0 ){
                 zeroes++;
             }
 
             // Up and down
-            if (anAudioBuffer < 0 && last_value > 0) {
+            if( anAudioBuffer < 0 && last_value > 0 ){
                 zeroes++;
             }
 

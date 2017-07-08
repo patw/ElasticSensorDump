@@ -1,32 +1,34 @@
 package ca.dungeons.sensordump;
 
-import android.Manifest;
-import android.app.Activity;
 import android.content.Context;
+import android.support.v4.content.ContextCompat;
+import android.app.Activity;
+import android.support.v4.app.ActivityCompat;
+import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+
+import android.preference.PreferenceManager;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.os.AsyncTask;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
-import android.preference.PreferenceManager;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.util.Log;
 
 import android.view.View;
 import android.view.WindowManager;
-
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
+
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.util.Log;
+
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Elastic Sensor Dump.
@@ -51,9 +53,6 @@ public class MainActivity extends Activity{
     private static boolean audioLogging = false;
     /** do not record more than once every 50 milliseconds. Default value is 250ms. */
     private static final int MIN_SENSOR_REFRESH = 50;
-
-    private long uploadTimerRefresh = 0L;
-
     /** Refresh time in milliseconds. Default = 250ms.*/
     private int sensorRefreshTime = 250;
     /** Number of sensor readings this session */
@@ -95,6 +94,17 @@ public class MainActivity extends Activity{
         uploadTask = new UploadTask( getApplicationContext(), uiHandler, sharedPrefs );
         buildButtonLogic();
         updateScreen();
+        setupUploadTimer();
+    }
+
+    void setupUploadTimer(){
+        Timer uploadTimer = new Timer();
+        uploadTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                startUpload();
+            }
+        },500,30000); // Delay the task 5 seconds out and then repeat every 30 seconds.
     }
 
       /**
@@ -134,8 +144,6 @@ public class MainActivity extends Activity{
         }
 
     }
-
-
 
       /**
        * Go through the sensor array and light them all up
@@ -250,16 +258,16 @@ public class MainActivity extends Activity{
           // Prevent screen from sleeping if logging has started
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        sensorThread = null;
         sensorThread = new SensorThread( getApplicationContext(), uiHandler );
 
         sensorReadings = documentsIndexed = gpsReadings = uploadErrors = 0;
         sensorThread.start();
+
         if( sensorThread.isAlive() ){
             logging = true;
-            Log.i("MainActivity", "Logging Started. ");
+            Log.i("MainAct-startLogging", "Logging Started. ");
         }else{
-            Log.e("MainActivity", sensorThread.getState() + "");
+            Log.e("MainAct-startLogging", sensorThread.getState() + "");
         }
     }
 
@@ -276,15 +284,13 @@ public class MainActivity extends Activity{
             sensorThread.stopSensorThread();
             if( !sensorThread.isAlive() ){
                 logging = false;
-                Log.i("MainActivity", "Logging Stopped. ");
+                Log.i("MainAct-stopLogging", "Logging Stopped. ");
             }else{
-                Log.e("MainActivity", "Failed to shut down sensor thread." );
+                Log.e("MainAct-stopLogging", "Failed to shut down sensor thread." );
             }
             updateScreen();
         }
     }
-
-
 
     /**
      * Start Upload async task:
@@ -294,24 +300,10 @@ public class MainActivity extends Activity{
      * If both our task is pending, and we have internet connectivity, execute the task.
      */
     private void startUpload(){
-    Log.e("MainAct-StartUpload", "StartUpload running" );
-        boolean uploadTaskRunning = ( uploadTask == null || uploadTask.getStatus().equals( AsyncTask.Status.FINISHED )  );
-
-
-
-        if( System.currentTimeMillis() > uploadTimerRefresh + 30000 && uploadTaskRunning  ){
-            NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
-
+        if( uploadTask == null || !uploadTask.isAlive() ){
             uploadTask = new UploadTask( this, uiHandler, sharedPrefs );
-            boolean connectedToData = networkInfo.getState() == NetworkInfo.State.CONNECTED;
-
-            if( connectedToData ){
-                uploadTask.executeOnExecutor( AsyncTask.THREAD_POOL_EXECUTOR );
-            }
-
-            uploadTimerRefresh = System.currentTimeMillis();
+            uploadTask.start();
         }
-
     }
 
     /**
@@ -320,12 +312,8 @@ public class MainActivity extends Activity{
      * Cancel the task.
      */
     private void stopUpload(){
-        AsyncTask.Status uploadTaskStatus = uploadTask.getStatus();
-        if( uploadTaskStatus == AsyncTask.Status.RUNNING ){
-            uploadTask.cancel( true );
-            uploadTask = null;
-            Log.i("MainAct: stopUpload", "Upload task stopped." );
-        }
+    if( uploadTask != null && uploadTask.isAlive() )
+        uploadTask.stopSensorThread();
     }
 
     /** If our activity is paused, we need to close out the resources in use. */
@@ -369,15 +357,29 @@ public class MainActivity extends Activity{
      */
     public boolean gpsPermission(){
 
-        // if sharedPrefs does NOT contain a string for ASK for permission
-        if ( ! sharedPrefs.contains("GPS_Asked") ) {
-            ActivityCompat.requestPermissions( this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-            boolean gpsPermission = (ContextCompat.checkSelfPermission( this, android.Manifest.permission.
+        boolean gpsPermissionFine = false;
+
+
+
+        String[] permissions = {
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION  };
+
+        ActivityCompat.requestPermissions( this, permissions, 1);
+
+        boolean gpsPermissionCoarse = (ContextCompat.checkSelfPermission( this, Manifest.permission.
+                ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED);
+
+
+        if( !gpsPermissionCoarse ){
+            gpsPermissionFine = (ContextCompat.checkSelfPermission( this, android.Manifest.permission.
                     ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
-            BooleanToPrefs("GPS_Asked", true);
-            BooleanToPrefs("GPS_Permission", gpsPermission  );
         }
-        return sharedPrefs.getBoolean("GPS_Permission", false);
+        BooleanToPrefs("GPS_Asked", true);
+        BooleanToPrefs("GPS_PermissionFine", gpsPermissionFine  );
+        BooleanToPrefs("GPS_PermissionCoarse", gpsPermissionCoarse );
+
+        return( gpsPermissionFine || gpsPermissionCoarse );
     }
 
 
