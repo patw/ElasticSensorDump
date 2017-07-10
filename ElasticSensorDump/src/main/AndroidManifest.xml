@@ -52,6 +52,10 @@
                 <action android:name="esd.intent.action.message.AUDIO"/>
             </intent-filter>
 
+            <intent-filter>
+                <action android:name="esd.intent.action.message.IDLE"/>
+            </intent-filter>
+
         </receiver>
 
 

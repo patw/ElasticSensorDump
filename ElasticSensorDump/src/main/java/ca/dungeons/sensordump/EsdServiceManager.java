@@ -14,37 +14,6 @@ public class EsdServiceManager extends Service {
     private UploadTask uploadTask;
     private SensorThread sensorThread;
 
-
-    public class EsdServiceManagerReceiver extends BroadcastReceiver {
-
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-
-            final String SENSOR_INTENT = "esd.intent.action.message.SENSOR";
-            final String GPS_INTENT = "esd.intent.action.message.GPS";
-            final String AUDIO_INTENT = "esd.intent.action.message.AUDIO";
-
-
-            if( intent.getAction().equals( SENSOR_INTENT ) ){
-
-            }
-
-            if( intent.getAction().equals( GPS_INTENT ) ){
-
-            }
-
-            if( intent.getAction().equals( AUDIO_INTENT ) ){
-
-            }
-
-        }
-
-
-
-    }
-
-
     public EsdServiceManager( ){
 
     }

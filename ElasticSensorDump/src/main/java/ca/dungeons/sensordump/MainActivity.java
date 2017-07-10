@@ -43,6 +43,11 @@ public class MainActivity extends Activity{
     SensorThread sensorThread;
     /** UploadTask controls the data flow between the local database and Elastic server. */
     UploadTask uploadTask;
+
+    EsdServiceManager serviceManager;
+
+    EsdServiceReceiver serviceReceiver;
+
     /** Used to determine if we are allowed to upload via Mobile Data. */
     ConnectivityManager connectivityManager;
     /** True if we are currently reading sensor data. */
@@ -95,6 +100,12 @@ public class MainActivity extends Activity{
         buildButtonLogic();
         updateScreen();
         setupUploadTimer();
+    }
+
+    private void startServiceManager(){
+        serviceManager = new EsdServiceManager();
+        serviceReceiver = new EsdServiceReceiver();
+        serviceManager.startService( new Intent(EsdServiceReceiver.IDLE_SERVICE ));
     }
 
     void setupUploadTimer(){
