@@ -6,12 +6,8 @@
     <string name="Collection_Interval">Collection Interval</string>
     <string name="milliseconds">ms</string>
     <string name="No_Sensor_Readings">No sensor Readings</string>
-    <string name="Sensor_Readings">Sensor Readings:</string>
-    <string name="Documents_Written">Docs Written:</string>
-    <string name="GPS_Updates">GPS Updates: </string>
+    <string name="Sensor_Readings">Readings:</string>
     <string name="Errors">Errors: </string>
-    <string name="gpsOn">GPS ON</string>
-    <string name="gps_off">GPS OFF</string>
     <string name="settings">Settings</string>
     <string name="sensor_tv">sensor_tv</string>
     <string name="documents_tv">documents_tv</string>
@@ -19,14 +15,12 @@
     <string name="errors_tv">errors_tv</string>
     <string name="logging">Logging</string>
     <string name="_0">0</string>
-    <string name="gps_rec">GPS Data</string>
-    <string name="mobileData_Switch">Mobile Data</string>
     <string name="databaseText">Database:</string>
-    <string name="Log">Log</string>
-    <string name="toggleGPS">toggleGPS</string>
-    <string name="WiFiData">Wifi Data</string>
-    <string name="audio_off">Audio OFF</string>
-    <string name="audio_on">Audio ON</string>
+    <string name="audio">Audio:</string>
+    <string name="indexCountTv">Indexes:</string>
+    <string name="audioRadioBtn">AUDIO</string>
+    <string name="uploadCount">Indexes:</string>
+    <string name="locationCount">Location:</string>
 
 
 </resources>

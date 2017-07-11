@@ -12,65 +12,14 @@
     tools:context="ca.dungeons.sensordump.MainActivity">
 
 
-    <ImageView
-        android:id="@+id/elasticLogo"
-        android:layout_width="match_parent"
-        android:layout_height="350dp"
-        android:layout_centerHorizontal="false"
-        android:layout_centerInParent="true"
-        android:layout_centerVertical="false"
-        android:alpha=".1"
-        android:background="@drawable/elastic_logo"
-        android:contentDescription="@string/app_name"
-        android:longClickable="false" />
-
-    <ImageButton
-        android:id="@+id/settings"
-        android:layout_width="wrap_content"
-        android:layout_height="35dp"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentTop="true"
-        android:background="@color/backGroundGreyTint"
-        android:contentDescription="@string/settings"
-        android:src="@drawable/ic_action_navigation_more_vert" />
-
     <LinearLayout
+        android:id="@+id/MainUILayout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
-        android:orientation="horizontal">
-
-        <ToggleButton
-            android:id="@+id/toggleGPS"
-            android:layout_width="100dp"
-            android:layout_height="50dp"
-            android:layout_marginEnd="5dp"
-            android:background="@drawable/main_button_shape_off"
-            android:text="@string/toggleGPS"
-            android:textOff="@string/gps_off"
-            android:textOn="@string/gpsOn"
-            android:textSize="12sp" />
-
-        <ToggleButton
-            android:id="@+id/toggleAudio"
-            android:layout_width="100dp"
-            android:layout_height="50dp"
-            android:layout_marginStart="5dp"
-            android:background="@drawable/main_button_shape_off"
-            android:text="@string/toggleGPS"
-            android:textOff="@string/audio_off"
-            android:textOn="@string/audio_on"
-            android:textSize="12sp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/MainUILayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="false"
-        android:layout_alignTop="@+id/elasticLogo"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        tools:ignore="RelativeOverlap">
 
         <ToggleButton
             android:id="@+id/toggleStart"
@@ -99,183 +48,254 @@
 
         <SeekBar
             android:id="@+id/seekBar"
-            style="@style/SeekBarseekBar"
+            style="@style/SeekBar"
             android:layout_width="250dp"
             android:layout_height="40dp"
             android:layout_gravity="center"
             android:max="100"
             android:progress="25" />
 
-        <TextView
-            android:id="@+id/main_Banner"
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/settings"
+        android:layout_width="wrap_content"
+        android:layout_height="35dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:background="@color/backGroundGreyTint"
+        android:contentDescription="@string/settings"
+        android:src="@drawable/ic_action_navigation_more_vert" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/frameLayout"
+        android:layout_centerHorizontal="true"
+        android:layout_alignParentBottom="true">
+
+        <ImageView
+            android:id="@+id/elasticLogo"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical|center_horizontal"
-            android:paddingBottom="10dp"
-            android:text="@string/No_Sensor_Readings"
-            android:textAlignment="gravity"
-            android:textAppearance="?android:attr/textAppearanceLarge"
-            android:textSize="30sp" />
+            android:layout_height="350dp"
+            android:alpha=".1"
+            android:background="@drawable/elastic_logo"
+            android:clickable="false"
+            android:contentDescription="@string/app_name"
+            android:longClickable="false" />
 
         <LinearLayout
-            android:id="@+id/DataReadings"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical|center_horizontal"
-            android:orientation="vertical">
+            android:layout_gravity="center_horizontal"
+            android:orientation="horizontal">
 
-            <LinearLayout
-                android:id="@+id/sensorReadings"
+            <RadioButton
+                android:id="@+id/gpsRadioButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:clickable="false"
-                android:orientation="horizontal"
-                android:padding="5dp">
+                android:layout_marginEnd="25dp"
+                android:layout_weight="1"
+                android:textAlignment="viewStart"
+                tools:text="GPS" />
 
-                <TextView
-                    android:id="@+id/textView1"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center_vertical|end"
-                    android:text="@string/Sensor_Readings"
-                    android:textSize="18sp" />
-
-                <TextView
-                    android:id="@+id/sensor_tv"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:text="@string/_0"
-                    android:textAlignment="center"
-                    android:textColor="@android:color/background_dark"
-                    android:textSize="22sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/dataBaseCount"
+            <RadioButton
+                android:id="@+id/audioRadioButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="5dp">
+                android:layout_marginStart="25dp"
+                android:layout_weight="1"
+                android:text="@string/audioRadioBtn" />
+        </LinearLayout>
 
-                <TextView
-                    android:id="@+id/textView3"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center_vertical|end"
-                    android:text="@string/databaseText"
-                    android:textSize="18sp" />
+        <TableLayout
+            android:id="@+id/tableLayout2"
+            android:layout_width="match_parent"
+            android:layout_height="305dp"
+            android:layout_gravity="bottom"
+            android:gravity="center">
 
-                <TextView
-                    android:id="@+id/databaseCount"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:text="@string/_0"
-                    android:textAlignment="center"
-                    android:textColor="@android:color/background_dark"
-                    android:textSize="22sp" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/documentsCount"
+            <TableRow
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clickable="false"
-                android:orientation="horizontal"
-                android:padding="5dp">
-
-                <TextView
-                    android:id="@+id/Documents_Written_tv"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center_vertical|end"
-                    android:text="@string/Documents_Written"
-                    android:textAlignment="textEnd"
-                    android:textSize="18sp" />
-
-                <TextView
-                    android:id="@+id/documents_tv"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:text="@string/_0"
-                    android:textAlignment="center"
-                    android:textColor="@android:color/background_dark"
-                    android:textSize="22sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/GPSupdates"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clickable="false"
-                android:orientation="horizontal"
-                android:padding="5dp"
-                android:textAlignment="center">
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:padding="10dp">
 
                 <TextView
                     android:id="@+id/GPS_Updates_tv"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center_vertical|end"
-                    android:text="@string/GPS_Updates"
-                    android:textAlignment="textEnd"
-                    android:textSize="18sp" />
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:fontFamily="monospace"
+                    android:text="@string/locationCount"
+
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
 
                 <TextView
                     android:id="@+id/gps_TV"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:fontFamily="monospace"
                     android:text="@string/_0"
-                    android:textAlignment="center"
-                    android:textColor="@android:color/background_dark"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
                     android:textSize="22sp" />
 
-            </LinearLayout>
+            </TableRow>
 
-            <LinearLayout
-                android:id="@+id/errorCount"
-                android:layout_width="match_parent"
+            <TableRow
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:clickable="false"
-                android:orientation="horizontal"
-                android:padding="5dp">
+                android:gravity="center"
+                android:padding="10dp">
+
+                <TextView
+                    android:id="@+id/audio_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:fontFamily="monospace"
+                    android:text="@string/audio"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="@string/_0"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
+
+            </TableRow>
+
+            <TableRow
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:padding="10dp">
+
+                <TextView
+                    android:id="@+id/SensorCountView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:fontFamily="monospace"
+                    android:text="@string/Sensor_Readings"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/sensor_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:fontFamily="monospace"
+                    android:text="@string/_0"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
+
+            </TableRow>
+
+            <TableRow
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:padding="10dp">
+
+                <TextView
+                    android:id="@+id/DatabaseCountView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:fontFamily="monospace"
+                    android:text="@string/databaseText"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/databaseCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:fontFamily="monospace"
+                    android:text="@string/_0"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
+
+            </TableRow>
+
+            <TableRow
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:padding="10dp">
+
+                <TextView
+                    android:id="@+id/Documents_Written_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:fontFamily="monospace"
+                    android:text="@string/uploadCount"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/documents_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:fontFamily="monospace"
+                    android:text="@string/_0"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
+
+            </TableRow>
+
+            <TableRow
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:padding="10dp">
 
                 <TextView
                     android:id="@+id/Error_tv"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center_vertical|end"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:fontFamily="monospace"
                     android:text="@string/Errors"
-                    android:textAlignment="textEnd"
-                    android:textSize="18sp" />
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
 
                 <TextView
                     android:id="@+id/errors_TV"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:fontFamily="monospace"
                     android:text="@string/_0"
-                    android:textAlignment="center"
-                    android:textColor="@android:color/background_dark"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
                     android:textSize="22sp" />
 
-            </LinearLayout>
+            </TableRow>
 
-        </LinearLayout>
+        </TableLayout>
 
-    </LinearLayout>
+    </FrameLayout>
 
 
 </RelativeLayout>

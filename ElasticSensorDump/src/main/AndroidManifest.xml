@@ -37,23 +37,11 @@
         </service>
 
         <receiver
-            android:name=".EsdServiceManager$EsdServiceManagerReceiver"
+            android:name=".EsdServiceReceiver"
             android:exported="false">
 
             <intent-filter>
-                <action android:name="esd.intent.action.message.SENSOR"/>
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="esd.intent.action.message.GPS"/>
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="esd.intent.action.message.AUDIO"/>
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="esd.intent.action.message.IDLE"/>
+                <action android:name="esd.intent.action.message.SENSORMANAGER"/>
             </intent-filter>
 
         </receiver>

@@ -9,7 +9,7 @@
 
     <item name="android:progressBarStyleHorizontal">@style/ProgressBarseekBar</item>
 
-    <item name="android:seekBarStyle">@style/SeekBarseekBar</item>
+    <item name="android:seekBarStyle">@style/SeekBar</item>
 
   </style>
 

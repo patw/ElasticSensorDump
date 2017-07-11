@@ -8,7 +8,7 @@
       <item name="android:indeterminateDrawable">@drawable/seekbar_progress_indeterminate_horizontal_holo_light</item>
   </style>
 
-  <style name="SeekBarseekBar" parent="android:Widget.Holo.Light.SeekBar">
+  <style name="SeekBar" parent="android:Widget.Holo.Light.SeekBar">
       <item name="android:progressDrawable">@drawable/seekbar_scrubber_progress_horizontal_holo_light</item>
       <item name="android:indeterminateDrawable">@drawable/seekbar_scrubber_progress_horizontal_holo_light</item>
       <item name="android:thumb">@drawable/seekbar_scrubber_control_selector_holo_light</item>

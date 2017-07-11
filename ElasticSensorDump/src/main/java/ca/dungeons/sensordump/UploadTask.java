@@ -45,9 +45,8 @@ class UploadTask extends Thread{
     private static int uploadErrors = 0;
 
     /** Default Constructor using the application context. */
-    UploadTask(Context context, Handler handler, SharedPreferences passedPreferences ) {
+    UploadTask(Context context, SharedPreferences passedPreferences ) {
         passedContext = context;
-        uiHandler = handler;
         sharedPreferences = passedPreferences;
     }
 
