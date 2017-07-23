@@ -1,9 +1,8 @@
 package ca.dungeons.sensordump;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
 
 import java.io.IOException;
@@ -21,8 +20,8 @@ import java.util.Locale;
  */
 class UploadTask extends Thread{
 
-    /** Used to identify the origin of the message sent to the UI thread. */
-    static final int UPLOAD_TASK_ID = 123456;
+    private final String logTag = "UploadTask";
+
     /** Used to gain access to the application database. */
     private Context passedContext;
 
@@ -37,8 +36,6 @@ class UploadTask extends Thread{
     private String esPassword = "";
     /** Used to keep track of how many POST requests we are allowed to do each second. */
     private Long globalUploadTimer = System.currentTimeMillis();
-    /** Reference handler to send messages back to the UI thread. */
-    private Handler uiHandler;
     /** Number of documents sent to server this session, default 0. */
     private static int documentsIndexed = 0;
     /** Number of failed upload transactions this session, default 0. */
@@ -111,16 +108,21 @@ class UploadTask extends Thread{
                     if( uploadSuccess )
                         dbHelper.deleteJson();
                 }
-                Message outMessage = uiHandler.obtainMessage();
-                outMessage.what = UPLOAD_TASK_ID;
-                outMessage.arg1 = documentsIndexed;
-                outMessage.arg2 = uploadErrors;
-
-                uiHandler.sendMessage(outMessage);
+                onProgressUpdate();
                 globalUploadTimer = System.currentTimeMillis();
             }
         }
 
+    }
+
+    /** Our main connection to the UI thread for communication. */
+    private void onProgressUpdate() {
+        Intent messageIntent = new Intent( EsdServiceManager.UPDATE_UI_UPLOAD_TASK );
+        // Give this intent a what field to allow identification.
+        messageIntent.putExtra( "documentsIndexed", documentsIndexed );
+        messageIntent.putExtra( "uploadErrors", uploadErrors );
+        messageIntent.putExtra( "databasePopulation", getDatabasePopulation() );
+        passedContext.sendBroadcast( messageIntent );
     }
 
 
@@ -165,7 +167,7 @@ class UploadTask extends Thread{
         try{
             returnURL = new URL(urlString);
         }catch( MalformedURLException malFormedUrlEx){
-            Log.e("UploadThread-CheckHost", "Failed to create a new URL. Bad string?" );
+            Log.e( logTag, "Failed to create a new URL. Bad string?" );
         }
 
         return returnURL;
@@ -196,11 +198,11 @@ class UploadTask extends Thread{
                 responseCodeSuccess = true;
             }
         }catch( MalformedURLException malformedUrlEx ){
-            Log.e("UploadThread-CheckHost", "MalformedURL cause: " + malformedUrlEx.getCause() );
+            Log.e( logTag, "MalformedURL cause: " + malformedUrlEx.getCause() );
             malformedUrlEx.printStackTrace();
         }catch(IOException IoEx ){
 
-            Log.e("UploadThread-CheckHost", "Failure to open connection cause: " + IoEx.getMessage());
+            Log.e( logTag, "Failure to open connection cause: " + IoEx.getMessage());
         }
 
         if( httpConnection != null ){

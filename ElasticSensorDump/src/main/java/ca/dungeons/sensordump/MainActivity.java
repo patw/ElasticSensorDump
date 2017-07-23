@@ -1,13 +1,18 @@
 package ca.dungeons.sensordump;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.content.pm.ActivityInfo;
 
-import android.net.ConnectivityManager;
-
+import android.content.pm.PackageManager;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.view.View;
+import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
@@ -16,9 +21,9 @@ import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
+
+import org.w3c.dom.Text;
 
 
 /**
@@ -28,13 +33,21 @@ import android.util.Log;
  */
 public class MainActivity extends Activity{
 
+    private final String logTag = "MainActivity";
+
     /** Global SharedPreferences object. */
     public static SharedPreferences sharedPrefs;
 
-    /** Head honcho. This class is the background service that is the infrastructure of ESD. */
-    EsdServiceManager serviceManager;
-    /** We use this broadcast receiver to communicate with the service manager. */
-    EsdServiceReceiver serviceReceiver;
+    public static final String UI_DATA_RECEIVER = "esd.intent.action.message.UI_DATA_RECEIVER";
+    public static final String UI_ACTION_RECEIVER = "esd.intent.action.message.UI_ACTION_RECEIVER";
+
+    /** We use this as a control to tell the service manager to stop if idle after 1 hour. */
+    public static boolean serviceManagerRunning = false;
+
+    /** Use this boolean value to determine if/when the activity is currently running. */
+    public static boolean mainActivityRunning = false;
+
+
 
     /** Do NOT record more than once every 50 milliseconds. Default value is 250ms. */
     private static final int MIN_SENSOR_REFRESH = 50;
@@ -42,7 +55,42 @@ public class MainActivity extends Activity{
     private int sensorRefreshTime = 250;
 
     /** Number of sensor readings this session */
-    public static long sensorReadings, documentsIndexed, gpsReadings, uploadErrors;
+    public int sensorReadings, documentsIndexed, gpsReadings, uploadErrors, audioReadings, databasePopulation;
+
+
+    private void createBroadcastReceiver(){
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction( UI_ACTION_RECEIVER );
+        intentFilter.addAction( UI_DATA_RECEIVER );
+
+        BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive( Context context, Intent intent ) {
+
+                if( intent.getAction().equals(UI_ACTION_RECEIVER ) ){
+                    serviceManagerRunning = intent.getBooleanExtra("serviceManagerRunning", false );
+                }
+
+                if( intent.getAction().equals(UI_DATA_RECEIVER ) ){
+
+                    String verb = intent.getStringExtra( "verb" );
+                    if( verb.equals( "sensor" ) ){
+                        //Log.e( logTag, "Received sensor data from service!" );
+                        gpsReadings = intent.getIntExtra("gpsReadings", gpsReadings );
+                        sensorReadings = intent.getIntExtra("sensorReadings", sensorReadings );
+                        audioReadings = intent.getIntExtra( "audioReadings", audioReadings );
+                        //Log.e( logTag, String.valueOf( sensorReadings ));
+                    }else if( verb.equals( "upload" ) ){
+                        documentsIndexed = intent.getIntExtra( "documentsIndexed", documentsIndexed );
+                        uploadErrors = intent.getIntExtra( "uploadErrors", uploadErrors );
+                        databasePopulation = intent.getIntExtra( "databasePopulation", databasePopulation );
+                    }
+                    updateScreen();
+                }
+            }
+        };
+        registerReceiver( broadcastReceiver, intentFilter );
+    }
 
 
       /**
@@ -55,16 +103,19 @@ public class MainActivity extends Activity{
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate( savedInstanceState);
         setContentView( R.layout.activity_main);
-        setRequestedOrientation( ActivityInfo.SCREEN_ORIENTATION_LOCKED );
-
         buildButtonLogic();
+        createBroadcastReceiver();
+        mainActivityRunning = true;
         updateScreen();
     }
 
     private void startServiceManager(){
-        serviceManager = new EsdServiceManager();
-        serviceReceiver = new EsdServiceReceiver();
-        serviceManager.startService( new Intent( EsdServiceReceiver.IDLE_MESSAGE ));
+        if( !serviceManagerRunning ){
+            Intent startIntent =  new Intent( this, EsdServiceManager.class );
+            startIntent.setAction( EsdServiceManager.IDLE );
+            startService( startIntent );
+            Log.e( logTag, "Main activity started service." );
+        }
     }
 
       /**
@@ -74,17 +125,19 @@ public class MainActivity extends Activity{
        */
 
     void updateScreen() {
-        TextView mainBanner = (TextView) findViewById(R.id.main_Banner);
-
         TextView sensorTV = (TextView) findViewById(R.id.sensor_tv);
         TextView documentsTV = (TextView) findViewById(R.id.documents_tv);
         TextView gpsTV = (TextView) findViewById(R.id.gps_TV);
         TextView errorsTV = (TextView) findViewById(R.id.errors_TV);
+        TextView audioTV = (TextView) findViewById( R.id.audioCount );
+        TextView databaseTV = (TextView) findViewById( R.id.databaseCount );
 
         sensorTV.setText( String.valueOf(sensorReadings) );
         documentsTV.setText( String.valueOf( documentsIndexed ) );
         gpsTV.setText( String.valueOf( gpsReadings ) );
         errorsTV.setText( String.valueOf( uploadErrors ) );
+        audioTV.setText( String.valueOf( audioReadings ) );
+        databaseTV.setText( String.valueOf( databasePopulation ) );
 
     }
 
@@ -102,56 +155,63 @@ public class MainActivity extends Activity{
         startButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged( CompoundButton buttonView, boolean isChecked ) {
+                Intent messageIntent = new Intent( EsdServiceManager.SENSOR_MESSAGE );
                 if( isChecked ){
-                    Log.e("MainActivity", "Start button ON !");
+                    Log.e( logTag, "Start button ON !");
                     startButton.setBackgroundResource( R.drawable.main_button_shape_on);
+                    messageIntent.putExtra( "sensorPower", true );
                 }else{
-                    Log.e("MainActivity", "Start button OFF !");
+                    Log.e( logTag, "Start button OFF !");
                     startButton.setBackgroundResource( R.drawable.main_button_shape_off);
+                    messageIntent.putExtra( "sensorPower", false );
                 }
                 // Broadcast to the service manager that we are toggling sensor logging.
-                sendBroadcast(new Intent( EsdServiceReceiver.SENSOR_MESSAGE ));
+                sendBroadcast( messageIntent );
             }
         });
 
         final ImageButton settingsButton = (ImageButton) findViewById(R.id.settings);
         settingsButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-            final Intent settingsIntent = new Intent(getBaseContext(), SettingsActivity.class);
-            startActivity(settingsIntent);
+            startActivity( new Intent(getBaseContext(), SettingsActivity.class) );
             }
         });
 
 
-        final ToggleButton gpsToggle = (ToggleButton) findViewById(R.id.toggleGPS);
-        gpsToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        final CheckBox gpsCheckBox = (CheckBox) findViewById(R.id.gpsCheckBox);
+
+        gpsCheckBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                Intent messageIntent = new Intent( EsdServiceManager.GPS_MESSAGE );
             // If gps button is turned ON.
-            if( isChecked ){
-                gpsToggle.setBackgroundResource( R.drawable.main_button_shape_on);
-            // If gps button has been turned OFF.
-            }else{
-                gpsToggle.setBackgroundResource( R.drawable.main_button_shape_off);
-            }
-            // Broadcast to the service manager that we are toggling gps logging.
-            sendBroadcast(new Intent( EsdServiceReceiver.GPS_MESSAGE ));
+
+                if( isChecked && !gpsPermission() ){
+                    gpsCheckBox.toggle();
+                    Toast.makeText( getApplicationContext(), "GPS access denied.", Toast.LENGTH_SHORT ).show();
+                    return;
+                }else {
+                    messageIntent.putExtra("gpsPower", isChecked );
+                    Log.i(logTag, "Gps intent sent." );
+                }
+
+                // Broadcast to the service manager that we are toggling gps logging.
+                sendBroadcast( messageIntent );
             }
         });
 
-        final ToggleButton audioToggle = (ToggleButton) findViewById( R.id.toggleAudio );
-        audioToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        final CheckBox audioCheckBox = (CheckBox) findViewById(R.id.audioCheckBox );
+        audioCheckBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-            // If audio button is turned ON.
-            if( isChecked ){
-                audioToggle.setBackgroundResource( R.drawable.main_button_shape_on);
-            }else{
-                audioToggle.setBackgroundResource( R.drawable.main_button_shape_off);
-            }
-            // Broadcast to the service manager that we are toggling audio logging.
-            sendBroadcast( new Intent( EsdServiceReceiver.AUDIO_MESSAGE ));
 
+                Intent messageIntent = new Intent( EsdServiceManager.AUDIO_MESSAGE );
+
+                // If audio button is turned ON.
+                messageIntent.putExtra( "audioPower", isChecked );
+
+                // Broadcast to the service manager that we are toggling audio logging.
+                sendBroadcast( messageIntent );
             }
         });
 
@@ -163,14 +223,14 @@ public class MainActivity extends Activity{
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if ( progress * 10 < MIN_SENSOR_REFRESH ) {
                     seekBar.setProgress( MIN_SENSOR_REFRESH / 5 );
-                    Toast.makeText(getApplicationContext(),"Minimum sensor refresh is 50 ms",Toast.LENGTH_SHORT).show();
+                    Toast.makeText( getApplicationContext(), "Minimum sensor refresh is 50 ms", Toast.LENGTH_SHORT).show();
                 }else{
                     sensorRefreshTime = progress * 10;
                 }
 
-                Intent intervalIntent = new Intent( EsdServiceReceiver.INTERVAL );
-                intervalIntent.putExtra("sensorInterval", sensorRefreshTime );
-                sendBroadcast( intervalIntent );
+                Intent messageIntent = new Intent( EsdServiceManager.INTERVAL );
+                messageIntent.putExtra( "sensorInterval", sensorRefreshTime );
+                sendBroadcast( messageIntent );
 
                 tvSeekBarText.setText(getString(R.string.Collection_Interval) + " " + sensorRefreshTime + getString(R.string.milliseconds));
             }
@@ -183,15 +243,55 @@ public class MainActivity extends Activity{
 
     }
 
+    /**
+     * Prompt user for gps access.
+     * Write this result to shared preferences.
+     *
+     * @return True if we asked for permission and it was granted.
+     */
+    public boolean gpsPermission() {
 
+        boolean gpsPermissionFine = false;
+        String[] permissions = {
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION};
+
+        ActivityCompat.requestPermissions(this, permissions, 1);
+
+        boolean gpsPermissionCoarse = (ContextCompat.checkSelfPermission(this, Manifest.permission.
+                ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED);
+
+
+        if (!gpsPermissionCoarse) {
+            gpsPermissionFine = (ContextCompat.checkSelfPermission(this, android.Manifest.permission.
+                    ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
+        }
+        BooleanToPrefs("GPS_Asked", true);
+        BooleanToPrefs("GPS_PermissionFine", gpsPermissionFine);
+        BooleanToPrefs("GPS_PermissionCoarse", gpsPermissionCoarse);
+
+        return ( gpsPermissionFine || gpsPermissionCoarse );
+    }
+
+    /**
+     * Update preferences with new permissions.
+     *
+     * @param asked      Preferences key.
+     * @param permission True if we have access.
+     */
+    void BooleanToPrefs(String asked, boolean permission) {
+        SharedPreferences.Editor sharedPref_Editor = sharedPrefs.edit();
+        sharedPref_Editor.putBoolean(asked, permission);
+        sharedPref_Editor.apply();
+    }
 
 
 
     /** If our activity is paused, we need to close out the resources in use. */
     @Override
     protected void onPause() {
+        mainActivityRunning = false;
         super.onPause();
-
     }
 
     /** When the activity starts or resumes, we start the upload process immediately.
@@ -200,7 +300,8 @@ public class MainActivity extends Activity{
     @Override
     protected void onResume() {
         super.onResume();
-        // We need to check the status of the service manager here, and start it as needed.
+        mainActivityRunning = true;
+        startServiceManager();
         updateScreen();
     }
 

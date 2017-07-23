@@ -90,22 +90,25 @@
             android:layout_gravity="center_horizontal"
             android:orientation="horizontal">
 
-            <RadioButton
-                android:id="@+id/gpsRadioButton"
-                android:layout_width="match_parent"
+            <CheckBox
+                android:id="@+id/gpsCheckBox"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="25dp"
                 android:layout_weight="1"
-                android:textAlignment="viewStart"
-                tools:text="GPS" />
+                android:text="@string/gps" />
 
-            <RadioButton
-                android:id="@+id/audioRadioButton"
-                android:layout_width="match_parent"
+            <Space
+                android:layout_width="45dp"
+                android:layout_height="30dp"
+                android:layout_weight="1" />
+
+            <CheckBox
+                android:id="@+id/audioCheckBox"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="25dp"
                 android:layout_weight="1"
                 android:text="@string/audioRadioBtn" />
+
         </LinearLayout>
 
         <TableLayout
@@ -114,6 +117,36 @@
             android:layout_height="305dp"
             android:layout_gravity="bottom"
             android:gravity="center">
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:padding="10dp">
+
+                <TextView
+                    android:id="@+id/SensorCountView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:fontFamily="monospace"
+                    android:text="@string/Sensor_Readings"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/sensor_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:fontFamily="monospace"
+                    android:text="@string/_0"
+                    android:textAppearance="@style/TextAppearance.AppCompat"
+                    android:textColor="?attr/editTextColor"
+                    android:textSize="22sp" />
+
+            </TableRow>
 
             <TableRow
                 android:layout_width="match_parent"
@@ -162,40 +195,11 @@
                     android:textSize="22sp" />
 
                 <TextView
+                    android:id="@+id/audioCount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="monospace"
                     android:gravity="center"
-                    android:text="@string/_0"
-                    android:textAppearance="@style/TextAppearance.AppCompat"
-                    android:textColor="?attr/editTextColor"
-                    android:textSize="22sp" />
-
-            </TableRow>
-
-            <TableRow
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:padding="10dp">
-
-                <TextView
-                    android:id="@+id/SensorCountView"
-                    android:layout_width="wrap_content"
-                    android:layout_height="30dp"
-                    android:layout_gravity="center"
-                    android:fontFamily="monospace"
-                    android:text="@string/Sensor_Readings"
-                    android:textAppearance="@style/TextAppearance.AppCompat"
-                    android:textColor="?attr/editTextColor"
-                    android:textSize="22sp" />
-
-                <TextView
-                    android:id="@+id/sensor_tv"
-                    android:layout_width="wrap_content"
-                    android:layout_height="30dp"
-                    android:layout_gravity="center"
-                    android:fontFamily="monospace"
                     android:text="@string/_0"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
@@ -245,7 +249,7 @@
                     android:layout_height="30dp"
                     android:layout_gravity="center"
                     android:fontFamily="monospace"
-                    android:text="@string/uploadCount"
+                    android:text="@string/indexCountTv"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
                     android:textSize="22sp" />

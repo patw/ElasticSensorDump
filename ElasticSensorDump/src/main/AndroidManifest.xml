@@ -32,19 +32,8 @@
         <service
             android:name=".EsdServiceManager"
             android:label="ESD Service Manager"
-            android:exported="false"
-            android:isolatedProcess="true">
-        </service>
-
-        <receiver
-            android:name=".EsdServiceReceiver"
             android:exported="false">
-
-            <intent-filter>
-                <action android:name="esd.intent.action.message.SENSORMANAGER"/>
-            </intent-filter>
-
-        </receiver>
+        </service>
 
 
     </application>

@@ -18,8 +18,7 @@ import org.json.JSONException;
 
 final class ElasticSearchIndexer extends Thread{
 
-    // /** Assigned tag for easy ID of documents.  */
-    // private static String esTag;
+    private final String logTag = "eSearchIndexer";
 
     /** Elastic username. */
     private String esUsername = "";
@@ -90,9 +89,9 @@ final class ElasticSearchIndexer extends Thread{
             dataOutputStream.writeBytes(  mappings.toString() );
             UploadTask.indexSuccess( true );
         }catch(JSONException j) {
-            Log.e("ESI-Create Mapping", "JSON error: " + j.toString());
+            Log.e( logTag, "JSON error: " + j.toString());
         }catch(IOException IoEx) {
-            Log.e("ESI-Create Mapping", "Failed to write to outputStreamWriter." );
+            Log.e( logTag, "Failed to write to outputStreamWriter." );
         }
 
 
@@ -110,12 +109,12 @@ final class ElasticSearchIndexer extends Thread{
                 if( checkResponseCode() ){
                     UploadTask.indexSuccessCount();
                     UploadTask.indexSuccess(true);
-                    Log.e("ESI-INDEX", "Uploaded: " + uploadString );
+                    Log.e( logTag, "Uploaded: " + uploadString );
                     return;
                 }
             }catch( IOException IOex ){
                 // Error writing to httpConnection.
-                Log.e("ESI-Index", IOex.getMessage() );
+                Log.e( logTag, IOex.getMessage() );
             }
             UploadTask.indexFailureCount();
             UploadTask.indexSuccess(false);
@@ -147,9 +146,9 @@ final class ElasticSearchIndexer extends Thread{
             outputStream = httpCon.getOutputStream();
             return;
         }catch(MalformedURLException urlEx){
-            Log.e("ESI-Update URL", "Error building URL.");
+            Log.e( logTag, "Error building URL.");
         }catch (IOException IOex) {
-            Log.e("ESI-Connect", "Failed to connect to elastic. " + IOex.getMessage() + "  " + IOex.getCause());
+            Log.e( logTag, "Failed to connect to elastic. " + IOex.getMessage() + "  " + IOex.getCause());
         }
         outputStream = null;
     }
@@ -184,12 +183,12 @@ final class ElasticSearchIndexer extends Thread{
                 return true;
             }
         }catch( IOException ioEx ){
-            Log.e("ESI-checkResponseCode", "Failed to retrieve response codes for REST operation." );
+            Log.e( logTag, "Failed to retrieve response codes for REST operation." );
         }
 
         if( responseCode != 400 ){
             // Something bad happened. I expect only the finest of 200's
-            Log.e("ESI-checkResponseCode", String.format("%s%s\n%s%s\n%s",
+            Log.e( logTag, String.format("%s%s\n%s%s\n%s",
                     "Bad response code: ", responseCode,
                     "Response Message: ", responseMessage,
                     errorString )// End string.

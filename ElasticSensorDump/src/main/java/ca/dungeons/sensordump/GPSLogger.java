@@ -1,5 +1,6 @@
 package ca.dungeons.sensordump;
 
+import android.content.Intent;
 import android.location.Location;
 import android.location.LocationListener;
 import android.os.Bundle;
@@ -28,6 +29,7 @@ class GPSLogger implements LocationListener {
      */
     @Override
     public void onLocationChanged(Location location) {
+        Log.e("GPSlogger", "GPS EVENT!" );
 
         //Log.i("GPSLogger", "LocationChanged.");
         gpsLat = location.getLatitude();
@@ -78,7 +80,10 @@ class GPSLogger implements LocationListener {
 
         // We're live!
         gpsHasData = true;
+
+
     }
+
 
     /** Required over ride. Not used. */
     @Override
