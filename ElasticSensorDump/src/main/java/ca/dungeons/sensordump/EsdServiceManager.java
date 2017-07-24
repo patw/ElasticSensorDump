@@ -21,7 +21,6 @@ public class EsdServiceManager extends Service {
 
     private static final String logTag = "EsdServiceManager";
 
-
     /** Use SensorThread class to start the logging process. */
     private SensorThread sensorThread;
     /** UploadTask controls the data flow between the local database and Elastic server. */
@@ -29,41 +28,46 @@ public class EsdServiceManager extends Service {
     /** True if we are currently reading sensor data. */
     public static boolean logging = false;
 
+    private boolean audioLogging = false;
+    private boolean gpsLogging = false;
+
+    private int sensorRefreshRate = 250;
+
     /** These are the different actions that the receiver can manage. */
     public final static String SENSOR_MESSAGE = "esd.intent.action.message.SENSOR";
     public final static String GPS_MESSAGE = "esd.intent.action.message.GPS";
     public final static String AUDIO_MESSAGE = "esd.intent.action.message.AUDIO";
     public static String INTERVAL = "esd.intent.action.message.INTERVAL";
-    public final static String IDLE = "esd.intent.action.message.IDLE";
     public final static String UPDATE_UI_UPLOAD_TASK = "esd.intent.action.message.UPDATE_UI_UPLOAD_TASK";
     public final static String UPDATE_UI_SENSOR_THREAD = "esd.intent.action.message.UPDATE_UI_SENSOR_THREAD";
 
     /** Number of sensor readings this session */
-    public int sensorReadings, documentsIndexed, gpsReadings, uploadErrors, audioReadings, databasePopulation;
+    public int sensorReadings, documentsIndexed, gpsReadings,
+                uploadErrors, audioReadings, databasePopulation = 0;
 
     public EsdServiceManager(){
         setupUploadTimer();
         setupManagerTimeout();
-        Log.e(logTag, "EsdServiceManager -- Default constructor." );
     }
 
     @Override
     public void onCreate () {
-        sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-        uploadTask = new UploadTask(getApplicationContext(), sharedPrefs);
-        Log.e(logTag, "ESD - ON CREATE." );
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences( getBaseContext() );
+        uploadTask = new UploadTask( getApplicationContext(), sharedPrefs );
+        sensorThread = new SensorThread( getApplicationContext() );
+        uploadTask = new UploadTask(this, sharedPrefs);
+        //Log.e(logTag, "ESD - ON CREATE." );
     }
 
 
     @Override
     public int onStartCommand (Intent intent,int flags, int startId){
-        Log.e(logTag, "ESD -- On Start Command." );
+        //Log.e(logTag, "ESD -- On Start Command." );
         if( ! MainActivity.serviceManagerRunning ){
             Runnable serviceRunnable = new Runnable() {
                 @Override
                 public void run() {
                     registerMessageReceiver();
-
                     Intent messageIntent = new Intent(MainActivity.UI_ACTION_RECEIVER);
                     messageIntent.putExtra("serviceManagerRunning", true );
                     sendBroadcast( messageIntent );
@@ -83,7 +87,6 @@ public class EsdServiceManager extends Service {
     private void registerMessageReceiver(){
 
         IntentFilter filter = new IntentFilter();
-        filter.addAction( IDLE );
         filter.addAction(SENSOR_MESSAGE);
         filter.addAction(INTERVAL);
         filter.addAction(AUDIO_MESSAGE );
@@ -97,13 +100,6 @@ public class EsdServiceManager extends Service {
             public void onReceive(Context context, Intent intent) {
                 //Log.e(logTag, "OnReceived -- ServiceManager" );
 
-                // Intent action to start the service manager and set idle mode.
-                if( intent.getAction().equals( IDLE ) ){
-                    Log.e(logTag, "Started service manager in IDLE mode." );
-                    if( sensorThread.isAlive() ){
-                        stopLogging();
-                    }
-                }
 
                 // Intent action to start recording phone sensors.
                 if( intent.getAction().equals( SENSOR_MESSAGE )){
@@ -116,23 +112,18 @@ public class EsdServiceManager extends Service {
 
                 // Intent action to start gps recording.
                 if( intent.getAction().equals( GPS_MESSAGE ) ){
-                    if( sensorThread != null ){
-                        sensorThread.setGpsPower( intent.getBooleanExtra("gpsPower", false ));
-                    }
+                    gpsLogging = intent.getBooleanExtra("gpsPower", false );
                 }
 
                 // Intent action to start frequency recording.
                 if( intent.getAction().equals( AUDIO_MESSAGE )){
-                    if( sensorThread != null ){
-                        sensorThread.setAudioPower( intent.getBooleanExtra("audioPower", false ));
-                    }
+                    audioLogging = intent.getBooleanExtra("audioPower", false );
                 }
 
                 // Receiver to adjust the sensor collection interval.
-                if( intent.getAction().equals( INTERVAL )){
-                    if( sensorThread != null ){
-                        sensorThread.setSensorRefreshTime( intent.getIntExtra( "sensorInterval", 250 ) );
-                    }
+                if( intent.getAction().equals( INTERVAL ) ){
+                    sensorRefreshRate = intent.getIntExtra( "sensorInterval", 250 ) ;
+                    sensorThread.setSensorRefreshTime( sensorRefreshRate );
                 }
 
                 if( intent.getAction().equals( UPDATE_UI_SENSOR_THREAD ) ){
@@ -158,7 +149,7 @@ public class EsdServiceManager extends Service {
     /** This method uses the passed UI handler to relay messages if/when the activity is running. */
     void updateUiData( String verb ){
 
-        if( MainActivity.mainActivityRunning ){
+        if( getApplicationContext() != null ){
             Intent outIntent = new Intent( MainActivity.UI_DATA_RECEIVER );
 
             if( verb.equals( "sensor" ) ){
@@ -212,18 +203,22 @@ public class EsdServiceManager extends Service {
      */
     public void startLogging() {
 
-        sensorThread = new SensorThread(getApplicationContext());
-        sensorThread.start();
+        if( !sensorThread.isAlive() ){
 
-        if (sensorThread.isAlive()) {
-            logging = true;
+            sensorThread.start();
+            sensorThread.setAudioPower( audioLogging );
+            sensorThread.setGpsPower( gpsLogging );
+
             Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );
             messageIntent.putExtra( "serviceManagerRunning", true );
             sendBroadcast( messageIntent );
-            Log.i(logTag, "Logging Started." );
+
+            logging = true;
+            Log.i( logTag, "Logging Started." );
         } else {
-            Log.e(logTag, sensorThread.getState() + "");
+            Log.e( logTag, sensorThread.getState() + "");
         }
+
     }
 
     /**
@@ -233,24 +228,19 @@ public class EsdServiceManager extends Service {
      * 3. Update main thread to initialize UI changes.
      */
     public void stopLogging() {
-        if (logging) {
-            // Disable wakelock if logging has stopped
-
-            if (!sensorThread.isAlive()) {
-                sensorThread.stopSensorThread();
-                sensorThread = null;
-                logging = false;
-                Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );
-                messageIntent.putExtra( "serviceManagerRunning", false );
-                sendBroadcast( messageIntent );
-                Log.i(logTag, "Logging Stopped." );
-                // Need to figure out a way to get the logging status back to the UI thread.
-                // But what if the UI is not active? A broadcast would be lost to the nether.
-                // So we have to write to permanent storage, or wait til the UI is active again to send an update message.
-            } else {
-                Log.e(logTag, "Failed to shut down sensor thread." );
-            }
+        sensorThread.setAudioPower( false );
+        sensorThread.setGpsPower( false );
+        sensorThread.stopSensorThread();
+        if( !sensorThread.isAlive() ){
+            logging = false;
+            Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );
+            messageIntent.putExtra( "serviceManagerRunning", false );
+            sendBroadcast( messageIntent );
+            Log.i(logTag, "Logging Stopped." );
+        } else {
+            Log.e(logTag, "Failed to shut down sensor thread." );
         }
+
     }
 
     /**
@@ -261,10 +251,8 @@ public class EsdServiceManager extends Service {
      * If both our task is pending, and we have internet connectivity, execute the task.
      */
     public void startUpload() {
-        if (uploadTask == null || !uploadTask.isAlive()) {
-            uploadTask = new UploadTask(this, sharedPrefs);
+        if( !uploadTask.isAlive() )
             uploadTask.start();
-        }
     }
 
     /**
@@ -273,10 +261,9 @@ public class EsdServiceManager extends Service {
      * Cancel the task.
      */
     public void stopUpload() {
-        if (uploadTask != null && uploadTask.isAlive())
+        if( uploadTask.isAlive() )
             uploadTask.stopSensorThread();
     }
-
 
     @Override
     public void onDestroy () {

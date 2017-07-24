@@ -50,12 +50,12 @@ public class MainActivity extends Activity{
 
 
     /** Do NOT record more than once every 50 milliseconds. Default value is 250ms. */
-    private static final int MIN_SENSOR_REFRESH = 50;
+    private final int MIN_SENSOR_REFRESH = 50;
     /** Refresh time in milliseconds. Default = 250ms.*/
     private int sensorRefreshTime = 250;
 
     /** Number of sensor readings this session */
-    public int sensorReadings, documentsIndexed, gpsReadings, uploadErrors, audioReadings, databasePopulation;
+    public int sensorReadings, documentsIndexed, gpsReadings, uploadErrors, audioReadings, databasePopulation = 0;
 
 
     private void createBroadcastReceiver(){
@@ -112,7 +112,6 @@ public class MainActivity extends Activity{
     private void startServiceManager(){
         if( !serviceManagerRunning ){
             Intent startIntent =  new Intent( this, EsdServiceManager.class );
-            startIntent.setAction( EsdServiceManager.IDLE );
             startService( startIntent );
             Log.e( logTag, "Main activity started service." );
         }
@@ -155,17 +154,18 @@ public class MainActivity extends Activity{
         startButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged( CompoundButton buttonView, boolean isChecked ) {
-                Intent messageIntent = new Intent( EsdServiceManager.SENSOR_MESSAGE );
+
                 if( isChecked ){
                     Log.e( logTag, "Start button ON !");
                     startButton.setBackgroundResource( R.drawable.main_button_shape_on);
-                    messageIntent.putExtra( "sensorPower", true );
                 }else{
                     Log.e( logTag, "Start button OFF !");
                     startButton.setBackgroundResource( R.drawable.main_button_shape_off);
-                    messageIntent.putExtra( "sensorPower", false );
                 }
                 // Broadcast to the service manager that we are toggling sensor logging.
+                Intent messageIntent = new Intent();
+                messageIntent.setAction( EsdServiceManager.SENSOR_MESSAGE );
+                messageIntent.putExtra( "sensorPower", isChecked );
                 sendBroadcast( messageIntent );
             }
         });
@@ -185,16 +185,13 @@ public class MainActivity extends Activity{
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 Intent messageIntent = new Intent( EsdServiceManager.GPS_MESSAGE );
             // If gps button is turned ON.
-
-                if( isChecked && !gpsPermission() ){
+                if( !gpsPermission() && isChecked ){
                     gpsCheckBox.toggle();
                     Toast.makeText( getApplicationContext(), "GPS access denied.", Toast.LENGTH_SHORT ).show();
                     return;
-                }else {
-                    messageIntent.putExtra("gpsPower", isChecked );
-                    Log.i(logTag, "Gps intent sent." );
                 }
-
+                messageIntent.putExtra("gpsPower", isChecked );
+                Log.i(logTag, "Gps intent sent." );
                 // Broadcast to the service manager that we are toggling gps logging.
                 sendBroadcast( messageIntent );
             }
