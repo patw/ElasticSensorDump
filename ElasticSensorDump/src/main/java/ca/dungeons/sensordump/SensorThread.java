@@ -69,16 +69,12 @@ class SensorThread extends Thread implements SensorEventListener {
     private LocationManager locationManager;
     /** Helper class to organize gps data. */
     private GPSLogger gpsLogger = new GPSLogger();
-    /** Control variable to record gps data. */
-    private boolean gpsRecording;
     /** Control for telling if we have already registered the gps listeners. */
     private boolean gpsRegistered;
 
 // AUDIO variables.
     /** Helper class for obtaining audio data. */
     private AudioLogger audioLogger;
-    /** Control variable to record audio data. */
-    private boolean audioRecording;
     /** Control variable to make sure we only create one audio logger. */
     private boolean audioRegistered;
 
@@ -102,20 +98,7 @@ class SensorThread extends Thread implements SensorEventListener {
         dbHelper = new DatabaseHelper( passedContext );
         startTime = lastUpdate = System.currentTimeMillis();
         locationManager = (LocationManager) passedContext.getSystemService( Context.LOCATION_SERVICE );
-    }
-
-
-
-    /** Main work here:
-     * Spin up message thread for this thread with Looper.
-     * Set up
-     * Time the messages to be every 250ms, instead of unlimited.
-     * UI thread interrupts this thread, which throws an
-     *    InterruptException to unregister the listeners.
-     */
-    @Override
-    public void run() {
-        checkSensorPower();
+        parseSensorArray();
     }
 
     /** Our main connection to the UI thread for communication. */
@@ -140,30 +123,14 @@ class SensorThread extends Thread implements SensorEventListener {
     @Override
     public final void onSensorChanged(SensorEvent event) {
 
-
-
         if( System.currentTimeMillis() > lastUpdate + sensorRefreshTime ) {
             // ^^ Make sure we generate docs at an adjustable rate.
             // 250ms is the default setting.
 
             // Check if we should be shutting down sensor recording.
             if( !sensorLogging ){
-                try{
-                    sleep( 30000 );
-                }catch( InterruptedException InterruptEx ){
-                    Log.e( logTag, "Failed to sleep sensor thread." );
-                }
                 return;
             }
-
-            // On each loop, check if we should be recording phone sensor data.
-            checkSensorPower();
-
-            // On each loop, check if we should be recording gps data.
-            checkGpsPower();
-
-            // On each loop, check if we should be recording audio data.
-            checkAudioPower();
 
             String sensorName;
             String[] sensorHierarchyName;
@@ -172,12 +139,12 @@ class SensorThread extends Thread implements SensorEventListener {
                 joSensorData.put( "start_time", logDateFormat.format( new Date( startTime )) );
                 joSensorData.put( "log_duration_seconds", ( System.currentTimeMillis() - startTime ) / 1000 );
 
-                if( gpsRecording && gpsRegistered && gpsLogger.gpsHasData ){
+                if( gpsRegistered && gpsLogger.gpsHasData ){
                     joSensorData = gpsLogger.getGpsData( joSensorData );
                     gpsReadings++;
                 }
 
-                if( audioRecording && audioRegistered && audioLogger.hasData ){
+                if( audioRegistered && audioLogger.hasData ){
                     joSensorData = audioLogger.getAudioData( joSensorData );
                     audioReadings++;
                 }
@@ -218,22 +185,16 @@ class SensorThread extends Thread implements SensorEventListener {
     /** Use this method to control if we should be recording sensor data or not. */
     void setSensorLogging( boolean power ){
         sensorLogging = power;
-    }
-
-    /** Use this method to determine if we should be recording phone sensor data. */
-    private void checkSensorPower(){
-        if( sensorLogging && !sensorsRegistered  ){
+        if( power && !sensorsRegistered  ){
             registerSensorListeners();
-        }else if( !sensorLogging && sensorsRegistered ){
+        }
+        if( !power && sensorsRegistered ){
             unregisterSensorListeners();
         }
     }
 
     /** Method to register listeners upon logging. */
     private void registerSensorListeners(){
-        if( usableSensorList.isEmpty() ){
-            parseSensorArray();
-        }
 
         // Register each sensorMessageHandler to this activity.
         for (int cursorInt : usableSensorList) {
@@ -243,15 +204,15 @@ class SensorThread extends Thread implements SensorEventListener {
         IntentFilter batteryFilter = new IntentFilter( Intent.ACTION_BATTERY_CHANGED );
         passedContext.registerReceiver( this.batteryReceiver, batteryFilter, null, null);
         sensorsRegistered = true;
-        //Log.e( logTag, "Registered listeners. ");
     }
 
     /** Unregister listeners. */
     private void unregisterSensorListeners(){
         passedContext.unregisterReceiver( this.batteryReceiver );
         mSensorManager.unregisterListener( this );
+        setGpsPower( false );
+        setAudioPower( false );
         sensorsRegistered = false;
-        //Log.e( logTag, "Unregistered listeners. ");
     }
 
     /** Generate a list of on-board phone sensors. */
@@ -286,16 +247,15 @@ class SensorThread extends Thread implements SensorEventListener {
 
     /** Control method to enable/disable gps recording. */
     void setGpsPower( boolean power ){
-        gpsRecording = power;
-    }
 
-    /** Use this method to determine if we should be registering or disabling gps recording. */
-    private void checkGpsPower(){
-        if( gpsRecording&& !gpsRegistered  ){
+        if( power && sensorLogging && !gpsRegistered  ){
             registerGpsSensors();
-        }else if( !gpsRecording && gpsRegistered ){
+        }
+
+        if( !power && gpsRegistered ){
             unRegisterGpsSensors();
         }
+
     }
 
     /** Register gps sensors to enable recording. */
@@ -321,13 +281,11 @@ class SensorThread extends Thread implements SensorEventListener {
 
 //AUDIO
     /** Set audio recording on/off. */
-    void setAudioPower( boolean power ){ audioRecording = power; }
-
-    /** Check to figure out if we should be logging audio data. */
-    private void checkAudioPower(){
-        if( !audioRegistered && audioRecording ){
+    void setAudioPower( boolean power ){
+        if( power && sensorLogging && !audioRegistered ){
             registerAudioSensors();
-        }else if( audioRegistered && !audioRecording){
+        }
+        if( !power && audioRegistered ){
             unregisterAudioSensors();
         }
     }
@@ -341,9 +299,8 @@ class SensorThread extends Thread implements SensorEventListener {
 
     /** Stop audio recording thread. */
     private void unregisterAudioSensors(){
-        audioRegistered = false;
         audioLogger.setStopAudioThread(true);
-        audioLogger = null;
+        audioRegistered = false;
         Log.i( logTag, "Unregistered audio sensors." );
     }
 

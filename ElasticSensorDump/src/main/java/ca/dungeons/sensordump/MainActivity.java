@@ -23,9 +23,6 @@ import android.widget.ToggleButton;
 import android.os.Bundle;
 import android.util.Log;
 
-import org.w3c.dom.Text;
-
-
 /**
  * Elastic Sensor Dump.
  * Enumerates the sensors from an android device.
@@ -113,8 +110,19 @@ public class MainActivity extends Activity{
         if( !serviceManagerRunning ){
             Intent startIntent =  new Intent( this, EsdServiceManager.class );
             startService( startIntent );
-            Log.e( logTag, "Main activity started service." );
         }
+    }
+
+    /**
+     * Update preferences with new permissions.
+     *
+     * @param asked      Preferences key.
+     * @param permission True if we have access.
+     */
+    void BooleanToPrefs(String asked, boolean permission) {
+        SharedPreferences.Editor sharedPref_Editor = sharedPrefs.edit();
+        sharedPref_Editor.putBoolean(asked, permission);
+        sharedPref_Editor.apply();
     }
 
       /**
@@ -183,17 +191,17 @@ public class MainActivity extends Activity{
         gpsCheckBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                Intent messageIntent = new Intent( EsdServiceManager.GPS_MESSAGE );
             // If gps button is turned ON.
                 if( !gpsPermission() && isChecked ){
                     gpsCheckBox.toggle();
                     Toast.makeText( getApplicationContext(), "GPS access denied.", Toast.LENGTH_SHORT ).show();
-                    return;
+                }else{
+                    // Broadcast to the service manager that we are toggling gps logging.
+                    Intent messageIntent = new Intent( EsdServiceManager.GPS_MESSAGE );
+                    messageIntent.putExtra("gpsPower", isChecked );
+                    sendBroadcast( messageIntent );
                 }
-                messageIntent.putExtra("gpsPower", isChecked );
-                Log.i(logTag, "Gps intent sent." );
-                // Broadcast to the service manager that we are toggling gps logging.
-                sendBroadcast( messageIntent );
+
             }
         });
 
@@ -202,13 +210,17 @@ public class MainActivity extends Activity{
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
 
-                Intent messageIntent = new Intent( EsdServiceManager.AUDIO_MESSAGE );
-
                 // If audio button is turned ON.
-                messageIntent.putExtra( "audioPower", isChecked );
-
-                // Broadcast to the service manager that we are toggling audio logging.
-                sendBroadcast( messageIntent );
+                if( !audioPermission() && isChecked ){
+                    audioCheckBox.toggle();
+                    Toast.makeText( getApplicationContext(), "Audio access denied.", Toast.LENGTH_SHORT ).show();
+                    BooleanToPrefs("audio_Asked", false);
+                }else{
+                    // Broadcast to the service manager that we are toggling audio logging.
+                    Intent messageIntent = new Intent( EsdServiceManager.AUDIO_MESSAGE );
+                    messageIntent.putExtra( "audioPower", isChecked );
+                    sendBroadcast( messageIntent );
+                }
             }
         });
 
@@ -248,7 +260,16 @@ public class MainActivity extends Activity{
      */
     public boolean gpsPermission() {
 
-        boolean gpsPermissionFine = false;
+        boolean gpsPermissionFine = sharedPrefs.getBoolean("gps_permission_FINE", false );
+
+
+        //////////////////// START HERE you fine ass piece of work.
+        // Resetting gps permissions if we fail to get permission from shared prefs.
+
+
+
+
+
         String[] permissions = {
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_COARSE_LOCATION};
@@ -263,24 +284,34 @@ public class MainActivity extends Activity{
             gpsPermissionFine = (ContextCompat.checkSelfPermission(this, android.Manifest.permission.
                     ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
         }
-        BooleanToPrefs("GPS_Asked", true);
-        BooleanToPrefs("GPS_PermissionFine", gpsPermissionFine);
-        BooleanToPrefs("GPS_PermissionCoarse", gpsPermissionCoarse);
+        BooleanToPrefs("gps_asked", true);
+        BooleanToPrefs("gps_permission_FINE", gpsPermissionFine);
+        BooleanToPrefs("gps_permission_COARSE", gpsPermissionCoarse);
 
         return ( gpsPermissionFine || gpsPermissionCoarse );
     }
 
-    /**
-     * Update preferences with new permissions.
-     *
-     * @param asked      Preferences key.
-     * @param permission True if we have access.
-     */
-    void BooleanToPrefs(String asked, boolean permission) {
-        SharedPreferences.Editor sharedPref_Editor = sharedPrefs.edit();
-        sharedPref_Editor.putBoolean(asked, permission);
-        sharedPref_Editor.apply();
+    public boolean audioPermission(){
+        boolean audioPermission = sharedPrefs.getBoolean( "audio_permission", false );
+
+        if( sharedPrefs.getBoolean( "audio_Asked", false )){
+
+            String[] permissions = { Manifest.permission.RECORD_AUDIO };
+
+            ActivityCompat.requestPermissions(this, permissions, 1);
+
+
+            audioPermission = (ContextCompat.checkSelfPermission(this, Manifest.permission.
+                    RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
+
+            BooleanToPrefs("audio_Asked", true);
+            BooleanToPrefs("audio_Permission", audioPermission);
+        }
+
+        return audioPermission;
     }
+
+
 
 
 

@@ -27,7 +27,6 @@ public class EsdServiceManager extends Service {
     private UploadTask uploadTask;
     /** True if we are currently reading sensor data. */
     public static boolean logging = false;
-
     private boolean audioLogging = false;
     private boolean gpsLogging = false;
 
@@ -53,10 +52,12 @@ public class EsdServiceManager extends Service {
     @Override
     public void onCreate () {
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences( getBaseContext() );
+
         uploadTask = new UploadTask( getApplicationContext(), sharedPrefs );
+        uploadTask.start();
+
         sensorThread = new SensorThread( getApplicationContext() );
-        uploadTask = new UploadTask(this, sharedPrefs);
-        //Log.e(logTag, "ESD - ON CREATE." );
+        sensorThread.start();
     }
 
 
@@ -79,7 +80,7 @@ public class EsdServiceManager extends Service {
             serviceThread.start();
 
         }
-        Log.v(logTag, "Started service manager.");
+        Log.i(logTag, "Started service manager.");
         return Service.START_NOT_STICKY;
     }
 
@@ -98,8 +99,6 @@ public class EsdServiceManager extends Service {
 
             @Override
             public void onReceive(Context context, Intent intent) {
-                //Log.e(logTag, "OnReceived -- ServiceManager" );
-
 
                 // Intent action to start recording phone sensors.
                 if( intent.getAction().equals( SENSOR_MESSAGE )){
@@ -113,11 +112,13 @@ public class EsdServiceManager extends Service {
                 // Intent action to start gps recording.
                 if( intent.getAction().equals( GPS_MESSAGE ) ){
                     gpsLogging = intent.getBooleanExtra("gpsPower", false );
+                    sensorThread.setGpsPower( gpsLogging );
                 }
 
                 // Intent action to start frequency recording.
                 if( intent.getAction().equals( AUDIO_MESSAGE )){
                     audioLogging = intent.getBooleanExtra("audioPower", false );
+                    sensorThread.setAudioPower( audioLogging );
                 }
 
                 // Receiver to adjust the sensor collection interval.
@@ -169,10 +170,11 @@ public class EsdServiceManager extends Service {
 
     /** Timer used to periodically check if the upload task needs to be run. */
     void setupUploadTimer() {
-        Timer uploadTimer = new Timer();
+        final Timer uploadTimer = new Timer();
         uploadTimer.schedule(new TimerTask() {
             public void run() {
-                startUpload();
+                if( !uploadTask.isAlive() )
+                uploadTask.start();
             }
         }, 500, 30000);
     } // Delay the task 5 seconds out and then repeat every 30 seconds.
@@ -202,23 +204,16 @@ public class EsdServiceManager extends Service {
      * 5. Send true to gpsPower method if we have gps data access.
      */
     public void startLogging() {
+        sensorThread.setSensorLogging( true );
+        sensorThread.setAudioPower( audioLogging );
+        sensorThread.setGpsPower( gpsLogging );
 
-        if( !sensorThread.isAlive() ){
+        Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );
+        messageIntent.putExtra( "serviceManagerRunning", true );
+        sendBroadcast( messageIntent );
 
-            sensorThread.start();
-            sensorThread.setAudioPower( audioLogging );
-            sensorThread.setGpsPower( gpsLogging );
-
-            Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );
-            messageIntent.putExtra( "serviceManagerRunning", true );
-            sendBroadcast( messageIntent );
-
-            logging = true;
-            Log.i( logTag, "Logging Started." );
-        } else {
-            Log.e( logTag, sensorThread.getState() + "");
-        }
-
+        logging = true;
+        Log.i( logTag, "Logging Started." );
     }
 
     /**
@@ -230,48 +225,25 @@ public class EsdServiceManager extends Service {
     public void stopLogging() {
         sensorThread.setAudioPower( false );
         sensorThread.setGpsPower( false );
-        sensorThread.stopSensorThread();
-        if( !sensorThread.isAlive() ){
-            logging = false;
-            Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );
-            messageIntent.putExtra( "serviceManagerRunning", false );
-            sendBroadcast( messageIntent );
-            Log.i(logTag, "Logging Stopped." );
-        } else {
-            Log.e(logTag, "Failed to shut down sensor thread." );
-        }
+        sensorThread.setSensorLogging(false);
 
-    }
 
-    /**
-     * Start Upload async task:
-     * New async task for uploading data to server.
-     * Make sure we are connected to the net before starting the task.
-     * Check our upload task status to make sure the process is pending.
-     * If both our task is pending, and we have internet connectivity, execute the task.
-     */
-    public void startUpload() {
-        if( !uploadTask.isAlive() )
-            uploadTask.start();
-    }
+        Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );
+        messageIntent.putExtra( "serviceManagerRunning", false );
+        sendBroadcast( messageIntent );
 
-    /**
-     * Stop upload async task.
-     * Verify that the task is running.
-     * Cancel the task.
-     */
-    public void stopUpload() {
-        if( uploadTask.isAlive() )
-            uploadTask.stopSensorThread();
+        logging = false;
+        Log.i(logTag, "Logging Stopped." );
     }
 
     @Override
     public void onDestroy () {
         stopLogging();
-        stopUpload();
+        uploadTask.stopSensorThread();
         Intent messageIntent = new Intent(MainActivity.UI_ACTION_RECEIVER);
         messageIntent.putExtra("serviceManagerRunning", false );
         sendBroadcast( messageIntent );
+        logging = false;
         super.onDestroy();
     }
 

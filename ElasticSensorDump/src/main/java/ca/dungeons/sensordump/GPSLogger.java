@@ -29,9 +29,6 @@ class GPSLogger implements LocationListener {
      */
     @Override
     public void onLocationChanged(Location location) {
-        Log.e("GPSlogger", "GPS EVENT!" );
-
-        //Log.i("GPSLogger", "LocationChanged.");
         gpsLat = location.getLatitude();
         gpsLong = location.getLongitude();
         gpsAlt = location.getAltitude();

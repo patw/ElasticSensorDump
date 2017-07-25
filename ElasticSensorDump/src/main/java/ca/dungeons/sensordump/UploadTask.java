@@ -60,7 +60,7 @@ class UploadTask extends Thread{
 
     static void indexSuccess(boolean test ){ uploadSuccess = test; }
 
-    long getDatabasePopulation(){
+    private long getDatabasePopulation(){
         DatabaseHelper databaseHelper = new DatabaseHelper( passedContext );
         Long databaseEntries = databaseHelper.databaseEntries();
         databaseHelper.close();
