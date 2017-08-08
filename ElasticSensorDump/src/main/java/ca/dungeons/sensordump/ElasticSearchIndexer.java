@@ -88,10 +88,11 @@ final class ElasticSearchIndexer extends Thread{
             // Write out to elastic using the passed outputStream that is connected.
             dataOutputStream.writeBytes(  mappings.toString() );
             UploadTask.indexSuccess( true );
+            Log.e( logTag+"newMap.", "Mapping uploaded successfully. " + mappings.toString() );
         }catch(JSONException j) {
-            Log.e( logTag, "JSON error: " + j.toString());
+            Log.e( logTag+"newMap.", "JSON error: " + j.toString());
         }catch(IOException IoEx) {
-            Log.e( logTag, "Failed to write to outputStreamWriter." );
+            Log.e( logTag+"newMap.", "Failed to write to outputStreamWriter." );
         }
 
 
@@ -109,17 +110,21 @@ final class ElasticSearchIndexer extends Thread{
                 if( checkResponseCode() ){
                     UploadTask.indexSuccessCount();
                     UploadTask.indexSuccess(true);
-                    Log.e( logTag, "Uploaded: " + uploadString );
+                    Log.e( logTag+" esIndex.", "Uploaded: " + uploadString );
                     return;
                 }
             }catch( IOException IOex ){
                 // Error writing to httpConnection.
-                Log.e( logTag, IOex.getMessage() );
+                Log.e( logTag+" esIndex.", IOex.getMessage() );
             }
+            Log.e(logTag+" esIndex.", uploadString );
             UploadTask.indexFailureCount();
             UploadTask.indexSuccess(false);
         }
-        httpCon.disconnect();
+        if( httpCon != null ){
+            httpCon.disconnect();
+        }
+
     }
 
 
@@ -142,15 +147,14 @@ final class ElasticSearchIndexer extends Thread{
             httpCon.setReadTimeout(2000);
             httpCon.setDoOutput(true);
             httpCon.setRequestMethod(verb);
+            httpCon.setRequestProperty( "Content-Type", "text/plain; charset=utf-8");
             httpCon.connect();
             outputStream = httpCon.getOutputStream();
-            return;
         }catch(MalformedURLException urlEx){
-            Log.e( logTag, "Error building URL.");
+            Log.e( logTag+" connect.", "Error building URL.");
         }catch (IOException IOex) {
-            Log.e( logTag, "Failed to connect to elastic. " + IOex.getMessage() + "  " + IOex.getCause());
+            Log.e( logTag+" connect.", "Failed to connect to elastic. " + IOex.getMessage() + "  " + IOex.getCause());
         }
-        outputStream = null;
     }
 
     private boolean checkResponseCode(){
@@ -161,10 +165,17 @@ final class ElasticSearchIndexer extends Thread{
 
         BufferedReader errorStream = null;
         InputStream httpInputStream = httpCon.getErrorStream();
+
         InputStreamReader inputStreamReader;
 
+        if( httpInputStream == null ){
+            Log.e(logTag+" response", "Input stream is null." );
+        }
+
         try{
+
             if( httpInputStream != null ){
+
                 responseMessage = httpCon.getResponseMessage();
                 responseCode = httpCon.getResponseCode();
                 inputStreamReader = new InputStreamReader( httpInputStream );
@@ -172,28 +183,31 @@ final class ElasticSearchIndexer extends Thread{
             }
 
             if( errorStream != null ){
+
                 while( ( errorStreamMessage = errorStream.readLine() ) != null ){
-                    errorString = errorString + "\n" + errorStreamMessage;
+                    errorString = errorString + " : " + errorStreamMessage;
                 }
                 errorStream.close();
             }
 
             if( 200 <= responseCode && responseCode <= 299 ){
+
                 httpCon.disconnect();
                 return true;
             }
         }catch( IOException ioEx ){
-            Log.e( logTag, "Failed to retrieve response codes for REST operation." );
+            Log.e( logTag+" response", "Failed to retrieve response codes for REST operation." );
         }
 
-        if( responseCode != 400 ){
-            // Something bad happened. I expect only the finest of 200's
-            Log.e( logTag, String.format("%s%s\n%s%s\n%s",
-                    "Bad response code: ", responseCode,
-                    "Response Message: ", responseMessage,
-                    errorString )// End string.
-            );
-        }
+
+        // Something bad happened. I expect only the finest of 200's
+        Log.e( logTag+" response", String.format("%s%s\n%s%s\n%s\n%s",
+                "Bad response code: ", responseCode,
+                "Response Message: ", responseMessage,
+                errorString,
+                httpCon.getURL() )// End string.
+        );
+
 
         httpCon.disconnect();
         return false;

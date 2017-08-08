@@ -12,6 +12,7 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.locks.Lock;
 
 /**
  * A class to start a thread upload the database to Kibana.
@@ -56,57 +57,75 @@ class UploadTask extends Thread{
         uploadErrors++;
     }
     /** Control method to shut down upload thread. */
-    void stopSensorThread(){ stopUploadThread= true; }
+    void stopUploadThread(){ stopUploadThread= true; }
 
     static void indexSuccess(boolean test ){ uploadSuccess = test; }
 
-    private long getDatabasePopulation(){
+    int getDatabasePopulation(){
         DatabaseHelper databaseHelper = new DatabaseHelper( passedContext );
         Long databaseEntries = databaseHelper.databaseEntries();
         databaseHelper.close();
-        return databaseEntries;
+        return Integer.valueOf( databaseEntries.toString() );
     }
 
     @Override
     public void run() {
 
         if( !checkForElasticHost() ){
-            this.stopSensorThread();
+            this.stopUploadThread();
             return;
         }
 
-        DatabaseHelper dbHelper = new DatabaseHelper(passedContext);
+        DatabaseHelper dbHelper = new DatabaseHelper( passedContext );
         URL destinationURL = updateURL();
-        boolean indexAlreadyMapped = sharedPreferences.getBoolean("IndexMapped", false);
+        if( destinationURL != null ){
+            Log.e( logTag+" run.", destinationURL.toString() );
+        }
+
+        boolean indexAlreadyMapped = false;
         ElasticSearchIndexer esIndexer;
 
         // Loop to keep uploading at a limit of 5 outs per second, while the main thread doesn't cancel.
         while( !stopUploadThread ){
+
+
             if( !indexAlreadyMapped ){
                 esIndexer = new ElasticSearchIndexer(destinationURL);
+
+                // X-Shield security credentials.
                 if (esUsername.length() > 0 && esPassword.length() > 0) {
                     esIndexer.setAuthorization(esUsername, esPassword);
                 }
+
+                // Start ElasticSearchIndexer and wait for a response.
                 esIndexer.start();
-                sharedPreferences.edit().putBoolean("IndexMapped", true).apply();
+                sleepForResults( esIndexer );
+
+                if( uploadSuccess ){
+                    indexAlreadyMapped = true;
+                }else{
+                    Log.e( logTag+" run.", "Failed to map index data." );
+                    this.stopUploadThread = true;
+                }
+
             } else if (System.currentTimeMillis() > globalUploadTimer + 200) {
 
                 String nextString = dbHelper.getNextCursor();
 
                 esIndexer = new ElasticSearchIndexer(nextString, destinationURL);
-
                 if (esUsername.length() > 0 && esPassword.length() > 0) {
                     esIndexer.setAuthorization(esUsername, esPassword);
                 }
 
                 // If nextString has data.
                 if ( nextString != null ) {
+
                     esIndexer.start();
-                    while( esIndexer.isAlive() ){
-                        // Wait til the indexer finishes.
-                    }
-                    if( uploadSuccess )
+                    sleepForResults( esIndexer );
+
+                    if( uploadSuccess ){
                         dbHelper.deleteJson();
+                    }
                 }
                 onProgressUpdate();
                 globalUploadTimer = System.currentTimeMillis();
@@ -123,6 +142,17 @@ class UploadTask extends Thread{
         messageIntent.putExtra( "uploadErrors", uploadErrors );
         messageIntent.putExtra( "databasePopulation", getDatabasePopulation() );
         passedContext.sendBroadcast( messageIntent );
+    }
+
+    private void sleepForResults( ElasticSearchIndexer esIndexer){
+
+        while( esIndexer.isAlive() ){
+            try{
+                Thread.sleep(50);
+            }catch( InterruptedException interEx ){
+                Log.e(logTag+" run", "Failed to fall asleep." );
+            }
+        }
     }
 
 
@@ -162,13 +192,18 @@ class UploadTask extends Thread{
         }
 
         // Default is POST. All but the mappings are POSTed.
-        String urlString = String.format( "%s%s:%s/%s/%s/", httpString ,esHost ,esPort ,esIndex, esType);
+        String urlString = String.format( "%s%s:%s/%s/%s", httpString ,esHost ,esPort ,esIndex ,esType );
 
         try{
             returnURL = new URL(urlString);
         }catch( MalformedURLException malFormedUrlEx){
-            Log.e( logTag, "Failed to create a new URL. Bad string?" );
+            Log.e( logTag+" update URL", "Failed to create a new URL. Bad string?" );
         }
+
+        if( returnURL != null ){
+            Log.e( logTag+" update URL", returnURL.toString() );
+        }
+
 
         return returnURL;
     }
@@ -176,33 +211,37 @@ class UploadTask extends Thread{
     private boolean checkForElasticHost(){
 
         boolean responseCodeSuccess = false;
+        int responseCode = 0;
 
         HttpURLConnection httpConnection = null;
         String esHost, esPort;
         URL esUrl;
-        esHost = sharedPreferences.getString("host", "localhost" );
+        esHost = sharedPreferences.getString("host", "192.168.1.120" );
         esPort = sharedPreferences.getString("port", "9200" );
         String esHostUrlString = String.format("http://%s:%s/", esHost, esPort );
 
         try{
-            //Log.e("UploadThread-CheckHost", esHostUrlString ); // DIAGNOSTICS
+            //Log.e("UploadThread-CheckHost", esHostUrlString); // DIAGNOSTICS
             esUrl = new URL( esHostUrlString );
 
             httpConnection = (HttpURLConnection) esUrl.openConnection();
+
             httpConnection.setConnectTimeout(2000);
             httpConnection.setReadTimeout(2000);
             httpConnection.connect();
 
-            int responseCode = httpConnection.getResponseCode();
+            responseCode = httpConnection.getResponseCode();
             if( responseCode >= 200 && responseCode <= 299 ){
                 responseCodeSuccess = true;
+                Log.e(logTag+" check host.", "Successful connection to elastic host." );
+
             }
         }catch( MalformedURLException malformedUrlEx ){
-            Log.e( logTag, "MalformedURL cause: " + malformedUrlEx.getCause() );
+            Log.e( logTag+" check host.", "MalformedURL cause: " + malformedUrlEx.getCause() );
             malformedUrlEx.printStackTrace();
         }catch(IOException IoEx ){
-
-            Log.e( logTag, "Failure to open connection cause: " + IoEx.getMessage());
+            IoEx.printStackTrace();
+            Log.e( logTag+" check host.", "Failure to open connection cause: " + IoEx.getMessage() + " " + responseCode );
         }
 
         if( httpConnection != null ){

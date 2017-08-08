@@ -8,18 +8,20 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.List;
+
 class AudioLogger extends Thread {
 
-    /* Unique ID for broadcasting information to UI thread. */
-    //static final int AUDIO_THREAD_ID = 246810;
+    private final String logTag = "audioLogger";
+
     /** We use this to indicate to the sensor thread if we have data to send. */
     boolean hasData = false;
 
-    /** Indicates if recording / playback should stop. */
-    private boolean stopThread = false;
-
     /** A reference to Androids built in audio recording API. */
     private AudioRecord audioRecord;
+
+    boolean stopThread = false;
 
     /** A reference to the current audio sample "loudness" in terms of percentage of mic capability.*/
     private float amplitude = 0;
@@ -30,11 +32,14 @@ class AudioLogger extends Thread {
     /** Short type array to feed to the recording API. */
     private short[] audioBuffer;
 
+    private int bufferSize;
+
+
     /** Constructor.
      * Here we set static variables used for all recording. */
     AudioLogger(){
         // Buffer size in bytes.
-        int bufferSize = AudioRecord.getMinBufferSize(
+        bufferSize = AudioRecord.getMinBufferSize(
                 SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
         );
         // A check to make sure we are doing math on valid objects.
@@ -63,58 +68,64 @@ class AudioLogger extends Thread {
     @Override
     public void run() {
 
-        if( audioRecord.getState() != AudioRecord.STATE_INITIALIZED ){
-            Log.e("Audio Error", "Can't record audio.");
-            return;
+        while( !stopThread ){
+
+            if( audioRecord.getState() != AudioRecord.STATE_INITIALIZED ){
+                Log.e("Audio Error", "Can't record audio.");
+                return;
+            }
+
+            audioRecord.read( audioBuffer, 0, audioBuffer.length );
+
+            float lowest = 0;
+            float highest = 0;
+            int zeroes = 0;
+            int last_value = 0;
+
+            // Exploring the buffer. Record the highest and lowest readings
+            for( short anAudioBuffer : audioBuffer ){
+
+                // Detect lowest in sample
+                if( anAudioBuffer < lowest ){
+                    lowest = anAudioBuffer;
+                }
+
+                // Detect highest in sample
+                if( anAudioBuffer > highest ){
+                    highest = anAudioBuffer;
+                }
+
+                // Down and coming up
+                if( anAudioBuffer > 0 && last_value < 0 ){
+                    zeroes++;
+                }
+
+                // Up and down
+                if( anAudioBuffer < 0 && last_value > 0 ){
+                    zeroes++;
+                }
+
+                last_value = anAudioBuffer;
+
+                // Calculate highest and lowest peak difference as a % of the max possible
+                // value
+                amplitude = (highest - lowest) / 65536 * 100;
+
+                // Take the count of the peaks in the time that we had based on the sample
+                // rate to calculate frequency
+                if( audioBuffer != null ){
+                    float seconds = (float) audioBuffer.length / (float) SAMPLE_RATE;
+                    frequency = (float) zeroes / seconds / 2;
+
+                    hasData = true;
+                }
+
+            }
         }
 
-        if( !stopThread){
-            stopRecording();
-        }
-
-        audioRecord.read( audioBuffer, 0, audioBuffer.length );
-
-        float lowest = 0;
-        float highest = 0;
-        int zeroes = 0;
-        int last_value = 0;
-
-        // Exploring the buffer. Record the highest and lowest readings
-        for( short anAudioBuffer : audioBuffer ){
-
-            // Detect lowest in sample
-            if( anAudioBuffer < lowest ){
-                lowest = anAudioBuffer;
-            }
-
-            // Detect highest in sample
-            if( anAudioBuffer > highest ){
-                highest = anAudioBuffer;
-            }
-
-            // Down and coming up
-            if( anAudioBuffer > 0 && last_value < 0 ){
-                zeroes++;
-            }
-
-            // Up and down
-            if( anAudioBuffer < 0 && last_value > 0 ){
-                zeroes++;
-            }
-
-            last_value = anAudioBuffer;
-
-            // Calculate highest and lowest peak difference as a % of the max possible
-            // value
-            amplitude = (highest - lowest) / 65536 * 100;
-
-            // Take the count of the peaks in the time that we had based on the sample
-            // rate to calculate frequency
-            float seconds = (float) audioBuffer.length / (float) SAMPLE_RATE;
-            frequency = (float) zeroes / seconds / 2;
-
-            hasData = true;
-        }
+        audioRecord.stop();
+        audioRecord.release();
+        Log.i( logTag, "Audio recording stopping.");
 
     }
 
@@ -125,21 +136,13 @@ class AudioLogger extends Thread {
                 passedJson.put("frequency", frequency );
                 passedJson.put("amplitude", amplitude);
             }catch( JSONException jsonEx ) {
-                Log.e( "AudioLogger", "Error adding data to json. " );
+                Log.e( logTag, "Error adding data to json. " );
                 return passedJson;
             }
         }
-        audioBuffer = null;
+        audioBuffer = new short[bufferSize / 2];
         hasData = false;
         return passedJson;
-    }
-
-    /** Control method to stop recording audio and release the resources. */
-    private void stopRecording() {
-        audioRecord.stop();
-        audioRecord.release();
-        stopThread = false;
-        Log.i("Audio", "Audio recording stopping.");
     }
 
 

@@ -128,8 +128,10 @@
                     android:id="@+id/SensorCountView"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
-                    android:layout_gravity="center"
+                    android:layout_gravity="end"
                     android:fontFamily="monospace"
+                    android:paddingEnd="10dp"
+                    android:paddingStart="5dp"
                     android:text="@string/Sensor_Readings"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
@@ -139,11 +141,12 @@
                     android:id="@+id/sensor_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
-                    android:layout_gravity="center"
                     android:fontFamily="monospace"
+                    android:gravity="center"
                     android:text="@string/_0"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
+                    android:textDirection="ltr"
                     android:textSize="22sp" />
 
             </TableRow>
@@ -158,9 +161,12 @@
                     android:id="@+id/GPS_Updates_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
-                    android:fontFamily="monospace"
-                    android:text="@string/locationCount"
+                    android:layout_gravity="end"
 
+                    android:fontFamily="monospace"
+                    android:paddingEnd="10dp"
+                    android:paddingStart="5dp"
+                    android:text="@string/locationCount"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
                     android:textSize="22sp" />
@@ -170,9 +176,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
                     android:fontFamily="monospace"
+                    android:gravity="center"
                     android:text="@string/_0"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
+                    android:textDirection="ltr"
                     android:textSize="22sp" />
 
             </TableRow>
@@ -187,8 +195,10 @@
                     android:id="@+id/audio_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
+                    android:layout_gravity="end"
                     android:fontFamily="monospace"
+                    android:paddingEnd="10dp"
+                    android:paddingStart="5dp"
                     android:text="@string/audio"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
@@ -203,6 +213,7 @@
                     android:text="@string/_0"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
+                    android:textDirection="ltr"
                     android:textSize="22sp" />
 
             </TableRow>
@@ -217,8 +228,10 @@
                     android:id="@+id/DatabaseCountView"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
-                    android:layout_gravity="center"
+                    android:layout_gravity="end"
                     android:fontFamily="monospace"
+                    android:paddingEnd="10dp"
+                    android:paddingStart="5dp"
                     android:text="@string/databaseText"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
@@ -228,11 +241,12 @@
                     android:id="@+id/databaseCount"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
-                    android:layout_gravity="center"
                     android:fontFamily="monospace"
+                    android:gravity="center"
                     android:text="@string/_0"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
+                    android:textDirection="ltr"
                     android:textSize="22sp" />
 
             </TableRow>
@@ -247,8 +261,10 @@
                     android:id="@+id/Documents_Written_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
-                    android:layout_gravity="center"
+                    android:layout_gravity="end"
                     android:fontFamily="monospace"
+                    android:paddingEnd="10dp"
+                    android:paddingStart="5dp"
                     android:text="@string/indexCountTv"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
@@ -258,11 +274,12 @@
                     android:id="@+id/documents_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
-                    android:layout_gravity="center"
                     android:fontFamily="monospace"
+                    android:gravity="center"
                     android:text="@string/_0"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
+                    android:textDirection="ltr"
                     android:textSize="22sp" />
 
             </TableRow>
@@ -277,8 +294,10 @@
                     android:id="@+id/Error_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
-                    android:layout_gravity="center"
+                    android:layout_gravity="end"
                     android:fontFamily="monospace"
+                    android:paddingEnd="10dp"
+                    android:paddingStart="5dp"
                     android:text="@string/Errors"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
@@ -288,11 +307,12 @@
                     android:id="@+id/errors_TV"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
-                    android:layout_gravity="center"
                     android:fontFamily="monospace"
+                    android:gravity="center"
                     android:text="@string/_0"
                     android:textAppearance="@style/TextAppearance.AppCompat"
                     android:textColor="?attr/editTextColor"
+                    android:textDirection="ltr"
                     android:textSize="22sp" />
 
             </TableRow>

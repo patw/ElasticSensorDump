@@ -104,6 +104,7 @@ public class MainActivity extends Activity{
         createBroadcastReceiver();
         mainActivityRunning = true;
         updateScreen();
+        databasePopulation = (int) new UploadTask(this, sharedPrefs ).getDatabasePopulation();
     }
 
     private void startServiceManager(){
@@ -195,6 +196,7 @@ public class MainActivity extends Activity{
                 if( !gpsPermission() && isChecked ){
                     gpsCheckBox.toggle();
                     Toast.makeText( getApplicationContext(), "GPS access denied.", Toast.LENGTH_SHORT ).show();
+                    BooleanToPrefs("gps_asked", false);
                 }else{
                     // Broadcast to the service manager that we are toggling gps logging.
                     Intent messageIntent = new Intent( EsdServiceManager.GPS_MESSAGE );
@@ -261,32 +263,31 @@ public class MainActivity extends Activity{
     public boolean gpsPermission() {
 
         boolean gpsPermissionFine = sharedPrefs.getBoolean("gps_permission_FINE", false );
+        boolean gpsPermissionCoarse = sharedPrefs.getBoolean("gps_permission_COARSE", false );
+
+        boolean asked = sharedPrefs.getBoolean("gps_asked", false);
 
 
-        //////////////////// START HERE you fine ass piece of work.
-        // Resetting gps permissions if we fail to get permission from shared prefs.
+        if( !gpsPermissionFine && !gpsPermissionCoarse && !asked ){
 
+            String[] permissions = {
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION};
 
+            ActivityCompat.requestPermissions(this, permissions, 1);
 
+            gpsPermissionCoarse = (ContextCompat.checkSelfPermission(this, Manifest.permission.
+                    ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED);
 
-
-        String[] permissions = {
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION};
-
-        ActivityCompat.requestPermissions(this, permissions, 1);
-
-        boolean gpsPermissionCoarse = (ContextCompat.checkSelfPermission(this, Manifest.permission.
-                ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED);
-
-
-        if (!gpsPermissionCoarse) {
             gpsPermissionFine = (ContextCompat.checkSelfPermission(this, android.Manifest.permission.
-                    ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
+                        ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
+
+            BooleanToPrefs("gps_asked", true);
+            BooleanToPrefs("gps_permission_FINE", gpsPermissionFine);
+            BooleanToPrefs("gps_permission_COARSE", gpsPermissionCoarse);
+
+
         }
-        BooleanToPrefs("gps_asked", true);
-        BooleanToPrefs("gps_permission_FINE", gpsPermissionFine);
-        BooleanToPrefs("gps_permission_COARSE", gpsPermissionCoarse);
 
         return ( gpsPermissionFine || gpsPermissionCoarse );
     }

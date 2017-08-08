@@ -239,7 +239,7 @@ public class EsdServiceManager extends Service {
     @Override
     public void onDestroy () {
         stopLogging();
-        uploadTask.stopSensorThread();
+        uploadTask.stopUploadThread();
         Intent messageIntent = new Intent(MainActivity.UI_ACTION_RECEIVER);
         messageIntent.putExtra("serviceManagerRunning", false );
         sendBroadcast( messageIntent );
