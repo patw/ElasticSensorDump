@@ -8,9 +8,6 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
-import java.util.List;
-
 class AudioLogger extends Thread {
 
     private final String logTag = "audioLogger";
@@ -21,7 +18,7 @@ class AudioLogger extends Thread {
     /** A reference to Androids built in audio recording API. */
     private AudioRecord audioRecord;
 
-    boolean stopThread = false;
+    private boolean stopThread = false;
 
     /** A reference to the current audio sample "loudness" in terms of percentage of mic capability.*/
     private float amplitude = 0;

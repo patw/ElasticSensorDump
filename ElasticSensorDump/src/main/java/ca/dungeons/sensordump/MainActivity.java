@@ -104,7 +104,7 @@ public class MainActivity extends Activity{
         createBroadcastReceiver();
         mainActivityRunning = true;
         updateScreen();
-        databasePopulation = (int) new UploadTask(this, sharedPrefs ).getDatabasePopulation();
+        databasePopulation = new UploadTask(this, sharedPrefs ).getDatabasePopulation();
     }
 
     private void startServiceManager(){

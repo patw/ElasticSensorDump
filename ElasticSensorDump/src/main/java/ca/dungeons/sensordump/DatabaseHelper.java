@@ -30,10 +30,6 @@ class DatabaseHelper extends SQLiteOpenHelper{
 
     private int deleteRowId;
 
-    private String sqlDeleteCommand = "DELETE FROM " + TABLE_NAME + " WHERE ID = ";
-    private String sqlCursorQuery = "SELECT * FROM " + DatabaseHelper.TABLE_NAME + " ORDER BY ID ASC LIMIT 1";
-
-
         /** Default constructor.
          *  Creates a new dataBase if required.
          *  @param context Calling method context.
@@ -85,13 +81,13 @@ class DatabaseHelper extends SQLiteOpenHelper{
 
         /** Delete top row from the database. */
     void deleteJson() {
-        writableDatabase.execSQL( sqlDeleteCommand + deleteRowId );
+        writableDatabase.execSQL( "DELETE FROM " + TABLE_NAME + " WHERE ID = " + deleteRowId );
     }
 
     String getNextCursor(){
 
         if( databaseEntries() >= 1 ){
-            Cursor outCursor = writableDatabase.rawQuery( sqlCursorQuery, new String[]{} );
+            Cursor outCursor = writableDatabase.rawQuery( "SELECT * FROM " + DatabaseHelper.TABLE_NAME + " ORDER BY ID ASC LIMIT 1", new String[]{} );
             outCursor.moveToFirst();
             deleteRowId = outCursor.getInt( 0 );
             String deleteRowString = outCursor.getString(1);
@@ -99,10 +95,6 @@ class DatabaseHelper extends SQLiteOpenHelper{
             return deleteRowString;
         }
         return null;
-    }
-
-    void closeDatabase(){
-        writableDatabase.close();
     }
 
 }

@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.Authenticator;
 import java.net.PasswordAuthentication;
 import java.net.HttpURLConnection;
@@ -32,7 +31,6 @@ final class ElasticSearchIndexer extends Thread{
     private HttpURLConnection httpCon;
     /** */
     private URL elasticUrl;
-    private OutputStream outputStream;
 
 
         /** Base constructor. */
@@ -63,48 +61,53 @@ final class ElasticSearchIndexer extends Thread{
     /** Create a map and send to elastic for sensor index. */
     private void createMapping() {
         // Connect to elastic using PUT to make elastic understand this payload is a mapping.
-        connect("PUT");
-        if( outputStream == null ) {
-            return;
+        if( connect("PUT") ) {
+
+            String esType = "esd";
+
+            try {
+                DataOutputStream dataOutputStream = new DataOutputStream(httpCon.getOutputStream());
+                // GPS coordinates -- A new Type.
+                JSONObject typeGeoPoint = new JSONObject().put("type", "geo_point");
+                // Lowest json level, contains explicit typing of sensor data.
+                JSONObject mappingTypes = new JSONObject();
+                // Type "start_location" && "location" using pre-defined typeGeoPoint. ^^
+                mappingTypes.put("start_location", typeGeoPoint);
+                mappingTypes.put("location", typeGeoPoint);
+                // Put the two newly typed fields under properties.
+                JSONObject properties = new JSONObject().put("properties", mappingTypes);
+                // Mappings should be nested under index_type.
+                JSONObject esTypeObj = new JSONObject().put(esType, properties);
+                // File this new properties json under _mappings.
+                JSONObject mappings = new JSONObject().put("mappings", esTypeObj);
+
+                // Write out to elastic using the passed outputStream that is connected.
+                dataOutputStream.writeBytes(mappings.toString());
+
+                if (checkResponseCode()) {
+                    UploadTask.indexSuccess(true);
+                    Log.e(logTag + " newMap", "Mapping uploaded successfully. " + mappings.toString());
+                } else {
+                    Log.e(logTag + " newMap", "Failed response code check on MAPPING. " + mappings.toString());
+                }
+
+            } catch (JSONException j) {
+                Log.e(logTag + " newMap", "JSON error: " + j.toString());
+            } catch (IOException IoEx) {
+                Log.e(logTag + " newMap", "Failed to write to outputStreamWriter.");
+            }
+        }else{
+            Log.e(logTag + " newMap", "Failed to connect to elastic.");
         }
-
-        String esType = "esd";
-        DataOutputStream dataOutputStream = new DataOutputStream( outputStream );
-        try {
-            // GPS coordinates -- A new Type.
-            JSONObject typeGeoPoint = new JSONObject().put("type", "geo_point");
-            // Lowest json level, contains explicit typing of sensor data.
-            JSONObject mappingTypes = new JSONObject();
-            // Type "start_location" && "location" using pre-defined typeGeoPoint. ^^
-            mappingTypes.put("start_location", typeGeoPoint);
-            mappingTypes.put("location", typeGeoPoint);
-            // Put the two newly typed fields under properties.
-            JSONObject properties = new JSONObject().put("properties", mappingTypes);
-            // Mappings should be nested under index_type.
-            JSONObject esTypeObj = new JSONObject().put(esType, properties);
-            // File this new properties json under _mappings.
-            JSONObject mappings = new JSONObject().put("mappings", esTypeObj);
-
-            // Write out to elastic using the passed outputStream that is connected.
-            dataOutputStream.writeBytes(  mappings.toString() );
-            UploadTask.indexSuccess( true );
-            Log.e( logTag+"newMap.", "Mapping uploaded successfully. " + mappings.toString() );
-        }catch(JSONException j) {
-            Log.e( logTag+"newMap.", "JSON error: " + j.toString());
-        }catch(IOException IoEx) {
-            Log.e( logTag+"newMap.", "Failed to write to outputStreamWriter." );
-        }
-
-
     }
 
         /** Send JSON data to elastic using POST. */
     private void index() {
         // POST our documents to elastic.
-        connect("POST");
-        if( outputStream != null ){
+        if( connect("POST") ){
+
             try {
-                DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
+                DataOutputStream dataOutputStream = new DataOutputStream( httpCon.getOutputStream() );
                 dataOutputStream.writeBytes( uploadString );
                 // Check status of post operation.
                 if( checkResponseCode() ){
@@ -129,7 +132,7 @@ final class ElasticSearchIndexer extends Thread{
 
 
     /** Open a connection with the server. */
-    private void connect(String verb){
+    private boolean connect(String verb){
 
         // Send authentication if required
         if (esUsername.length() > 0 && esPassword.length() > 0) {
@@ -147,14 +150,18 @@ final class ElasticSearchIndexer extends Thread{
             httpCon.setReadTimeout(2000);
             httpCon.setDoOutput(true);
             httpCon.setRequestMethod(verb);
-            httpCon.setRequestProperty( "Content-Type", "text/plain; charset=utf-8");
             httpCon.connect();
-            outputStream = httpCon.getOutputStream();
+            if( httpCon.getDoInput() ){
+                Log.e( logTag+" connect.", "Connected to ESD.");
+                return true;
+            }
+
         }catch(MalformedURLException urlEx){
             Log.e( logTag+" connect.", "Error building URL.");
         }catch (IOException IOex) {
             Log.e( logTag+" connect.", "Failed to connect to elastic. " + IOex.getMessage() + "  " + IOex.getCause());
         }
+        return false;
     }
 
     private boolean checkResponseCode(){
@@ -163,51 +170,53 @@ final class ElasticSearchIndexer extends Thread{
         String errorString = "Error Message: ";
         String errorStreamMessage;
 
-        BufferedReader errorStream = null;
+        BufferedReader errorStream;
         InputStream httpInputStream = httpCon.getErrorStream();
 
         InputStreamReader inputStreamReader;
 
         if( httpInputStream == null ){
             Log.e(logTag+" response", "Input stream is null." );
-        }
-
-        try{
-
-            if( httpInputStream != null ){
-
+        }else{
+            try{
                 responseMessage = httpCon.getResponseMessage();
                 responseCode = httpCon.getResponseCode();
                 inputStreamReader = new InputStreamReader( httpInputStream );
                 errorStream = new BufferedReader( inputStreamReader );
-            }
-
-            if( errorStream != null ){
-
                 while( ( errorStreamMessage = errorStream.readLine() ) != null ){
                     errorString = errorString + " : " + errorStreamMessage;
                 }
                 errorStream.close();
-            }
 
-            if( 200 <= responseCode && responseCode <= 299 ){
+                if( 200 <= responseCode && responseCode <= 299 ){
 
-                httpCon.disconnect();
-                return true;
+                    httpCon.disconnect();
+                    return true;
+                }else{
+
+                    if( responseCode != 0 ) {
+                        throw new IOException("NO response");
+                    }else{
+                        throw new IOException("");
+                    }
+                }
+
+            }catch( IOException ioEx ){
+
+                if( ioEx.getMessage().equals( "NO response" ) ){
+                    Log.e( logTag+" response", "Failed to retrieve response codes for REST operation." );
+                }else{
+                    // Something bad happened. I expect only the finest of 200's
+                    Log.e( logTag+" response", String.format("%s%s\n%s%s\n%s\n%s",
+                            "Bad response code: ", responseCode,
+                            "Response Message: ", responseMessage,
+                            errorString,
+                            httpCon.getURL() )// End string.
+                    );
+                }
+
             }
-        }catch( IOException ioEx ){
-            Log.e( logTag+" response", "Failed to retrieve response codes for REST operation." );
         }
-
-
-        // Something bad happened. I expect only the finest of 200's
-        Log.e( logTag+" response", String.format("%s%s\n%s%s\n%s\n%s",
-                "Bad response code: ", responseCode,
-                "Response Message: ", responseMessage,
-                errorString,
-                httpCon.getURL() )// End string.
-        );
-
 
         httpCon.disconnect();
         return false;

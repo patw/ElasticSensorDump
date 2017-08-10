@@ -12,7 +12,6 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import java.util.concurrent.locks.Lock;
 
 /**
  * A class to start a thread upload the database to Kibana.
@@ -76,20 +75,19 @@ class UploadTask extends Thread{
             return;
         }
 
-        DatabaseHelper dbHelper = new DatabaseHelper( passedContext );
-        URL destinationURL = updateURL();
-        if( destinationURL != null ){
-            Log.e( logTag+" run.", destinationURL.toString() );
-        }
-
+        URL destinationURL;
         boolean indexAlreadyMapped = false;
+        DatabaseHelper dbHelper = new DatabaseHelper( passedContext );
+
+        destinationURL = updateURL( "post" );
+
         ElasticSearchIndexer esIndexer;
 
         // Loop to keep uploading at a limit of 5 outs per second, while the main thread doesn't cancel.
         while( !stopUploadThread ){
 
-
             if( !indexAlreadyMapped ){
+                destinationURL = updateURL( "map" );
                 esIndexer = new ElasticSearchIndexer(destinationURL);
 
                 // X-Shield security credentials.
@@ -104,7 +102,7 @@ class UploadTask extends Thread{
                 if( uploadSuccess ){
                     indexAlreadyMapped = true;
                 }else{
-                    Log.e( logTag+" run.", "Failed to map index data." );
+                    Log.e( logTag+" run ", "Failed to MAP to elastic." );
                     this.stopUploadThread = true;
                 }
 
@@ -159,7 +157,7 @@ class UploadTask extends Thread{
     /** Extract config information from sharedPreferences.
      *  Tag the current date stamp on the index name if set in preferences. Credit: GlenRSmith.
      */
-    private URL updateURL() {
+    private URL updateURL(String verb) {
 
         // Security variables.
         boolean esSSL = sharedPreferences.getBoolean("ssl", false);
@@ -167,12 +165,14 @@ class UploadTask extends Thread{
         String esHost = sharedPreferences.getString("host", "localhost");
         String esPort = sharedPreferences.getString("port", "9200");
         String esIndex = sharedPreferences.getString("index", "test_index");
-        //esTag = sharedPreferences.getString("tag", "phone_data");
         String esType = sharedPreferences.getString("type", "esd");
+
+        String esTag = sharedPreferences.getString("tag", "phone_data");
 
         esUsername = sharedPreferences.getString("user", "");
         esPassword = sharedPreferences.getString("pass", "");
 
+        URL returnURL = null;
 
         // Tag the current date stamp on the index name if set in preferences
         // Thanks GlenRSmith for this idea
@@ -183,7 +183,7 @@ class UploadTask extends Thread{
             esIndex = esIndex + "-" + dateString;
         }
 
-        URL returnURL = null;
+
 
         // Default currently is non-secure. Will change that asap.
         String httpString = "http://";
@@ -191,19 +191,24 @@ class UploadTask extends Thread{
             httpString = "https://";
         }
 
-        // Default is POST. All but the mappings are POSTed.
-        String urlString = String.format( "%s%s:%s/%s/%s", httpString ,esHost ,esPort ,esIndex ,esType );
-
         try{
-            returnURL = new URL(urlString);
-        }catch( MalformedURLException malFormedUrlEx){
-            Log.e( logTag+" update URL", "Failed to create a new URL. Bad string?" );
+            String urlString;
+            if( verb.equals("map") ){
+                urlString = String.format( "%s%s:%s/%s/%s", httpString ,esHost ,esPort ,esIndex ,esType );
+                returnURL = new URL(urlString);
+            }else if( verb.equals("post" ) ){
+                // Default is POST. All but the mappings are POSTed.
+                urlString = String.format( "%s%s:%s/%s/%s/%s", httpString ,esHost ,esPort ,esIndex ,esType, esTag );
+                returnURL = new URL(urlString);
+            }
+        }catch( Exception ex ){
+            Log.e( logTag+"updateUrl"+verb, "FAILURE TO UPDATE URL" );
+            return null;
         }
 
         if( returnURL != null ){
-            Log.e( logTag+" update URL", returnURL.toString() );
+            Log.e( logTag+"updateUrl"+verb, returnURL.toString() );
         }
-
 
         return returnURL;
     }
@@ -233,7 +238,7 @@ class UploadTask extends Thread{
             responseCode = httpConnection.getResponseCode();
             if( responseCode >= 200 && responseCode <= 299 ){
                 responseCodeSuccess = true;
-                Log.e(logTag+" check host.", "Successful connection to elastic host." );
+                //Log.e(logTag+" check host.", "Successful connection to elastic host." );
 
             }
         }catch( MalformedURLException malformedUrlEx ){
