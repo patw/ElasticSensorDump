@@ -48,7 +48,7 @@ final class ElasticSearchIndexer extends Thread{
     public void run() {
         if( putMapping ){
             createMapping();
-        }else if( uploadString != null ){
+        }else{
             index();
         }
     }
@@ -60,34 +60,34 @@ final class ElasticSearchIndexer extends Thread{
 
     /** Create a map and send to elastic for sensor index. */
     private void createMapping() {
-        // Connect to elastic using PUT to make elastic understand this payload is a mapping.
+        // Connect to elastic using PUT to make elastic understand this is a mapping.
         if( connect("PUT") ) {
 
             String esType = "esd";
 
             try {
                 DataOutputStream dataOutputStream = new DataOutputStream(httpCon.getOutputStream());
-                // GPS coordinates -- A new Type.
-                JSONObject typeGeoPoint = new JSONObject().put("type", "geo_point");
+
                 // Lowest json level, contains explicit typing of sensor data.
                 JSONObject mappingTypes = new JSONObject();
                 // Type "start_location" && "location" using pre-defined typeGeoPoint. ^^
-                mappingTypes.put("start_location", typeGeoPoint);
-                mappingTypes.put("location", typeGeoPoint);
+                mappingTypes.put("start_location", new JSONObject().put("type", "geo_point" ));
+                mappingTypes.put("location", new JSONObject().put("type", "geo_point" ));
                 // Put the two newly typed fields under properties.
                 JSONObject properties = new JSONObject().put("properties", mappingTypes);
                 // Mappings should be nested under index_type.
                 JSONObject esTypeObj = new JSONObject().put(esType, properties);
                 // File this new properties json under _mappings.
-                JSONObject mappings = new JSONObject().put("mappings", esTypeObj);
+                JSONObject mappings = new JSONObject().put("_mappings", esTypeObj);
 
                 // Write out to elastic using the passed outputStream that is connected.
-                dataOutputStream.writeBytes(mappings.toString());
+                dataOutputStream.writeBytes( mappings.toString() );
 
-                if (checkResponseCode()) {
-                    UploadTask.indexSuccess(true);
+                if ( checkResponseCode() ) {
+                    UploadTask.indexSuccess( true );
                     Log.e(logTag + " newMap", "Mapping uploaded successfully. " + mappings.toString());
                 } else {
+                    UploadTask.indexSuccess( false );
                     Log.e(logTag + " newMap", "Failed response code check on MAPPING. " + mappings.toString());
                 }
 
@@ -96,6 +96,7 @@ final class ElasticSearchIndexer extends Thread{
             } catch (IOException IoEx) {
                 Log.e(logTag + " newMap", "Failed to write to outputStreamWriter.");
             }
+
         }else{
             Log.e(logTag + " newMap", "Failed to connect to elastic.");
         }
@@ -103,9 +104,9 @@ final class ElasticSearchIndexer extends Thread{
 
         /** Send JSON data to elastic using POST. */
     private void index() {
-        // POST our documents to elastic.
+        // Boolean return to check if we successfully connected to the elastic host.
         if( connect("POST") ){
-
+            // POST our documents to elastic.
             try {
                 DataOutputStream dataOutputStream = new DataOutputStream( httpCon.getOutputStream() );
                 dataOutputStream.writeBytes( uploadString );
@@ -120,6 +121,7 @@ final class ElasticSearchIndexer extends Thread{
                 // Error writing to httpConnection.
                 Log.e( logTag+" esIndex.", IOex.getMessage() );
             }
+
             Log.e(logTag+" esIndex.", uploadString );
             UploadTask.indexFailureCount();
             UploadTask.indexSuccess(false);
@@ -149,13 +151,11 @@ final class ElasticSearchIndexer extends Thread{
             httpCon.setConnectTimeout(2000);
             httpCon.setReadTimeout(2000);
             httpCon.setDoOutput(true);
+            httpCon.setDoInput(true);
             httpCon.setRequestMethod(verb);
             httpCon.connect();
-            if( httpCon.getDoInput() ){
-                Log.e( logTag+" connect.", "Connected to ESD.");
-                return true;
-            }
-
+            Log.e( logTag+" connect.", "Connected to ESD.");
+            return true;
         }catch(MalformedURLException urlEx){
             Log.e( logTag+" connect.", "Error building URL.");
         }catch (IOException IOex) {
@@ -165,39 +165,38 @@ final class ElasticSearchIndexer extends Thread{
     }
 
     private boolean checkResponseCode(){
+
         String responseMessage = "ResponseCode placeholder.";
         int responseCode = 0;
         String errorString = "Error Message: ";
-        String errorStreamMessage;
 
-        BufferedReader errorStream;
-        InputStream httpInputStream = httpCon.getErrorStream();
-
-        InputStreamReader inputStreamReader;
-
-        if( httpInputStream == null ){
-            Log.e(logTag+" response", "Input stream is null." );
-        }else{
             try{
-                responseMessage = httpCon.getResponseMessage();
-                responseCode = httpCon.getResponseCode();
-                inputStreamReader = new InputStreamReader( httpInputStream );
-                errorStream = new BufferedReader( inputStreamReader );
-                while( ( errorStreamMessage = errorStream.readLine() ) != null ){
-                    errorString = errorString + " : " + errorStreamMessage;
+                InputStreamReader inputStreamReader = new InputStreamReader( httpCon.getErrorStream() );
+                if( inputStreamReader == null ){
+                    return false;
                 }
-                errorStream.close();
+                BufferedReader errorStream = new BufferedReader( inputStreamReader );
+                String errorStreamMessage;
 
-                if( 200 <= responseCode && responseCode <= 299 ){
+                if( errorStream.ready() ) {
+                    responseMessage = httpCon.getResponseMessage();
+                    responseCode = httpCon.getResponseCode();
 
-                    httpCon.disconnect();
-                    return true;
-                }else{
+                    while( ( errorStreamMessage = errorStream.readLine() ) != null ) {
+                        errorString = errorString + " : " + errorStreamMessage;
+                    }
 
-                    if( responseCode != 0 ) {
-                        throw new IOException("NO response");
-                    }else{
-                        throw new IOException("");
+                    errorStream.close();
+
+                    if (200 <= responseCode && responseCode <= 299) {
+                        httpCon.disconnect();
+                        return true;
+                    } else {
+                        if (responseCode != 0) {
+                            throw new IOException("NO response");
+                        } else {
+                            throw new IOException("");
+                        }
                     }
                 }
 
@@ -216,13 +215,9 @@ final class ElasticSearchIndexer extends Thread{
                 }
 
             }
-        }
 
         httpCon.disconnect();
         return false;
-
     }
-
-
 
 }

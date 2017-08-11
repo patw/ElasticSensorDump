@@ -79,7 +79,7 @@ class UploadTask extends Thread{
         boolean indexAlreadyMapped = false;
         DatabaseHelper dbHelper = new DatabaseHelper( passedContext );
 
-        destinationURL = updateURL( "post" );
+        destinationURL = updateURL();
 
         ElasticSearchIndexer esIndexer;
 
@@ -87,7 +87,7 @@ class UploadTask extends Thread{
         while( !stopUploadThread ){
 
             if( !indexAlreadyMapped ){
-                destinationURL = updateURL( "map" );
+                Log.e(logTag+"run", "Creating mapping." );
                 esIndexer = new ElasticSearchIndexer(destinationURL);
 
                 // X-Shield security credentials.
@@ -97,23 +97,19 @@ class UploadTask extends Thread{
 
                 // Start ElasticSearchIndexer and wait for a response.
                 esIndexer.start();
+                // This will change to esIndexer.join(), to block the current upload task until indexing is complete.
                 sleepForResults( esIndexer );
 
                 if( uploadSuccess ){
                     indexAlreadyMapped = true;
-                }else{
-                    Log.e( logTag+" run ", "Failed to MAP to elastic." );
-                    this.stopUploadThread = true;
+                    Log.e(logTag+"run", "Created map successfully." );
                 }
 
-            } else if (System.currentTimeMillis() > globalUploadTimer + 200) {
+            }else if( System.currentTimeMillis() > globalUploadTimer + 200 ){
 
                 String nextString = dbHelper.getNextCursor();
 
                 esIndexer = new ElasticSearchIndexer(nextString, destinationURL);
-                if (esUsername.length() > 0 && esPassword.length() > 0) {
-                    esIndexer.setAuthorization(esUsername, esPassword);
-                }
 
                 // If nextString has data.
                 if ( nextString != null ) {
@@ -123,10 +119,10 @@ class UploadTask extends Thread{
 
                     if( uploadSuccess ){
                         dbHelper.deleteJson();
+                        globalUploadTimer = System.currentTimeMillis();
                     }
                 }
                 onProgressUpdate();
-                globalUploadTimer = System.currentTimeMillis();
             }
         }
 
@@ -157,7 +153,7 @@ class UploadTask extends Thread{
     /** Extract config information from sharedPreferences.
      *  Tag the current date stamp on the index name if set in preferences. Credit: GlenRSmith.
      */
-    private URL updateURL(String verb) {
+    private URL updateURL() {
 
         // Security variables.
         boolean esSSL = sharedPreferences.getBoolean("ssl", false);
@@ -166,13 +162,12 @@ class UploadTask extends Thread{
         String esPort = sharedPreferences.getString("port", "9200");
         String esIndex = sharedPreferences.getString("index", "test_index");
         String esType = sharedPreferences.getString("type", "esd");
-
         String esTag = sharedPreferences.getString("tag", "phone_data");
 
         esUsername = sharedPreferences.getString("user", "");
         esPassword = sharedPreferences.getString("pass", "");
 
-        URL returnURL = null;
+
 
         // Tag the current date stamp on the index name if set in preferences
         // Thanks GlenRSmith for this idea
@@ -183,33 +178,23 @@ class UploadTask extends Thread{
             esIndex = esIndex + "-" + dateString;
         }
 
-
-
         // Default currently is non-secure. Will change that asap.
         String httpString = "http://";
         if( esSSL ){
             httpString = "https://";
         }
 
+        URL returnURL;
+        String urlString = String.format( "%s%s:%s/%s/%s/%s", httpString ,esHost ,esPort ,esIndex ,esType, esTag );
+
         try{
-            String urlString;
-            if( verb.equals("map") ){
-                urlString = String.format( "%s%s:%s/%s/%s", httpString ,esHost ,esPort ,esIndex ,esType );
-                returnURL = new URL(urlString);
-            }else if( verb.equals("post" ) ){
-                // Default is POST. All but the mappings are POSTed.
-                urlString = String.format( "%s%s:%s/%s/%s/%s", httpString ,esHost ,esPort ,esIndex ,esType, esTag );
-                returnURL = new URL(urlString);
-            }
+            returnURL = new URL(urlString);
         }catch( Exception ex ){
-            Log.e( logTag+"updateUrl"+verb, "FAILURE TO UPDATE URL" );
+            Log.e( logTag+"updateUrl", "FAILURE TO UPDATE URL" );
             return null;
         }
 
-        if( returnURL != null ){
-            Log.e( logTag+"updateUrl"+verb, returnURL.toString() );
-        }
-
+        Log.e( logTag+"updateUrl", returnURL.toString() );
         return returnURL;
     }
 
