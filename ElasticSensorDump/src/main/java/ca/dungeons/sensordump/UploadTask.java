@@ -79,7 +79,7 @@ class UploadTask extends Thread{
         boolean indexAlreadyMapped = false;
         DatabaseHelper dbHelper = new DatabaseHelper( passedContext );
 
-        destinationURL = updateURL();
+
 
         ElasticSearchIndexer esIndexer;
 
@@ -88,6 +88,7 @@ class UploadTask extends Thread{
 
             if( !indexAlreadyMapped ){
                 Log.e(logTag+"run", "Creating mapping." );
+                destinationURL = updateURL( "map" );
                 esIndexer = new ElasticSearchIndexer(destinationURL);
 
                 // X-Shield security credentials.
@@ -108,6 +109,7 @@ class UploadTask extends Thread{
             }else if( System.currentTimeMillis() > globalUploadTimer + 200 ){
 
                 String nextString = dbHelper.getNextCursor();
+                destinationURL = updateURL("POST");
 
                 esIndexer = new ElasticSearchIndexer(nextString, destinationURL);
 
@@ -153,7 +155,7 @@ class UploadTask extends Thread{
     /** Extract config information from sharedPreferences.
      *  Tag the current date stamp on the index name if set in preferences. Credit: GlenRSmith.
      */
-    private URL updateURL() {
+    private URL updateURL(String requestType) {
 
         // Security variables.
         boolean esSSL = sharedPreferences.getBoolean("ssl", false);
@@ -162,7 +164,7 @@ class UploadTask extends Thread{
         String esPort = sharedPreferences.getString("port", "9200");
         String esIndex = sharedPreferences.getString("index", "test_index");
         String esType = sharedPreferences.getString("type", "esd");
-        String esTag = sharedPreferences.getString("tag", "phone_data");
+        //String esTag = sharedPreferences.getString("tag", "phone_data");
 
         esUsername = sharedPreferences.getString("user", "");
         esPassword = sharedPreferences.getString("pass", "");
@@ -185,7 +187,11 @@ class UploadTask extends Thread{
         }
 
         URL returnURL;
-        String urlString = String.format( "%s%s:%s/%s/%s/%s", httpString ,esHost ,esPort ,esIndex ,esType, esTag );
+        String urlString = String.format( "%s%s:%s/%s", httpString ,esHost ,esPort ,esIndex );
+
+        if( requestType.equals("POST") ){
+            urlString = String.format( "%s/%s/", urlString, esType );
+        }
 
         try{
             returnURL = new URL(urlString);

@@ -1,9 +1,6 @@
 package ca.dungeons.sensordump;
 
-import java.io.BufferedReader;
 import java.io.DataOutputStream;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.Authenticator;
 import java.net.PasswordAuthentication;
 import java.net.HttpURLConnection;
@@ -63,7 +60,6 @@ final class ElasticSearchIndexer extends Thread{
         // Connect to elastic using PUT to make elastic understand this is a mapping.
         if( connect("PUT") ) {
 
-            String esType = "esd";
 
             try {
                 DataOutputStream dataOutputStream = new DataOutputStream(httpCon.getOutputStream());
@@ -76,9 +72,9 @@ final class ElasticSearchIndexer extends Thread{
                 // Put the two newly typed fields under properties.
                 JSONObject properties = new JSONObject().put("properties", mappingTypes);
                 // Mappings should be nested under index_type.
-                JSONObject esTypeObj = new JSONObject().put(esType, properties);
+                JSONObject esTypeObj = new JSONObject().put("esd", properties);
                 // File this new properties json under _mappings.
-                JSONObject mappings = new JSONObject().put("_mappings", esTypeObj);
+                JSONObject mappings = new JSONObject().put("mappings", esTypeObj);
 
                 // Write out to elastic using the passed outputStream that is connected.
                 dataOutputStream.writeBytes( mappings.toString() );
@@ -168,51 +164,28 @@ final class ElasticSearchIndexer extends Thread{
 
         String responseMessage = "ResponseCode placeholder.";
         int responseCode = 0;
-        String errorString = "Error Message: ";
 
             try{
-                InputStreamReader inputStreamReader = new InputStreamReader( httpCon.getErrorStream() );
-                if( inputStreamReader == null ){
-                    return false;
-                }
-                BufferedReader errorStream = new BufferedReader( inputStreamReader );
-                String errorStreamMessage;
 
-                if( errorStream.ready() ) {
-                    responseMessage = httpCon.getResponseMessage();
-                    responseCode = httpCon.getResponseCode();
+                responseMessage = httpCon.getResponseMessage();
+                responseCode = httpCon.getResponseCode();
 
-                    while( ( errorStreamMessage = errorStream.readLine() ) != null ) {
-                        errorString = errorString + " : " + errorStreamMessage;
-                    }
-
-                    errorStream.close();
-
-                    if (200 <= responseCode && responseCode <= 299) {
-                        httpCon.disconnect();
-                        return true;
-                    } else {
-                        if (responseCode != 0) {
-                            throw new IOException("NO response");
-                        } else {
-                            throw new IOException("");
-                        }
-                    }
+                if (200 <= responseCode && responseCode <= 299) {
+                    httpCon.disconnect();
+                    return true;
+                } else {
+                    throw new IOException( "" );
                 }
 
             }catch( IOException ioEx ){
 
-                if( ioEx.getMessage().equals( "NO response" ) ){
-                    Log.e( logTag+" response", "Failed to retrieve response codes for REST operation." );
-                }else{
-                    // Something bad happened. I expect only the finest of 200's
-                    Log.e( logTag+" response", String.format("%s%s\n%s%s\n%s\n%s",
-                            "Bad response code: ", responseCode,
-                            "Response Message: ", responseMessage,
-                            errorString,
-                            httpCon.getURL() )// End string.
-                    );
-                }
+                // Something bad happened. I expect only the finest of 200's
+                Log.e( logTag+" response", String.format("%s%s\n%s%s\n%s",
+                        "Bad response code: ", responseCode,
+                        "Response Message: ", responseMessage,
+                        httpCon.getURL() + " request type: " + httpCon.getRequestMethod() )// End string.
+                );
+
 
             }
 
