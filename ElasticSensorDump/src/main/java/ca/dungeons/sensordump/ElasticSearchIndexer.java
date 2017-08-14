@@ -59,8 +59,6 @@ final class ElasticSearchIndexer extends Thread{
     private void createMapping() {
         // Connect to elastic using PUT to make elastic understand this is a mapping.
         if( connect("PUT") ) {
-
-
             try {
                 DataOutputStream dataOutputStream = new DataOutputStream(httpCon.getOutputStream());
 
@@ -71,6 +69,10 @@ final class ElasticSearchIndexer extends Thread{
                 mappingTypes.put("location", new JSONObject().put("type", "geo_point" ));
                 // Put the two newly typed fields under properties.
                 JSONObject properties = new JSONObject().put("properties", mappingTypes);
+
+                //String esTag = sharedPreferences.getString("tag", "phone_data");
+                //      INSERT TAG ID HERE.
+
                 // Mappings should be nested under index_type.
                 JSONObject esTypeObj = new JSONObject().put("esd", properties);
                 // File this new properties json under _mappings.
@@ -80,10 +82,10 @@ final class ElasticSearchIndexer extends Thread{
                 dataOutputStream.writeBytes( mappings.toString() );
 
                 if ( checkResponseCode() ) {
-                    UploadTask.indexSuccess( true );
+                    UploadThread.indexSuccess( true );
                     Log.e(logTag + " newMap", "Mapping uploaded successfully. " + mappings.toString());
                 } else {
-                    UploadTask.indexSuccess( false );
+                    UploadThread.indexSuccess( false );
                     Log.e(logTag + " newMap", "Failed response code check on MAPPING. " + mappings.toString());
                 }
 
@@ -108,9 +110,9 @@ final class ElasticSearchIndexer extends Thread{
                 dataOutputStream.writeBytes( uploadString );
                 // Check status of post operation.
                 if( checkResponseCode() ){
-                    UploadTask.indexSuccessCount();
-                    UploadTask.indexSuccess(true);
-                    Log.e( logTag+" esIndex.", "Uploaded: " + uploadString );
+                    UploadThread.indexSuccessCount();
+                    UploadThread.indexSuccess(true);
+                    //Log.e( logTag+" esIndex.", "Uploaded: " + uploadString );
                     return;
                 }
             }catch( IOException IOex ){
@@ -119,8 +121,8 @@ final class ElasticSearchIndexer extends Thread{
             }
 
             Log.e(logTag+" esIndex.", uploadString );
-            UploadTask.indexFailureCount();
-            UploadTask.indexSuccess(false);
+            UploadThread.indexFailureCount();
+            UploadThread.indexSuccess(false);
         }
         if( httpCon != null ){
             httpCon.disconnect();
@@ -150,7 +152,7 @@ final class ElasticSearchIndexer extends Thread{
             httpCon.setDoInput(true);
             httpCon.setRequestMethod(verb);
             httpCon.connect();
-            Log.e( logTag+" connect.", "Connected to ESD.");
+            //Log.e( logTag+" connect.", "Connected to ESD.");
             return true;
         }catch(MalformedURLException urlEx){
             Log.e( logTag+" connect.", "Error building URL.");
@@ -170,10 +172,10 @@ final class ElasticSearchIndexer extends Thread{
                 responseMessage = httpCon.getResponseMessage();
                 responseCode = httpCon.getResponseCode();
 
-                if (200 <= responseCode && responseCode <= 299) {
+                if (200 <= responseCode && responseCode <= 299 || responseCode == 400) {
                     httpCon.disconnect();
                     return true;
-                } else {
+                }else{
                     throw new IOException( "" );
                 }
 

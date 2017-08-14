@@ -44,6 +44,15 @@ class AudioLogger extends Thread {
             bufferSize = SAMPLE_RATE * 2;
         }
 
+    }
+
+    void setStopAudioThread( boolean power ){
+        stopThread = power;
+    }
+
+    @Override
+    public void run() {
+
         // ?????
         audioBuffer = new short[bufferSize / 2];
 
@@ -56,21 +65,12 @@ class AudioLogger extends Thread {
                 bufferSize
         );
 
-    }
-
-    void setStopAudioThread( boolean power ){
-        stopThread = power;
-    }
-
-    @Override
-    public void run() {
+        if( audioRecord.getState() != AudioRecord.STATE_INITIALIZED ){
+            Log.e("Audio Error", "AudioRecord has not been initialized properly.");
+            return;
+        }
 
         while( !stopThread ){
-
-            if( audioRecord.getState() != AudioRecord.STATE_INITIALIZED ){
-                Log.e("Audio Error", "Can't record audio.");
-                return;
-            }
 
             audioRecord.read( audioBuffer, 0, audioBuffer.length );
 
@@ -120,8 +120,11 @@ class AudioLogger extends Thread {
             }
         }
 
-        audioRecord.stop();
-        audioRecord.release();
+        if( audioRecord != null ){
+            audioRecord.stop();
+            audioRecord.release();
+        }
+
         Log.i( logTag, "Audio recording stopping.");
 
     }

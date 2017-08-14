@@ -18,9 +18,9 @@ import java.util.Locale;
  * @author Gurtok.
  * @version First version of upload Async thread.
  */
-class UploadTask extends Thread{
+class UploadThread extends Thread{
 
-    private final String logTag = "UploadTask";
+    private final String logTag = "UploadThread";
 
     /** Used to gain access to the application database. */
     private Context passedContext;
@@ -42,7 +42,7 @@ class UploadTask extends Thread{
     private static int uploadErrors = 0;
 
     /** Default Constructor using the application context. */
-    UploadTask(Context context, SharedPreferences passedPreferences ) {
+    UploadThread(Context context, SharedPreferences passedPreferences ) {
         passedContext = context;
         sharedPreferences = passedPreferences;
     }
@@ -164,7 +164,7 @@ class UploadTask extends Thread{
         String esPort = sharedPreferences.getString("port", "9200");
         String esIndex = sharedPreferences.getString("index", "test_index");
         String esType = sharedPreferences.getString("type", "esd");
-        //String esTag = sharedPreferences.getString("tag", "phone_data");
+
 
         esUsername = sharedPreferences.getString("user", "");
         esPassword = sharedPreferences.getString("pass", "");
@@ -200,7 +200,7 @@ class UploadTask extends Thread{
             return null;
         }
 
-        Log.e( logTag+"updateUrl", returnURL.toString() );
+        //Log.e( logTag+" updateUrl", returnURL.toString() );
         return returnURL;
     }
 
@@ -233,11 +233,11 @@ class UploadTask extends Thread{
 
             }
         }catch( MalformedURLException malformedUrlEx ){
-            Log.e( logTag+" check host.", "MalformedURL cause: " + malformedUrlEx.getCause() );
+            Log.e( logTag+" chkHost.", "MalformedURL cause: " + malformedUrlEx.getCause() );
             malformedUrlEx.printStackTrace();
         }catch(IOException IoEx ){
             IoEx.printStackTrace();
-            Log.e( logTag+" check host.", "Failure to open connection cause: " + IoEx.getMessage() + " " + responseCode );
+            Log.e( logTag+" chkHost.", "Failure to open connection cause: " + IoEx.getMessage() + " " + responseCode );
         }
 
         if( httpConnection != null ){

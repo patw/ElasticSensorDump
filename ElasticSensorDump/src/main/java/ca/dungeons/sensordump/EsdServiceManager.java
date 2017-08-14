@@ -2,6 +2,7 @@ package ca.dungeons.sensordump;
 
 
 import android.app.Service;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -14,6 +15,9 @@ import android.util.Log;
 
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static ca.dungeons.sensordump.MainActivity.sharedPrefs;
 
@@ -21,10 +25,15 @@ public class EsdServiceManager extends Service {
 
     private static final String logTag = "EsdServiceManager";
 
+    private static ExecutorService threadPool;
+
     /** Use SensorThread class to start the logging process. */
     private SensorThread sensorThread;
-    /** UploadTask controls the data flow between the local database and Elastic server. */
-    private UploadTask uploadTask;
+    /** UploadThread controls the data flow between the local database and Elastic server. */
+    private UploadThread uploadThread;
+
+
+
     /** True if we are currently reading sensor data. */
     public static boolean logging = false;
     private boolean audioLogging = false;
@@ -51,12 +60,16 @@ public class EsdServiceManager extends Service {
 
     @Override
     public void onCreate () {
+        // Cache our pool to execute the SensorThread and UploadThread on.
+        threadPool = Executors.newFixedThreadPool(2);
+
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences( getBaseContext() );
 
-        uploadTask = new UploadTask( getApplicationContext(), sharedPrefs );
-        uploadTask.start();
 
-        sensorThread = new SensorThread( getApplicationContext() );
+        uploadThread = new UploadThread( getApplicationContext(), sharedPrefs );
+        uploadThread.start();
+
+        sensorThread = new SensorThread( getApplicationContext(), sharedPrefs );
         sensorThread.start();
     }
 
@@ -173,8 +186,8 @@ public class EsdServiceManager extends Service {
         final Timer uploadTimer = new Timer();
         uploadTimer.schedule(new TimerTask() {
             public void run() {
-                if( !uploadTask.isAlive() )
-                uploadTask.start();
+                if( !uploadThread.isAlive() )
+                uploadThread.start();
             }
         }, 500, 30000);
     } // Delay the task 5 seconds out and then repeat every 30 seconds.
@@ -227,7 +240,6 @@ public class EsdServiceManager extends Service {
         sensorThread.setGpsPower( false );
         sensorThread.setSensorLogging(false);
 
-
         Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );
         messageIntent.putExtra( "serviceManagerRunning", false );
         sendBroadcast( messageIntent );
@@ -239,7 +251,7 @@ public class EsdServiceManager extends Service {
     @Override
     public void onDestroy () {
         stopLogging();
-        uploadTask.stopUploadThread();
+        uploadThread.stopUploadThread();
         Intent messageIntent = new Intent(MainActivity.UI_ACTION_RECEIVER);
         messageIntent.putExtra("serviceManagerRunning", false );
         sendBroadcast( messageIntent );

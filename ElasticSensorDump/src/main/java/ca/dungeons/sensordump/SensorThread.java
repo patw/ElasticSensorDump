@@ -5,7 +5,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.hardware.SensorManager;
+import android.location.Criteria;
+import android.location.Location;
 import android.location.LocationManager;
 
 import android.hardware.Sensor;
@@ -27,14 +30,18 @@ import java.util.Locale;
 /**
  * Listener class to record sensorMessageHandler data.
  * @author Gurtok.
- * @version First version of upload Async thread.
+ * @version First version of sensor thread.
  */
+
 class SensorThread extends Thread implements SensorEventListener {
     /** Use this to identify this classes log messages. */
     private final String logTag = "SensorThread";
 
     /** Main activity context. */
     private Context passedContext;
+
+    /** Applications' shared preferences. */
+    private SharedPreferences sharedPrefs;
 
     /** Gives access to the local database via a helper class.*/
     private DatabaseHelper dbHelper;
@@ -91,7 +98,8 @@ class SensorThread extends Thread implements SensorEventListener {
      * Initialize the sensorMessageHandler manager.
      * Enumerate available sensors and store into a list.
      */
-    SensorThread( Context context ){
+    SensorThread(Context context, SharedPreferences sharedPreferences){
+        sharedPrefs = sharedPreferences;
         passedContext = context;
         gpsLogger = new GPSLogger();
         audioLogger = new AudioLogger();
@@ -99,6 +107,13 @@ class SensorThread extends Thread implements SensorEventListener {
         startTime = lastUpdate = System.currentTimeMillis();
         locationManager = (LocationManager) passedContext.getSystemService( Context.LOCATION_SERVICE );
         parseSensorArray();
+    }
+
+    @Override
+    public void run() {
+
+
+
     }
 
     /** Our main connection to the UI thread for communication. */
@@ -260,12 +275,19 @@ class SensorThread extends Thread implements SensorEventListener {
 
     /** Register gps sensors to enable recording. */
     private void registerGpsSensors(){
+
+        boolean gpsPermissionFine = sharedPrefs.getBoolean("gps_permission_FINE", false );
+
+
         try{
-            locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, sensorRefreshTime, 0, gpsLogger );
-            Log.i( logTag, "GPS listeners registered.");
-            gpsRegistered = true;
+            if( gpsPermissionFine ){
+                locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, sensorRefreshTime, 0, gpsLogger );
+                Log.i( logTag, "GPS listeners registered.");
+                gpsRegistered = true;
+            }
         }catch ( SecurityException secEx ) {
             Log.e( logTag, "Failure turning gps on/off. Cause: " + secEx.getMessage() );
+            secEx.printStackTrace();
         }catch( RuntimeException runTimeEx ){
             Log.e( logTag, "StackTrace: " );
             runTimeEx.printStackTrace();

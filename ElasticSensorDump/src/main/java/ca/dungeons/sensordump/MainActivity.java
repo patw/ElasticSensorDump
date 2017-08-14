@@ -104,7 +104,7 @@ public class MainActivity extends Activity{
         createBroadcastReceiver();
         mainActivityRunning = true;
         updateScreen();
-        databasePopulation = new UploadTask(this, sharedPrefs ).getDatabasePopulation();
+        databasePopulation = new UploadThread(this, sharedPrefs ).getDatabasePopulation();
     }
 
     private void startServiceManager(){
@@ -261,31 +261,24 @@ public class MainActivity extends Activity{
      * @return True if we asked for permission and it was granted.
      */
     public boolean gpsPermission() {
+        boolean gpsPermissionCoarse = (ContextCompat.checkSelfPermission(this, Manifest.permission.
+                ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED);
 
-        boolean gpsPermissionFine = sharedPrefs.getBoolean("gps_permission_FINE", false );
-        boolean gpsPermissionCoarse = sharedPrefs.getBoolean("gps_permission_COARSE", false );
+        boolean gpsPermissionFine = (ContextCompat.checkSelfPermission(this, android.Manifest.permission.
+                ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
 
-        boolean asked = sharedPrefs.getBoolean("gps_asked", false);
+        if( !gpsPermissionFine && !gpsPermissionCoarse ){
 
+            ActivityCompat.requestPermissions(this, new String[]{
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+            }, 1);
 
-        if( !gpsPermissionFine && !gpsPermissionCoarse && !asked ){
+            gpsPermissionFine = ( ContextCompat.checkSelfPermission(this, android.Manifest.permission.
+                    ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED );
 
-            String[] permissions = {
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION};
-
-            ActivityCompat.requestPermissions(this, permissions, 1);
-
-            gpsPermissionCoarse = (ContextCompat.checkSelfPermission(this, Manifest.permission.
-                    ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED);
-
-            gpsPermissionFine = (ContextCompat.checkSelfPermission(this, android.Manifest.permission.
-                        ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
-
-            BooleanToPrefs("gps_asked", true);
-            BooleanToPrefs("gps_permission_FINE", gpsPermissionFine);
-            BooleanToPrefs("gps_permission_COARSE", gpsPermissionCoarse);
-
+            gpsPermissionCoarse = ( ContextCompat.checkSelfPermission(this, Manifest.permission.
+                    ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED );
 
         }
 
@@ -294,19 +287,22 @@ public class MainActivity extends Activity{
 
     public boolean audioPermission(){
         boolean audioPermission = sharedPrefs.getBoolean( "audio_permission", false );
+        boolean audioAsked = sharedPrefs.getBoolean( "audio_Asked", false );
 
-        if( sharedPrefs.getBoolean( "audio_Asked", false )){
+        if( !audioAsked ) {
 
-            String[] permissions = { Manifest.permission.RECORD_AUDIO };
+            String[] permissions = {Manifest.permission.RECORD_AUDIO};
 
             ActivityCompat.requestPermissions(this, permissions, 1);
+        }
 
+        if( !audioPermission ){
 
-            audioPermission = (ContextCompat.checkSelfPermission(this, Manifest.permission.
-                    RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
+                audioPermission = (ContextCompat.checkSelfPermission(this, Manifest.permission.
+                        RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
 
-            BooleanToPrefs("audio_Asked", true);
-            BooleanToPrefs("audio_Permission", audioPermission);
+                BooleanToPrefs("audio_Asked", true);
+                BooleanToPrefs("audio_Permission", audioPermission);
         }
 
         return audioPermission;
