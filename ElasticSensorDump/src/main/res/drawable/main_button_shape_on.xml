@@ -8,7 +8,7 @@
         android:centerX="80%"
         android:centerColor="#6B6556"
         android:startColor="#31F500"
-        android:endColor="#FF7857"
+        android:endColor="#33b5e5"
         android:type="linear"
         />
     <size
