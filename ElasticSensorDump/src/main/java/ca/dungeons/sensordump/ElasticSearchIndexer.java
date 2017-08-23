@@ -57,6 +57,7 @@ final class ElasticSearchIndexer extends Thread{
 
     /** Create a map and send to elastic for sensor index. */
     private void createMapping() {
+
         // Connect to elastic using PUT to make elastic understand this is a mapping.
         if( connect("PUT") ) {
             try {
@@ -82,10 +83,10 @@ final class ElasticSearchIndexer extends Thread{
                 dataOutputStream.writeBytes( mappings.toString() );
 
                 if ( checkResponseCode() ) {
-                    UploadThread.indexSuccess( true );
+                    Uploads.indexSuccess( true );
                     Log.e(logTag + " newMap", "Mapping uploaded successfully. " + mappings.toString());
                 } else {
-                    UploadThread.indexSuccess( false );
+                    Uploads.indexSuccess( false );
                     Log.e(logTag + " newMap", "Failed response code check on MAPPING. " + mappings.toString());
                 }
 
@@ -94,10 +95,8 @@ final class ElasticSearchIndexer extends Thread{
             } catch (IOException IoEx) {
                 Log.e(logTag + " newMap", "Failed to write to outputStreamWriter.");
             }
-
-        }else{
-            Log.e(logTag + " newMap", "Failed to connect to elastic.");
         }
+        httpCon.disconnect();
     }
 
         /** Send JSON data to elastic using POST. */
@@ -110,8 +109,8 @@ final class ElasticSearchIndexer extends Thread{
                 dataOutputStream.writeBytes( uploadString );
                 // Check status of post operation.
                 if( checkResponseCode() ){
-                    UploadThread.indexSuccessCount();
-                    UploadThread.indexSuccess(true);
+                    Uploads.indexSuccessCount();
+                    Uploads.indexSuccess(true);
                     //Log.e( logTag+" esIndex.", "Uploaded: " + uploadString );
                     return;
                 }
@@ -121,8 +120,8 @@ final class ElasticSearchIndexer extends Thread{
             }
 
             Log.e(logTag+" esIndex.", uploadString );
-            UploadThread.indexFailureCount();
-            UploadThread.indexSuccess(false);
+            Uploads.indexFailureCount();
+            Uploads.indexSuccess(false);
         }
         if( httpCon != null ){
             httpCon.disconnect();
@@ -133,6 +132,7 @@ final class ElasticSearchIndexer extends Thread{
 
     /** Open a connection with the server. */
     private boolean connect(String verb){
+
 
         // Send authentication if required
         if (esUsername.length() > 0 && esPassword.length() > 0) {
@@ -159,6 +159,7 @@ final class ElasticSearchIndexer extends Thread{
         }catch (IOException IOex) {
             Log.e( logTag+" connect.", "Failed to connect to elastic. " + IOex.getMessage() + "  " + IOex.getCause());
         }
+
         return false;
     }
 

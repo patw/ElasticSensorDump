@@ -8,41 +8,46 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-class AudioLogger extends Thread {
+class AudioRunnable implements Runnable {
 
     private final String logTag = "audioLogger";
 
     /** We use this to indicate to the sensor thread if we have data to send. */
     boolean hasData = false;
 
-    /** A reference to Androids built in audio recording API. */
-    private AudioRecord audioRecord;
-
+    /** Use this control variable to stop the recording of audio data. */
     private boolean stopThread = false;
 
     /** A reference to the current audio sample "loudness" in terms of percentage of mic capability.*/
     private float amplitude = 0;
     /** A reference to the current audio sample frequency. */
     private float frequency = 0;
+
+    /** Android API to facilitate the recording of audio data. */
+    private AudioRecord audioRecord;
     /** The sampling rate of the audio recording. */
     private final int SAMPLE_RATE = 44100;
+
     /** Short type array to feed to the recording API. */
     private short[] audioBuffer;
-
+    /** Minimum buffer size required by AudioRecord API. */
     private int bufferSize;
 
 
     /** Constructor.
      * Here we set static variables used for all recording. */
-    AudioLogger(){
+    AudioRunnable(){
+
         // Buffer size in bytes.
         bufferSize = AudioRecord.getMinBufferSize(
                 SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
         );
+
         // A check to make sure we are doing math on valid objects.
         if( bufferSize == AudioRecord.ERROR || bufferSize == AudioRecord.ERROR_BAD_VALUE ){
             bufferSize = SAMPLE_RATE * 2;
         }
+
 
     }
 
@@ -79,52 +84,46 @@ class AudioLogger extends Thread {
             int zeroes = 0;
             int last_value = 0;
 
-            // Exploring the buffer. Record the highest and lowest readings
-            for( short anAudioBuffer : audioBuffer ){
 
-                // Detect lowest in sample
-                if( anAudioBuffer < lowest ){
-                    lowest = anAudioBuffer;
+            if( audioBuffer != null ){
+                // Exploring the buffer. Record the highest and lowest readings
+                for( short anAudioBuffer : audioBuffer ){
+
+                    lowest = anAudioBuffer < lowest ? anAudioBuffer : lowest;
+
+                    highest = anAudioBuffer > highest ? anAudioBuffer : highest;
+
+                    // Down and coming up
+                    if( anAudioBuffer > 0 && last_value < 0 ){
+                        zeroes++;
+                    }
+
+                    // Up and down
+                    if( anAudioBuffer < 0 && last_value > 0 ){
+                        zeroes++;
+                    }
+
+                    last_value = anAudioBuffer;
+
+                    // Calculate highest and lowest peak difference as a % of the max possible
+                    // value
+                    amplitude = ( highest - lowest ) / 65536 * 100;
+
+                    // Take the count of the peaks in the time that we had based on the sample
+                    // rate to calculate frequency
+                    if( audioBuffer != null ){
+                        float seconds = (float) audioBuffer.length / SAMPLE_RATE;
+                        frequency = (float) zeroes / seconds / 2;
+
+                        hasData = true;
+                    }
+
                 }
-
-                // Detect highest in sample
-                if( anAudioBuffer > highest ){
-                    highest = anAudioBuffer;
-                }
-
-                // Down and coming up
-                if( anAudioBuffer > 0 && last_value < 0 ){
-                    zeroes++;
-                }
-
-                // Up and down
-                if( anAudioBuffer < 0 && last_value > 0 ){
-                    zeroes++;
-                }
-
-                last_value = anAudioBuffer;
-
-                // Calculate highest and lowest peak difference as a % of the max possible
-                // value
-                amplitude = (highest - lowest) / 65536 * 100;
-
-                // Take the count of the peaks in the time that we had based on the sample
-                // rate to calculate frequency
-                if( audioBuffer != null ){
-                    float seconds = (float) audioBuffer.length / (float) SAMPLE_RATE;
-                    frequency = (float) zeroes / seconds / 2;
-
-                    hasData = true;
-                }
-
             }
         }
 
-        if( audioRecord != null ){
-            audioRecord.stop();
-            audioRecord.release();
-        }
-
+        audioRecord.stop();
+        audioRecord.release();
         Log.i( logTag, "Audio recording stopping.");
 
     }

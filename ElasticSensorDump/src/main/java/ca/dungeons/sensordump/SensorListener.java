@@ -6,15 +6,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.hardware.SensorManager;
-import android.location.Criteria;
-import android.location.Location;
-import android.location.LocationManager;
-
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-
+import android.hardware.SensorManager;
+import android.location.LocationManager;
 import android.os.BatteryManager;
 import android.util.Log;
 
@@ -26,16 +21,19 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
- * Listener class to record sensorMessageHandler data.
- * @author Gurtok.
- * @version First version of sensor thread.
+ * Created by Gurtok on 8/14/2017.
+ *
  */
 
-class SensorThread extends Thread implements SensorEventListener {
+class SensorListener implements android.hardware.SensorEventListener {
+
+
     /** Use this to identify this classes log messages. */
-    private final String logTag = "SensorThread";
+    private final String logTag = "SensorRunnable";
 
     /** Main activity context. */
     private Context passedContext;
@@ -46,10 +44,12 @@ class SensorThread extends Thread implements SensorEventListener {
     /** Gives access to the local database via a helper class.*/
     private DatabaseHelper dbHelper;
 
+    private ExecutorService threadPool = Executors.newSingleThreadExecutor();
+
 // Date / Time variables.
     /** A static reference to the custom date format. */
     @SuppressWarnings("SpellCheckingInspection")
-    private static final SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ", Locale.US);
+    private final SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ", Locale.US);
     /** Timers, the schema is defined else where. */
     private long startTime, lastUpdate;
 
@@ -81,7 +81,7 @@ class SensorThread extends Thread implements SensorEventListener {
 
 // AUDIO variables.
     /** Helper class for obtaining audio data. */
-    private AudioLogger audioLogger;
+    private AudioRunnable audioRunnable;
     /** Control variable to make sure we only create one audio logger. */
     private boolean audioRegistered;
 
@@ -93,48 +93,42 @@ class SensorThread extends Thread implements SensorEventListener {
     /** Number of audio events. */
     private int audioReadings = 0;
 
-// Guts.
-    /** Constructor:
-     * Initialize the sensorMessageHandler manager.
-     * Enumerate available sensors and store into a list.
-     */
-    SensorThread(Context context, SharedPreferences sharedPreferences){
+    SensorListener( Context context, SharedPreferences sharedPreferences ){
         sharedPrefs = sharedPreferences;
         passedContext = context;
+
         gpsLogger = new GPSLogger();
-        audioLogger = new AudioLogger();
+        audioRunnable = new AudioRunnable();
         dbHelper = new DatabaseHelper( passedContext );
         startTime = lastUpdate = System.currentTimeMillis();
         locationManager = (LocationManager) passedContext.getSystemService( Context.LOCATION_SERVICE );
         parseSensorArray();
-    }
-
-    @Override
-    public void run() {
-
-
 
     }
+
+
+
 
     /** Our main connection to the UI thread for communication. */
     private void onProgressUpdate() {
         Intent messageIntent = new Intent( EsdServiceManager.UPDATE_UI_SENSOR_THREAD );
         messageIntent.putExtra("sensorReadings", sensorReadings );
         messageIntent.putExtra( "gpsReadings", gpsReadings );
+        //Log.e(logTag, "gps Readings == " + gpsReadings );
         messageIntent.putExtra( "audioReadings", audioReadings );
         passedContext.sendBroadcast( messageIntent );
     }
 
-      /**
-       * This is the main recording loop. One reading per sensorMessageHandler per loop.
-       * Update timestamp in sensorMessageHandler data structure.
-       * Store the logging start time with each document.
-       * Store the duration of the sensorMessageHandler log with each document.
-       * Dump gps data into document if it's ready.
-       * Put battery status percentage into the Json.
-       *
-       * @param event A reference to the event object.
-       */
+    /**
+     * This is the main recording loop. One reading per sensorMessageHandler per loop.
+     * Update timestamp in sensorMessageHandler data structure.
+     * Store the logging start time with each document.
+     * Store the duration of the sensorMessageHandler log with each document.
+     * Dump gps data into document if it's ready.
+     * Put battery status percentage into the Json.
+     *
+     * @param event A reference to the event object.
+     */
     @Override
     public final void onSensorChanged(SensorEvent event) {
 
@@ -154,13 +148,15 @@ class SensorThread extends Thread implements SensorEventListener {
                 joSensorData.put( "start_time", logDateFormat.format( new Date( startTime )) );
                 joSensorData.put( "log_duration_seconds", ( System.currentTimeMillis() - startTime ) / 1000 );
 
+                //Log.e(logTag, "gpsRegistered: " + gpsRegistered + " gps has data? " + gpsLogger.gpsHasData );
                 if( gpsRegistered && gpsLogger.gpsHasData ){
                     joSensorData = gpsLogger.getGpsData( joSensorData );
                     gpsReadings++;
                 }
 
-                if( audioRegistered && audioLogger.hasData ){
-                    joSensorData = audioLogger.getAudioData( joSensorData );
+                //Log.e(logTag, "audioRegistered: " + audioRegistered + " gps has data? " + gpsLogger.gpsHasData );
+                if( audioRegistered && audioRunnable.hasData ){
+                    joSensorData = audioRunnable.getAudioData( joSensorData );
                     audioReadings++;
                 }
 
@@ -187,15 +183,7 @@ class SensorThread extends Thread implements SensorEventListener {
         }
     }
 
-    /** Required stub. Not used. */
-    @Override
-    public final void onAccuracyChanged(Sensor sensor, int accuracy){} // <- Empty
-
-
-// Phone Sensors
-
-    /** A control method for collection intervals. */
-    void setSensorRefreshTime(int updatedRefresh ){ sensorRefreshTime = updatedRefresh; }
+    // Phone Sensors
 
     /** Use this method to control if we should be recording sensor data or not. */
     void setSensorLogging( boolean power ){
@@ -206,6 +194,13 @@ class SensorThread extends Thread implements SensorEventListener {
         if( !power && sensorsRegistered ){
             unregisterSensorListeners();
         }
+    }
+
+    /**
+     * A control method for collection intervals.
+     */
+    void setSensorRefreshTime(int updatedRefresh) {
+        sensorRefreshTime = updatedRefresh;
     }
 
     /** Method to register listeners upon logging. */
@@ -258,32 +253,40 @@ class SensorThread extends Thread implements SensorEventListener {
     }
 
 
+
+
 // GPS
 
-    /** Control method to enable/disable gps recording. */
-    void setGpsPower( boolean power ){
+    /**
+     * Control method to enable/disable gps recording.
+     */
+    void setGpsPower(boolean power) {
 
-        if( power && sensorLogging && !gpsRegistered  ){
+        if (power && sensorLogging && !gpsRegistered) {
             registerGpsSensors();
         }
 
-        if( !power && gpsRegistered ){
+        if (!power && gpsRegistered) {
             unRegisterGpsSensors();
         }
 
     }
 
+
     /** Register gps sensors to enable recording. */
     private void registerGpsSensors(){
 
         boolean gpsPermissionFine = sharedPrefs.getBoolean("gps_permission_FINE", false );
-
+        boolean gpsPermissionCoarse = sharedPrefs.getBoolean( "gps_permission_COARSE", false );
 
         try{
-            if( gpsPermissionFine ){
-                locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, sensorRefreshTime, 0, gpsLogger );
+            if( gpsPermissionFine || gpsPermissionCoarse ){
+                locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, sensorRefreshTime - 10, 0, gpsLogger );
+                locationManager.requestLocationUpdates( LocationManager.NETWORK_PROVIDER, sensorRefreshTime - 10, 0, gpsLogger );
                 Log.i( logTag, "GPS listeners registered.");
                 gpsRegistered = true;
+            }else{
+                Log.e(logTag+"regGPS", "Register gps method, gpsPermissionFine == false");
             }
         }catch ( SecurityException secEx ) {
             Log.e( logTag, "Failure turning gps on/off. Cause: " + secEx.getMessage() );
@@ -302,30 +305,38 @@ class SensorThread extends Thread implements SensorEventListener {
     }
 
 //AUDIO
-    /** Set audio recording on/off. */
-    void setAudioPower( boolean power ){
-        if( power && sensorLogging && !audioRegistered ){
+
+    /**
+     * Set audio recording on/off.
+     */
+    void setAudioPower(boolean power) {
+        if (power && sensorLogging && !audioRegistered) {
             registerAudioSensors();
         }
-        if( !power && audioRegistered ){
+        if (!power && audioRegistered) {
             unregisterAudioSensors();
         }
     }
 
     /** Register audio recording thread. */
     private void registerAudioSensors(){
-        audioLogger.start();
+        audioRunnable = new AudioRunnable();
+        threadPool.submit( audioRunnable );
         audioRegistered = true;
         Log.i( logTag, "Registered audio sensors." );
     }
 
     /** Stop audio recording thread. */
     private void unregisterAudioSensors(){
-        audioLogger.setStopAudioThread(true);
+        audioRunnable.setStopAudioThread(true);
         audioRegistered = false;
         Log.i( logTag, "Unregistered audio sensors." );
     }
 
 
+    /** Required stub. Not used. */
+    @Override
+    public final void onAccuracyChanged(Sensor sensor, int accuracy){} // <- Empty
 
 }
+

@@ -17,10 +17,10 @@
         android:id="@+id/MainUILayout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        tools:ignore="RelativeOverlap"
         android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true">
+        android:layout_centerHorizontal="true"
+        android:orientation="vertical"
+        tools:ignore="RelativeOverlap">
 
         <ToggleButton
             android:id="@+id/toggleStart"
@@ -69,16 +69,17 @@
         android:src="@drawable/ic_action_navigation_more_vert" />
 
     <FrameLayout
+        android:id="@+id/frameLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:id="@+id/frameLayout"
-        android:layout_centerHorizontal="true"
-        android:layout_alignParentBottom="true">
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true">
 
         <ImageView
             android:id="@+id/elasticLogo"
             android:layout_width="match_parent"
             android:layout_height="350dp"
+            android:layout_gravity="center"
             android:alpha=".1"
             android:background="@drawable/elastic_logo"
             android:clickable="false"

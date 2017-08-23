@@ -18,18 +18,21 @@ import java.util.Locale;
  * @author Gurtok.
  * @version First version of upload Async thread.
  */
-class UploadThread extends Thread{
-
-    private final String logTag = "UploadThread";
+class Uploads implements Runnable{
+    /** Lazy mans ID for logging. */
+    private final String logTag = "Uploads";
 
     /** Used to gain access to the application database. */
     private Context passedContext;
-
-    private boolean stopUploadThread = false;
-    private static boolean uploadSuccess = false;
-
     /** A reference to the apps stored preferences. */
     private SharedPreferences sharedPreferences;
+
+    /** Control variable to indicate if we should stop uploading to elastic. */
+    private boolean stopUploadThread = false;
+    /** Control variable to indicate if the last index attempt was successful. */
+    private static boolean uploadSuccess = false;
+    /** Control variable to indicate if this runnable is currently uploading data. */
+    private boolean working = false;
     /** Used to authenticate with elastic server. */
     private String esUsername = "";
     /** Used to authenticate with elastic server. */
@@ -42,7 +45,7 @@ class UploadThread extends Thread{
     private static int uploadErrors = 0;
 
     /** Default Constructor using the application context. */
-    UploadThread(Context context, SharedPreferences passedPreferences ) {
+    Uploads(Context context, SharedPreferences passedPreferences ) {
         passedContext = context;
         sharedPreferences = passedPreferences;
     }
@@ -57,20 +60,18 @@ class UploadThread extends Thread{
     }
     /** Control method to shut down upload thread. */
     void stopUploadThread(){ stopUploadThread= true; }
-
+    /** Used by the service manager to indicate if this runnable is uploading data. */
+    synchronized boolean isWorking(){ return working; }
+    /** Used by the service manager to indicate if the current upload attempt was successful. */
     static void indexSuccess(boolean test ){ uploadSuccess = test; }
 
-    int getDatabasePopulation(){
-        DatabaseHelper databaseHelper = new DatabaseHelper( passedContext );
-        Long databaseEntries = databaseHelper.databaseEntries();
-        databaseHelper.close();
-        return Integer.valueOf( databaseEntries.toString() );
-    }
 
+    /** Main work of upload runnable is accomplished here. */
     @Override
     public void run() {
 
         if( !checkForElasticHost() ){
+            working = false;
             this.stopUploadThread();
             return;
         }
@@ -78,13 +79,13 @@ class UploadThread extends Thread{
         URL destinationURL;
         boolean indexAlreadyMapped = false;
         DatabaseHelper dbHelper = new DatabaseHelper( passedContext );
-
-
+        int timeoutCount = 0;
 
         ElasticSearchIndexer esIndexer;
 
         // Loop to keep uploading at a limit of 5 outs per second, while the main thread doesn't cancel.
         while( !stopUploadThread ){
+            working = true;
 
             if( !indexAlreadyMapped ){
                 Log.e(logTag+"run", "Creating mapping." );
@@ -122,11 +123,21 @@ class UploadThread extends Thread{
                     if( uploadSuccess ){
                         dbHelper.deleteJson();
                         globalUploadTimer = System.currentTimeMillis();
+                        timeoutCount = 0;
+                        //Log.e(logTag, "Successful index.");
+                    }else{
+                        timeoutCount++;
+                    }
+
+                    if( timeoutCount >= 9 ){
+                        stopUploadThread = true;
+                        Log.e(logTag, "Failed to connect 10 times, shutting down." );
                     }
                 }
                 onProgressUpdate();
             }
         }
+        working = false;
 
     }
 
@@ -136,10 +147,10 @@ class UploadThread extends Thread{
         // Give this intent a what field to allow identification.
         messageIntent.putExtra( "documentsIndexed", documentsIndexed );
         messageIntent.putExtra( "uploadErrors", uploadErrors );
-        messageIntent.putExtra( "databasePopulation", getDatabasePopulation() );
         passedContext.sendBroadcast( messageIntent );
     }
 
+    /** Used to establish an order of operations. This thread needs to wait for server response. */
     private void sleepForResults( ElasticSearchIndexer esIndexer){
 
         while( esIndexer.isAlive() ){
@@ -204,6 +215,7 @@ class UploadThread extends Thread{
         return returnURL;
     }
 
+    /** Helper method to determine if we currently have access to an elastic server to upload to. */
     private boolean checkForElasticHost(){
 
         boolean responseCodeSuccess = false;
@@ -217,7 +229,7 @@ class UploadThread extends Thread{
         String esHostUrlString = String.format("http://%s:%s/", esHost, esPort );
 
         try{
-            //Log.e("UploadThread-CheckHost", esHostUrlString); // DIAGNOSTICS
+            //Log.e("Uploads-CheckHost", esHostUrlString); // DIAGNOSTICS
             esUrl = new URL( esHostUrlString );
 
             httpConnection = (HttpURLConnection) esUrl.openConnection();
@@ -236,7 +248,7 @@ class UploadThread extends Thread{
             Log.e( logTag+" chkHost.", "MalformedURL cause: " + malformedUrlEx.getCause() );
             malformedUrlEx.printStackTrace();
         }catch(IOException IoEx ){
-            IoEx.printStackTrace();
+            //IoEx.printStackTrace();
             Log.e( logTag+" chkHost.", "Failure to open connection cause: " + IoEx.getMessage() + " " + responseCode );
         }
 

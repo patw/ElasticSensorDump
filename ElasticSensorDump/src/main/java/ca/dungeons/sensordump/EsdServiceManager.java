@@ -1,37 +1,74 @@
 package ca.dungeons.sensordump;
 
-
 import android.app.Service;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import static ca.dungeons.sensordump.MainActivity.sharedPrefs;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class EsdServiceManager extends Service {
 
     private static final String logTag = "EsdServiceManager";
 
-    private static ExecutorService threadPool;
+    private boolean serviceActive = false;
 
-    /** Use SensorThread class to start the logging process. */
-    private SensorThread sensorThread;
-    /** UploadThread controls the data flow between the local database and Elastic server. */
-    private UploadThread uploadThread;
+    private SharedPreferences sharedPrefs;
 
+    private long lastSuccessfulSensorResult;
+
+    private ConnectivityManager connectionManager;
+
+    /** This thread pool is the working pool. Use this to execute the sensor runnable and Uploads. */
+    private ExecutorService workingThreadPool = Executors.newFixedThreadPool( 2 );
+
+    /** This thread pool handles the timer in which we control this service, as well as the
+    * timer that controls if/when we should be uploading data to the server.
+     */
+    private ScheduledExecutorService serviceTimerPool = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledExecutorService uploadTimerPool = Executors.newSingleThreadScheduledExecutor();
+
+    /** Uploads controls the data flow between the local database and Elastic server. */
+    private Uploads uploads;
+
+    /** This is the runnable we will use to check network connectivity once every 30 min. */
+    private Runnable uploadRunnable = new Runnable() {
+        @Override
+        public void run() {
+            boolean isConnected = connectionManager.getActiveNetworkInfo().isConnected();
+            if( !uploads.isWorking() && isConnected ){
+                workingThreadPool.submit( uploads );
+            }else{
+                Log.e(logTag, "Failed to submit uploads runnable to thread pool!" );
+            }
+
+        }
+    };
+
+    private Runnable serviceTimeoutRunnable = new Runnable() {
+        @Override
+        public void run() {
+            // Last sensor result plus 1 hour in milliseconds is greater than the current time.
+            boolean timeCheck = lastSuccessfulSensorResult + ( 1000*60*60 ) > System.currentTimeMillis();
+
+            if( !logging && !uploads.isWorking() && !timeCheck ){
+                Log.e( logTag, "Shutting down service. Not logging!" );
+                EsdServiceManager.super.stopSelf();
+            }
+        }
+    };
 
 
     /** True if we are currently reading sensor data. */
@@ -45,55 +82,54 @@ public class EsdServiceManager extends Service {
     public final static String SENSOR_MESSAGE = "esd.intent.action.message.SENSOR";
     public final static String GPS_MESSAGE = "esd.intent.action.message.GPS";
     public final static String AUDIO_MESSAGE = "esd.intent.action.message.AUDIO";
-    public static String INTERVAL = "esd.intent.action.message.INTERVAL";
+    public final static String INTERVAL = "esd.intent.action.message.INTERVAL";
     public final static String UPDATE_UI_UPLOAD_TASK = "esd.intent.action.message.UPDATE_UI_UPLOAD_TASK";
     public final static String UPDATE_UI_SENSOR_THREAD = "esd.intent.action.message.UPDATE_UI_SENSOR_THREAD";
+
 
     /** Number of sensor readings this session */
     public int sensorReadings, documentsIndexed, gpsReadings,
                 uploadErrors, audioReadings, databasePopulation = 0;
 
     public EsdServiceManager(){
-        setupUploadTimer();
-        setupManagerTimeout();
+
+        // Intentionally blank.
     }
 
     @Override
     public void onCreate () {
-        // Cache our pool to execute the SensorThread and UploadThread on.
-        threadPool = Executors.newFixedThreadPool(2);
-
-        sharedPrefs = PreferenceManager.getDefaultSharedPreferences( getBaseContext() );
-
-
-        uploadThread = new UploadThread( getApplicationContext(), sharedPrefs );
-        uploadThread.start();
-
-        sensorThread = new SensorThread( getApplicationContext(), sharedPrefs );
-        sensorThread.start();
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences( this.getBaseContext() );
     }
 
 
     @Override
     public int onStartCommand (Intent intent,int flags, int startId){
         //Log.e(logTag, "ESD -- On Start Command." );
-        if( ! MainActivity.serviceManagerRunning ){
-            Runnable serviceRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    registerMessageReceiver();
-                    Intent messageIntent = new Intent(MainActivity.UI_ACTION_RECEIVER);
-                    messageIntent.putExtra("serviceManagerRunning", true );
-                    sendBroadcast( messageIntent );
-                }
+        if( !serviceActive){
 
-            };
+            registerMessageReceiver();
+            lastSuccessfulSensorResult = System.currentTimeMillis();
+            connectionManager = (ConnectivityManager) getSystemService( CONNECTIVITY_SERVICE );
 
-            Thread serviceThread = new Thread( serviceRunnable );
-            serviceThread.start();
+        /* Use SensorRunnable class to start the logging process. */
+            SensorRunnable sensorRunnable  = new SensorRunnable( this, sharedPrefs );
+            workingThreadPool.submit( sensorRunnable );
 
+
+        /* Schedule periodic checks for internet connectivity. */
+            setupUploads();
+        /* Schedule periodic checks for service shutdown due to inactivity. */
+            setupManagerTimeout();
+
+        /* Send a message to the main thread to indicate the manager service has been initialized. */
+            serviceActive = true;
+            Intent messageIntent = new Intent(MainActivity.UI_ACTION_RECEIVER);
+            messageIntent.putExtra("serviceManagerRunning", serviceActive );
+            sendBroadcast( messageIntent );
+
+            Log.i(logTag, "Started service manager.");
         }
-        Log.i(logTag, "Started service manager.");
+        // If the service is shut down, do not restart it automatically.
         return Service.START_NOT_STICKY;
     }
 
@@ -101,10 +137,13 @@ public class EsdServiceManager extends Service {
     private void registerMessageReceiver(){
 
         IntentFilter filter = new IntentFilter();
+
         filter.addAction(SENSOR_MESSAGE);
         filter.addAction(INTERVAL);
+
         filter.addAction(AUDIO_MESSAGE );
         filter.addAction(GPS_MESSAGE);
+
         filter.addAction( UPDATE_UI_SENSOR_THREAD );
         filter.addAction( UPDATE_UI_UPLOAD_TASK );
 
@@ -112,52 +151,62 @@ public class EsdServiceManager extends Service {
 
             @Override
             public void onReceive(Context context, Intent intent) {
+                Intent messageIntent = new Intent();
 
-                // Intent action to start recording phone sensors.
-                if( intent.getAction().equals( SENSOR_MESSAGE )){
-                    if( intent.getBooleanExtra( "sensorPower", true ) ){
-                        startLogging();
-                    }else{
-                        stopLogging();
-                    }
+                switch( intent.getAction() ){
+
+                    case (SENSOR_MESSAGE):
+                        if (intent.getBooleanExtra("sensorPower", true)) {
+                            startLogging();
+                        } else {
+                            stopLogging();
+                        }
+                        break;
+
+                    case GPS_MESSAGE:
+                        gpsLogging = intent.getBooleanExtra("gpsPower", false);
+                        messageIntent.setAction( SensorRunnable.GPS_POWER );
+                        messageIntent.putExtra("gpsPower", gpsLogging);
+                        sendBroadcast(messageIntent);
+                        break;
+
+                    case AUDIO_MESSAGE:
+                        audioLogging = intent.getBooleanExtra("audioPower", false);
+                        messageIntent = new Intent(SensorRunnable.AUDIO_POWER);
+                        messageIntent.putExtra("audioPower", audioLogging);
+                        sendBroadcast(messageIntent);
+                        break;
+
+                    case INTERVAL:
+                        sensorRefreshRate = intent.getIntExtra("sensorInterval", 250);
+                        messageIntent = new Intent(SensorRunnable.INTERVAL);
+                        messageIntent.putExtra("sensorInterval", sensorRefreshRate);
+                        sendBroadcast(messageIntent);
+                        break;
+
+                    case UPDATE_UI_SENSOR_THREAD:
+                        sensorReadings = intent.getIntExtra("sensorReadings", sensorReadings);
+                        gpsReadings = intent.getIntExtra("gpsReadings", gpsReadings);
+                        audioReadings = intent.getIntExtra("audioReadings", audioReadings);
+                        lastSuccessfulSensorResult = System.currentTimeMillis();
+                        updateUiData("sensor");
+                        break;
+
+                    case UPDATE_UI_UPLOAD_TASK:
+                        documentsIndexed = intent.getIntExtra("documentsIndexed", documentsIndexed);
+                        uploadErrors = intent.getIntExtra("uploadErrors", uploadErrors);
+                        databasePopulation = intent.getIntExtra("databasePopulation", databasePopulation);
+                        updateUiData("upload");
+                        break;
+
+                    default:
+                        Log.e(logTag , "Received bad information from ACTION intent." );
+                        break;
                 }
-
-                // Intent action to start gps recording.
-                if( intent.getAction().equals( GPS_MESSAGE ) ){
-                    gpsLogging = intent.getBooleanExtra("gpsPower", false );
-                    sensorThread.setGpsPower( gpsLogging );
-                }
-
-                // Intent action to start frequency recording.
-                if( intent.getAction().equals( AUDIO_MESSAGE )){
-                    audioLogging = intent.getBooleanExtra("audioPower", false );
-                    sensorThread.setAudioPower( audioLogging );
-                }
-
-                // Receiver to adjust the sensor collection interval.
-                if( intent.getAction().equals( INTERVAL ) ){
-                    sensorRefreshRate = intent.getIntExtra( "sensorInterval", 250 ) ;
-                    sensorThread.setSensorRefreshTime( sensorRefreshRate );
-                }
-
-                if( intent.getAction().equals( UPDATE_UI_SENSOR_THREAD ) ){
-                    sensorReadings = intent.getIntExtra("sensorReadings", sensorReadings );
-                    gpsReadings = intent.getIntExtra( "gpsReadings", gpsReadings );
-                    audioReadings = intent.getIntExtra( "audioReadings", audioReadings );
-                    updateUiData( "sensor" );
-                }
-
-                if( intent.getAction().equals( UPDATE_UI_UPLOAD_TASK ) ){
-                    documentsIndexed = intent.getIntExtra( "documentsIndexed", documentsIndexed );
-                    uploadErrors = intent.getIntExtra( "uploadErrors", uploadErrors );
-                    databasePopulation = intent.getIntExtra( "databasePopulation", databasePopulation );
-                    updateUiData( "upload" );
-                }
-
             }
         };
-
-    getApplicationContext().registerReceiver( receiver, filter );
+    // Register this broadcast receiver.
+    this.registerReceiver( receiver, filter );
     }
 
     /** This method uses the passed UI handler to relay messages if/when the activity is running. */
@@ -173,7 +222,6 @@ public class EsdServiceManager extends Service {
             }else if( verb.equals( "upload" ) ){
                 outIntent.putExtra( "documentsIndexed", documentsIndexed );
                 outIntent.putExtra( "uploadErrors", uploadErrors );
-                outIntent.putExtra( "databasePopulation", databasePopulation );
             }
             outIntent.putExtra( "verb", verb );
             sendBroadcast( outIntent );
@@ -182,31 +230,18 @@ public class EsdServiceManager extends Service {
 
 
     /** Timer used to periodically check if the upload task needs to be run. */
-    void setupUploadTimer() {
-        final Timer uploadTimer = new Timer();
-        uploadTimer.schedule(new TimerTask() {
-            public void run() {
-                if( !uploadThread.isAlive() )
-                uploadThread.start();
-            }
-        }, 500, 30000);
+    private void setupUploads() {
+        uploads = new Uploads( this, sharedPrefs );
+        /* Use Upload Runnable */
+        uploadTimerPool.scheduleAtFixedRate( uploadRunnable, 1, 10, TimeUnit.SECONDS );
     } // Delay the task 5 seconds out and then repeat every 30 seconds.
 
     /** A timer to check if the service manager is running without logging. Check this once per hour.
      * When the service is in the background and logging, it will live past the activity life cycle.
      */
     void setupManagerTimeout(){
-        Timer serviceTimer = new Timer();
-        serviceTimer.schedule(new TimerTask() {
-            public void run() {
-
-                if( MainActivity.serviceManagerRunning && !logging ){
-                    Log.e( logTag, "Shutting down service. Not logging!" );
-                    this.cancel();
-                }
-            }
-        }, 1000*60, 1000*60*30);
-    } // Delay the task 5 seconds out and then repeat once every 30 min.
+        serviceTimerPool.scheduleAtFixedRate( serviceTimeoutRunnable, 60, 60, TimeUnit.MINUTES );
+    } // Delay the task 60 min out. Then repeat once every 60 min.
 
     /**
      * Start logging method:
@@ -217,16 +252,24 @@ public class EsdServiceManager extends Service {
      * 5. Send true to gpsPower method if we have gps data access.
      */
     public void startLogging() {
-        sensorThread.setSensorLogging( true );
-        sensorThread.setAudioPower( audioLogging );
-        sensorThread.setGpsPower( gpsLogging );
+        logging = true;
 
-        Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );
-        messageIntent.putExtra( "serviceManagerRunning", true );
+        Intent messageIntent = new Intent( SensorRunnable.SENSOR_POWER );
+        messageIntent.putExtra( "sensorPower", logging );
         sendBroadcast( messageIntent );
 
-        logging = true;
-        Log.i( logTag, "Logging Started." );
+        if( gpsLogging ){
+            messageIntent = new Intent( SensorRunnable.GPS_POWER );
+            messageIntent.putExtra("gpsPower", gpsLogging );
+            sendBroadcast( messageIntent );
+        }
+
+        if( audioLogging ){
+            messageIntent = new Intent( SensorRunnable.AUDIO_POWER );
+            messageIntent.putExtra("audioPower", audioLogging );
+            sendBroadcast( messageIntent );
+        }
+
     }
 
     /**
@@ -236,26 +279,20 @@ public class EsdServiceManager extends Service {
      * 3. Update main thread to initialize UI changes.
      */
     public void stopLogging() {
-        sensorThread.setAudioPower( false );
-        sensorThread.setGpsPower( false );
-        sensorThread.setSensorLogging(false);
-
-        Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );
-        messageIntent.putExtra( "serviceManagerRunning", false );
-        sendBroadcast( messageIntent );
-
         logging = false;
-        Log.i(logTag, "Logging Stopped." );
+        Intent messageIntent = new Intent( SensorRunnable.SENSOR_POWER );
+        messageIntent.putExtra( "sensorPower", logging );
+        sendBroadcast( messageIntent );
     }
 
     @Override
     public void onDestroy () {
         stopLogging();
-        uploadThread.stopUploadThread();
+        uploads.stopUploadThread();
         Intent messageIntent = new Intent(MainActivity.UI_ACTION_RECEIVER);
-        messageIntent.putExtra("serviceManagerRunning", false );
+        messageIntent.putExtra("serviceManagerRunning", logging );
         sendBroadcast( messageIntent );
-        logging = false;
+
         super.onDestroy();
     }
 

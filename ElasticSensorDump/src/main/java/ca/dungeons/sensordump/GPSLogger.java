@@ -9,6 +9,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 class GPSLogger implements LocationListener {
+
+    private static final String logTag = "GpsLogger";
+
+
     private String gpsProvider;
     private int gpsUpdates = 0;
     private double gpsLat, gpsLong, gpsAlt;
@@ -28,6 +32,9 @@ class GPSLogger implements LocationListener {
      */
     @Override
     public void onLocationChanged(Location location) {
+
+        //Log.e(logTag, "GPS logger, onChangeLocation!" );
+
         gpsLat = location.getLatitude();
         gpsLong = location.getLongitude();
         gpsAlt = location.getAltitude();
@@ -93,7 +100,7 @@ class GPSLogger implements LocationListener {
 
     /**
      * Take the passed json object, add the collected gps data.
-     * @param passedJson A reference to the SensorThread json file that will be uploaded.
+     * @param passedJson A reference to the SensorRunnable json file that will be uploaded.
      * @return The json that now included the gps data.
      */
     JSONObject getGpsData( JSONObject passedJson ){
@@ -124,6 +131,7 @@ class GPSLogger implements LocationListener {
                 return passedJson;
             }
         }
+        //Log.e(logTag, "Getting gps data!!");
         return passedJson;
     }
 

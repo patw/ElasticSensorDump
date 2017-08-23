@@ -33,18 +33,23 @@ public class MainActivity extends Activity{
     private final String logTag = "MainActivity";
 
     /** Global SharedPreferences object. */
-    public static SharedPreferences sharedPrefs;
+    public SharedPreferences sharedPrefs;
+    /** Broadcast receiver to receive updates from the rest of the app. */
+    private BroadcastReceiver broadcastReceiver;
+    /** Persistent access to the apps database to avoid creating multiple db objects. */
+    DatabaseHelper databaseHelper;
 
+    /** Action string address to facilitate communication for updating UI display. */
     public static final String UI_DATA_RECEIVER = "esd.intent.action.message.UI_DATA_RECEIVER";
+    /** Action string address to indicate if the service manager is currently running. */
     public static final String UI_ACTION_RECEIVER = "esd.intent.action.message.UI_ACTION_RECEIVER";
 
     /** We use this as a control to tell the service manager to stop if idle after 1 hour. */
     public static boolean serviceManagerRunning = false;
-
     /** Use this boolean value to determine if/when the activity is currently running. */
     public static boolean mainActivityRunning = false;
-
-
+    /** Control variable to lessen the impact of consistent database queries. Once per 5 updates. */
+    private int updateCounterForDatabaseQueries;
 
     /** Do NOT record more than once every 50 milliseconds. Default value is 250ms. */
     private final int MIN_SENSOR_REFRESH = 50;
@@ -54,34 +59,30 @@ public class MainActivity extends Activity{
     /** Number of sensor readings this session */
     public int sensorReadings, documentsIndexed, gpsReadings, uploadErrors, audioReadings, databasePopulation = 0;
 
-
+    /** Create our main activity broadcast receiver to receive data from app. */
     private void createBroadcastReceiver(){
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction( UI_ACTION_RECEIVER );
         intentFilter.addAction( UI_DATA_RECEIVER );
 
-        BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        broadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive( Context context, Intent intent ) {
 
                 if( intent.getAction().equals(UI_ACTION_RECEIVER ) ){
                     serviceManagerRunning = intent.getBooleanExtra("serviceManagerRunning", false );
-                }
-
-                if( intent.getAction().equals(UI_DATA_RECEIVER ) ){
-
+                }else if( intent.getAction().equals(UI_DATA_RECEIVER ) ){
                     String verb = intent.getStringExtra( "verb" );
+
                     if( verb.equals( "sensor" ) ){
-                        //Log.e( logTag, "Received sensor data from service!" );
-                        gpsReadings = intent.getIntExtra("gpsReadings", gpsReadings );
                         sensorReadings = intent.getIntExtra("sensorReadings", sensorReadings );
+                        gpsReadings = intent.getIntExtra("gpsReadings", gpsReadings );
                         audioReadings = intent.getIntExtra( "audioReadings", audioReadings );
-                        //Log.e( logTag, String.valueOf( sensorReadings ));
                     }else if( verb.equals( "upload" ) ){
                         documentsIndexed = intent.getIntExtra( "documentsIndexed", documentsIndexed );
                         uploadErrors = intent.getIntExtra( "uploadErrors", uploadErrors );
-                        databasePopulation = intent.getIntExtra( "databasePopulation", databasePopulation );
                     }
+
                     updateScreen();
                 }
             }
@@ -100,13 +101,17 @@ public class MainActivity extends Activity{
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate( savedInstanceState);
         setContentView( R.layout.activity_main);
+        sharedPrefs = this.getPreferences(MODE_PRIVATE);
         buildButtonLogic();
         createBroadcastReceiver();
-        mainActivityRunning = true;
+        databaseHelper = new DatabaseHelper( this );
+        getDatabasePopulation();
         updateScreen();
-        databasePopulation = new UploadThread(this, sharedPrefs ).getDatabasePopulation();
+
+        mainActivityRunning = true;
     }
 
+    /** Method to start the service manager if we have not already. */
     private void startServiceManager(){
         if( !serviceManagerRunning ){
             Intent startIntent =  new Intent( this, EsdServiceManager.class );
@@ -116,23 +121,23 @@ public class MainActivity extends Activity{
 
     /**
      * Update preferences with new permissions.
-     *
      * @param asked      Preferences key.
      * @param permission True if we have access.
      */
     void BooleanToPrefs(String asked, boolean permission) {
+        sharedPrefs = getPreferences(MODE_PRIVATE);
         SharedPreferences.Editor sharedPref_Editor = sharedPrefs.edit();
         sharedPref_Editor.putBoolean(asked, permission);
         sharedPref_Editor.apply();
     }
 
-      /**
-       * Update the display with readings/written/errors.
-       * Need to update UI based on the passed data intent.
-       *
-       */
-
+  /**
+   * Update the display with readings/written/errors.
+   * Need to update UI based on the passed data intent.
+   */
     void updateScreen() {
+        if( updateCounterForDatabaseQueries % 3 == 0 ) { getDatabasePopulation(); }
+
         TextView sensorTV = (TextView) findViewById(R.id.sensor_tv);
         TextView documentsTV = (TextView) findViewById(R.id.documents_tv);
         TextView gpsTV = (TextView) findViewById(R.id.gps_TV);
@@ -146,7 +151,14 @@ public class MainActivity extends Activity{
         errorsTV.setText( String.valueOf( uploadErrors ) );
         audioTV.setText( String.valueOf( audioReadings ) );
         databaseTV.setText( String.valueOf( databasePopulation ) );
+        updateCounterForDatabaseQueries++;
+    }
 
+    /** Get the current db */
+    private void getDatabasePopulation(){
+        Long databaseEntries = databaseHelper.databaseEntries();
+        //Log.e(logTag + "getDbPop", "Database population = " + databaseEntries );
+        databasePopulation = Integer.valueOf( databaseEntries.toString() );
     }
 
       /**
@@ -261,6 +273,7 @@ public class MainActivity extends Activity{
      * @return True if we asked for permission and it was granted.
      */
     public boolean gpsPermission() {
+
         boolean gpsPermissionCoarse = (ContextCompat.checkSelfPermission(this, Manifest.permission.
                 ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED);
 
@@ -274,35 +287,29 @@ public class MainActivity extends Activity{
                     Manifest.permission.ACCESS_FINE_LOCATION
             }, 1);
 
-            gpsPermissionFine = ( ContextCompat.checkSelfPermission(this, android.Manifest.permission.
-                    ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED );
-
             gpsPermissionCoarse = ( ContextCompat.checkSelfPermission(this, Manifest.permission.
                     ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED );
 
-        }
+            gpsPermissionFine = ( ContextCompat.checkSelfPermission(this, android.Manifest.permission.
+                    ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED );
 
+        }
+        BooleanToPrefs("gps_permission_FINE", gpsPermissionFine );
+        BooleanToPrefs("gps_permission_COURSE", gpsPermissionCoarse );
         return ( gpsPermissionFine || gpsPermissionCoarse );
     }
 
     public boolean audioPermission(){
         boolean audioPermission = sharedPrefs.getBoolean( "audio_permission", false );
-        boolean audioAsked = sharedPrefs.getBoolean( "audio_Asked", false );
-
-        if( !audioAsked ) {
-
-            String[] permissions = {Manifest.permission.RECORD_AUDIO};
-
-            ActivityCompat.requestPermissions(this, permissions, 1);
-        }
 
         if( !audioPermission ){
 
-                audioPermission = (ContextCompat.checkSelfPermission(this, Manifest.permission.
-                        RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
+            String[] permissions = {Manifest.permission.RECORD_AUDIO};
+            ActivityCompat.requestPermissions(this, permissions, 1);
 
-                BooleanToPrefs("audio_Asked", true);
-                BooleanToPrefs("audio_Permission", audioPermission);
+            audioPermission = ( ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.RECORD_AUDIO ) == PackageManager.PERMISSION_GRANTED );
+            BooleanToPrefs("audio_Permission", audioPermission  );
         }
 
         return audioPermission;
@@ -325,13 +332,20 @@ public class MainActivity extends Activity{
     @Override
     protected void onResume() {
         super.onResume();
-        mainActivityRunning = true;
+        updateCounterForDatabaseQueries = 0;
         startServiceManager();
         updateScreen();
     }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+    }
 
-
-
-
+    @Override
+    protected void onDestroy() {
+        unregisterReceiver( broadcastReceiver );
+        databaseHelper.close();
+        super.onDestroy();
+    }
 }
