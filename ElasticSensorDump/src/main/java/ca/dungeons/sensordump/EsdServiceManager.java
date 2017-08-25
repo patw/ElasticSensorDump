@@ -49,6 +49,7 @@ public class EsdServiceManager extends Service {
         public void run() {
             boolean isConnected = connectionManager.getActiveNetworkInfo().isConnected();
             if( !uploads.isWorking() && isConnected ){
+                Log.e(logTag, "Submitting upload thread.");
                 workingThreadPool.submit( uploads );
             }else{
                 Log.e(logTag, "Failed to submit uploads runnable to thread pool!" );

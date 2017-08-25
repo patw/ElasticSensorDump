@@ -85,6 +85,7 @@ class Uploads implements Runnable{
 
         // Loop to keep uploading at a limit of 5 outs per second, while the main thread doesn't cancel.
         while( !stopUploadThread ){
+            Log.e(logTag, "Submitting upload thread.");
             working = true;
 
             if( !indexAlreadyMapped ){
@@ -124,7 +125,7 @@ class Uploads implements Runnable{
                         dbHelper.deleteJson();
                         globalUploadTimer = System.currentTimeMillis();
                         timeoutCount = 0;
-                        //Log.e(logTag, "Successful index.");
+                        Log.e(logTag, "Successful index.");
                     }else{
                         timeoutCount++;
                     }
