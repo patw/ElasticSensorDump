@@ -37,8 +37,7 @@ public class EsdServiceManager extends Service {
     /** This thread pool handles the timer in which we control this service, as well as the
     * timer that controls if/when we should be uploading data to the server.
      */
-    private ScheduledExecutorService serviceTimerPool = Executors.newSingleThreadScheduledExecutor();
-    private ScheduledExecutorService uploadTimerPool = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledExecutorService timerPool = Executors.newScheduledThreadPool( 2 );
 
     /** Uploads controls the data flow between the local database and Elastic server. */
     private Uploads uploads;
@@ -47,8 +46,7 @@ public class EsdServiceManager extends Service {
     private Runnable uploadRunnable = new Runnable() {
         @Override
         public void run() {
-            boolean isConnected = connectionManager.getActiveNetworkInfo().isConnected();
-            if( !uploads.isWorking() && isConnected ){
+            if( !uploads.isWorking() && connectionManager.getActiveNetworkInfo().isConnected() ){
                 Log.e(logTag, "Submitting upload thread.");
                 workingThreadPool.submit( uploads );
             }else{
@@ -93,13 +91,13 @@ public class EsdServiceManager extends Service {
                 uploadErrors, audioReadings, databasePopulation = 0;
 
     public EsdServiceManager(){
-
         // Intentionally blank.
     }
 
     @Override
     public void onCreate () {
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences( this.getBaseContext() );
+
     }
 
 
@@ -116,6 +114,9 @@ public class EsdServiceManager extends Service {
             SensorRunnable sensorRunnable  = new SensorRunnable( this, sharedPrefs );
             workingThreadPool.submit( sensorRunnable );
 
+        /* Create an instance of Uploads, and submit to the thread pool to begin execution. */
+            uploads = new Uploads( this, sharedPrefs );
+            workingThreadPool.submit( uploadRunnable );
 
         /* Schedule periodic checks for internet connectivity. */
             setupUploads();
@@ -232,16 +233,16 @@ public class EsdServiceManager extends Service {
 
     /** Timer used to periodically check if the upload task needs to be run. */
     private void setupUploads() {
-        uploads = new Uploads( this, sharedPrefs );
-        /* Use Upload Runnable */
-        uploadTimerPool.scheduleAtFixedRate( uploadRunnable, 1, 10, TimeUnit.SECONDS );
+        /* Use Upload Runnable. */
+        timerPool.scheduleAtFixedRate( uploadRunnable, 30, 30, TimeUnit.SECONDS );
     } // Delay the task 5 seconds out and then repeat every 30 seconds.
 
     /** A timer to check if the service manager is running without logging. Check this once per hour.
      * When the service is in the background and logging, it will live past the activity life cycle.
      */
     void setupManagerTimeout(){
-        serviceTimerPool.scheduleAtFixedRate( serviceTimeoutRunnable, 60, 60, TimeUnit.MINUTES );
+        /* Use serviceTimeout runnable. */
+        timerPool.scheduleAtFixedRate( serviceTimeoutRunnable, 60, 60, TimeUnit.MINUTES );
     } // Delay the task 60 min out. Then repeat once every 60 min.
 
     /**
@@ -288,10 +289,14 @@ public class EsdServiceManager extends Service {
 
     @Override
     public void onDestroy () {
+
         stopLogging();
-        uploads.stopUploadThread();
-        Intent messageIntent = new Intent(MainActivity.UI_ACTION_RECEIVER);
-        messageIntent.putExtra("serviceManagerRunning", logging );
+
+        Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );
+        messageIntent.putExtra( "serviceManagerRunning", logging );
+        sendBroadcast( messageIntent );
+
+        messageIntent = new Intent( Uploads.STOP_UPLOAD_THREAD );
         sendBroadcast( messageIntent );
 
         super.onDestroy();

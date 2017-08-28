@@ -34,7 +34,6 @@ class SensorRunnable implements Runnable {
     /**
      * Constructor:
      * Initialize the sensorMessageHandler manager.
-     * Enumerate available sensors and store into a list.
      */
     SensorRunnable(Context context, SharedPreferences sharedPreferences) {
         passedContext = context;

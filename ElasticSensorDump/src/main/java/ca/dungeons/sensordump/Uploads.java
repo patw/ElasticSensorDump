@@ -1,7 +1,9 @@
 package ca.dungeons.sensordump;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.util.Log;
 
@@ -19,6 +21,7 @@ import java.util.Locale;
  * @version First version of upload Async thread.
  */
 class Uploads implements Runnable{
+
     /** Lazy mans ID for logging. */
     private final String logTag = "Uploads";
 
@@ -27,79 +30,129 @@ class Uploads implements Runnable{
     /** A reference to the apps stored preferences. */
     private SharedPreferences sharedPreferences;
 
+    private ElasticSearchIndexer esIndexer;
+
     /** Control variable to indicate if we should stop uploading to elastic. */
-    private boolean stopUploadThread = false;
+    private static boolean stopUploadThread = false;
     /** Control variable to indicate if the last index attempt was successful. */
     private static boolean uploadSuccess = false;
+    /** Number of documents sent to server this session, default 0. */
+    private static int documentsIndexed = 0;
+    /** Number of failed upload transactions this session, default 0. */
+    private static int uploadErrors = 0;
+
     /** Control variable to indicate if this runnable is currently uploading data. */
     private boolean working = false;
+
     /** Used to authenticate with elastic server. */
     private String esUsername = "";
     /** Used to authenticate with elastic server. */
     private String esPassword = "";
     /** Used to keep track of how many POST requests we are allowed to do each second. */
     private Long globalUploadTimer = System.currentTimeMillis();
-    /** Number of documents sent to server this session, default 0. */
-    private static int documentsIndexed = 0;
-    /** Number of failed upload transactions this session, default 0. */
-    private static int uploadErrors = 0;
 
     /** Default Constructor using the application context. */
     Uploads(Context context, SharedPreferences passedPreferences ) {
         passedContext = context;
         sharedPreferences = passedPreferences;
+        esIndexer = new ElasticSearchIndexer( passedContext );
+        registerMessageReceiver();
     }
 
-    /** Used by ElasticSearchIndexer to report home on upload status. */
-    static void indexSuccessCount(){
-        documentsIndexed++;
-    }
-    /** Used by ElasticSearchIndexer to report home on upload status. */
-    static void indexFailureCount(){
-        uploadErrors++;
-    }
-    /** Control method to shut down upload thread. */
-    void stopUploadThread(){ stopUploadThread= true; }
     /** Used by the service manager to indicate if this runnable is uploading data. */
     synchronized boolean isWorking(){ return working; }
+
+/* These are the different actions that the receiver can manage. */
+
     /** Used by the service manager to indicate if the current upload attempt was successful. */
-    static void indexSuccess(boolean test ){ uploadSuccess = test; }
+    final static String INDEX_SUCCESS = "esd.intent.action.message.Uploads.INDEX_SUCCESS";
+
+    /** Used by ElasticSearchIndexer to report home on the number of upload failures. */
+    final static String INDEX_FAIL_COUNT = "esd.intent.action.message.Uploads.INDEX_FAIL_COUNT";
+
+    /** Control method to shut down upload thread. */
+    final static String STOP_UPLOAD_THREAD = "esd.intent.action.message.Uploads.STOP_UPLOAD_THREAD";
+
+
+    private void registerMessageReceiver(){
+
+        IntentFilter filter = new IntentFilter();
+
+        filter.addAction( INDEX_SUCCESS );
+
+        filter.addAction( INDEX_FAIL_COUNT );
+
+        filter.addAction( STOP_UPLOAD_THREAD );
+
+        BroadcastReceiver receiver = new BroadcastReceiver() {
+
+            @Override
+            public void onReceive(Context context, Intent intent) {
+
+                switch( intent.getAction() ){
+                    case INDEX_SUCCESS :
+                        if( intent.getBooleanExtra("index_success", true) ){
+                            documentsIndexed++;
+                            uploadSuccess = true;
+                        }
+                        break;
+
+                    case INDEX_FAIL_COUNT :
+                        uploadErrors++;
+                        break;
+
+                    case STOP_UPLOAD_THREAD :
+                        stopUploadThread = true;
+                        break;
+
+                    default:
+                        Log.e(logTag , "Received bad information from ACTION intent." );
+                        break;
+                }
+            }
+        };
+        // Register this broadcast receiver.
+        passedContext.registerReceiver( receiver, filter );
+    }
 
 
     /** Main work of upload runnable is accomplished here. */
     @Override
     public void run() {
 
+        working = true;
+        stopUploadThread = false;
+        Intent messageIntent = new Intent();
+        boolean indexAlreadyMapped = false;
+        int timeoutCount = 0;
+        DatabaseHelper dbHelper = new DatabaseHelper( passedContext );
+
+        /* If we cannot establish a connection with the elastic server. */
         if( !checkForElasticHost() ){
+            // This thread is not working.
             working = false;
-            this.stopUploadThread();
+            // We should stop the service if this is true.
+            stopUploadThread = true;
             return;
         }
 
-        URL destinationURL;
-        boolean indexAlreadyMapped = false;
-        DatabaseHelper dbHelper = new DatabaseHelper( passedContext );
-        int timeoutCount = 0;
-
-        ElasticSearchIndexer esIndexer;
-
-        // Loop to keep uploading at a limit of 5 outs per second, while the main thread doesn't cancel.
+        /* Loop to keep uploading at a limit of 5 outs per second, while the main thread doesn't cancel. */
         while( !stopUploadThread ){
-            Log.e(logTag, "Submitting upload thread.");
-            working = true;
 
             if( !indexAlreadyMapped ){
                 Log.e(logTag+"run", "Creating mapping." );
-                destinationURL = updateURL( "map" );
-                esIndexer = new ElasticSearchIndexer(destinationURL);
 
                 // X-Shield security credentials.
                 if (esUsername.length() > 0 && esPassword.length() > 0) {
-                    esIndexer.setAuthorization(esUsername, esPassword);
+                    messageIntent = new Intent( ElasticSearchIndexer.AUTHENTICATION );
+                    passedContext.sendBroadcast( messageIntent );
                 }
 
-                // Start ElasticSearchIndexer and wait for a response.
-                esIndexer.start();
+                // Prep esIndexer for initial MAP index.
+                messageIntent.setAction( ElasticSearchIndexer.MAPPING );
+                messageIntent.putExtra( "url", updateURL( "map" ));
+                passedContext.sendBroadcast( messageIntent );
+
                 // This will change to esIndexer.join(), to block the current upload task until indexing is complete.
                 sleepForResults( esIndexer );
 
@@ -111,21 +164,26 @@ class Uploads implements Runnable{
             }else if( System.currentTimeMillis() > globalUploadTimer + 200 ){
 
                 String nextString = dbHelper.getNextCursor();
-                destinationURL = updateURL("POST");
 
-                esIndexer = new ElasticSearchIndexer(nextString, destinationURL);
+                // Prep esIndexer for standard indexing.
+                messageIntent.setAction( ElasticSearchIndexer.INDEX );
+                messageIntent.putExtra( "url", updateURL( "POST" ));
+                passedContext.sendBroadcast( messageIntent );
+
 
                 // If nextString has data.
                 if ( nextString != null ) {
 
-                    esIndexer.start();
+                    messageIntent.putExtra( "upload_string", nextString );
+                    passedContext.sendBroadcast( messageIntent );
+
                     sleepForResults( esIndexer );
 
                     if( uploadSuccess ){
                         dbHelper.deleteJson();
                         globalUploadTimer = System.currentTimeMillis();
                         timeoutCount = 0;
-                        Log.e(logTag, "Successful index.");
+                        //Log.e(logTag, "Successful index.");
                     }else{
                         timeoutCount++;
                     }
@@ -156,7 +214,8 @@ class Uploads implements Runnable{
 
         while( esIndexer.isAlive() ){
             try{
-                Thread.sleep(50);
+                //Log.e( logTag, "Upload thread sleeping." );
+                Thread.sleep(250);
             }catch( InterruptedException interEx ){
                 Log.e(logTag+" run", "Failed to fall asleep." );
             }
@@ -180,8 +239,6 @@ class Uploads implements Runnable{
 
         esUsername = sharedPreferences.getString("user", "");
         esPassword = sharedPreferences.getString("pass", "");
-
-
 
         // Tag the current date stamp on the index name if set in preferences
         // Thanks GlenRSmith for this idea
@@ -260,6 +317,5 @@ class Uploads implements Runnable{
         // Returns true if the response code was valid.
         return responseCodeSuccess;
     }
-
 
 }
