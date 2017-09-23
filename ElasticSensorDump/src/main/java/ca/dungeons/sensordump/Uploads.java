@@ -1,9 +1,7 @@
 package ca.dungeons.sensordump;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.util.Log;
 
@@ -26,106 +24,51 @@ class Uploads implements Runnable{
     private final String logTag = "Uploads";
 
     /** Used to gain access to the application database. */
-    private Context passedContext;
+    private Context serviceContext;
     /** A reference to the apps stored preferences. */
     private SharedPreferences sharedPreferences;
 
     private ElasticSearchIndexer esIndexer;
 
+    static boolean uploadSuccess = false;
+
     /** Control variable to indicate if we should stop uploading to elastic. */
     private static boolean stopUploadThread = false;
-    /** Control variable to indicate if the last index attempt was successful. */
-    private static boolean uploadSuccess = false;
-    /** Number of documents sent to server this session, default 0. */
-    private static int documentsIndexed = 0;
-    /** Number of failed upload transactions this session, default 0. */
-    private static int uploadErrors = 0;
 
     /** Control variable to indicate if this runnable is currently uploading data. */
-    private boolean working = false;
+    boolean working = false;
 
-    /** Used to authenticate with elastic server. */
-    private String esUsername = "";
-    /** Used to authenticate with elastic server. */
-    private String esPassword = "";
     /** Used to keep track of how many POST requests we are allowed to do each second. */
     private Long globalUploadTimer = System.currentTimeMillis();
 
+
+
     /** Default Constructor using the application context. */
     Uploads(Context context, SharedPreferences passedPreferences ) {
-        passedContext = context;
+        serviceContext = context;
         sharedPreferences = passedPreferences;
-        esIndexer = new ElasticSearchIndexer( passedContext );
-        registerMessageReceiver();
+        esIndexer = new ElasticSearchIndexer( context );
     }
 
-    /** Used by the service manager to indicate if this runnable is uploading data. */
-    synchronized boolean isWorking(){ return working; }
-
-/* These are the different actions that the receiver can manage. */
-
-    /** Used by the service manager to indicate if the current upload attempt was successful. */
-    final static String INDEX_SUCCESS = "esd.intent.action.message.Uploads.INDEX_SUCCESS";
-
-    /** Used by ElasticSearchIndexer to report home on the number of upload failures. */
-    final static String INDEX_FAIL_COUNT = "esd.intent.action.message.Uploads.INDEX_FAIL_COUNT";
-
-    /** Control method to shut down upload thread. */
-    final static String STOP_UPLOAD_THREAD = "esd.intent.action.message.Uploads.STOP_UPLOAD_THREAD";
-
-
-    private void registerMessageReceiver(){
-
-        IntentFilter filter = new IntentFilter();
-
-        filter.addAction( INDEX_SUCCESS );
-
-        filter.addAction( INDEX_FAIL_COUNT );
-
-        filter.addAction( STOP_UPLOAD_THREAD );
-
-        BroadcastReceiver receiver = new BroadcastReceiver() {
-
-            @Override
-            public void onReceive(Context context, Intent intent) {
-
-                switch( intent.getAction() ){
-                    case INDEX_SUCCESS :
-                        if( intent.getBooleanExtra("index_success", true) ){
-                            documentsIndexed++;
-                            uploadSuccess = true;
-                        }
-                        break;
-
-                    case INDEX_FAIL_COUNT :
-                        uploadErrors++;
-                        break;
-
-                    case STOP_UPLOAD_THREAD :
-                        stopUploadThread = true;
-                        break;
-
-                    default:
-                        Log.e(logTag , "Received bad information from ACTION intent." );
-                        break;
-                }
-            }
-        };
-        // Register this broadcast receiver.
-        passedContext.registerReceiver( receiver, filter );
-    }
-
-
-    /** Main work of upload runnable is accomplished here. */
     @Override
     public void run() {
 
+        startUploading();
+    }
+
+    void stopUploading(){  stopUploadThread = true;  }
+
+    /** Main work of upload runnable is accomplished here. */
+    private void startUploading() {
+
+        Log.e( logTag, "Started upload thread." );
+
         working = true;
         stopUploadThread = false;
-        Intent messageIntent = new Intent();
-        boolean indexAlreadyMapped = false;
+
         int timeoutCount = 0;
-        DatabaseHelper dbHelper = new DatabaseHelper( passedContext );
+
+        DatabaseHelper dbHelper = new DatabaseHelper(serviceContext);
 
         /* If we cannot establish a connection with the elastic server. */
         if( !checkForElasticHost() ){
@@ -133,112 +76,89 @@ class Uploads implements Runnable{
             working = false;
             // We should stop the service if this is true.
             stopUploadThread = true;
+            Log.e(logTag, "No elastic host." );
             return;
         }
 
-        /* Loop to keep uploading at a limit of 5 outs per second, while the main thread doesn't cancel. */
+        /* Loop to keep uploading. */
         while( !stopUploadThread ){
 
-            if( !indexAlreadyMapped ){
-                Log.e(logTag+"run", "Creating mapping." );
+        /* A limit of 5 outs per second */
+            if( System.currentTimeMillis() > globalUploadTimer + 200 ){
 
-                // X-Shield security credentials.
-                if (esUsername.length() > 0 && esPassword.length() > 0) {
-                    messageIntent = new Intent( ElasticSearchIndexer.AUTHENTICATION );
-                    passedContext.sendBroadcast( messageIntent );
-                }
+                updateIndexerUrl();
 
-                // Prep esIndexer for initial MAP index.
-                messageIntent.setAction( ElasticSearchIndexer.MAPPING );
-                messageIntent.putExtra( "url", updateURL( "map" ));
-                passedContext.sendBroadcast( messageIntent );
-
-                // This will change to esIndexer.join(), to block the current upload task until indexing is complete.
-                sleepForResults( esIndexer );
-
-                if( uploadSuccess ){
-                    indexAlreadyMapped = true;
-                    Log.e(logTag+"run", "Created map successfully." );
-                }
-
-            }else if( System.currentTimeMillis() > globalUploadTimer + 200 ){
-
+                uploadSuccess = false;
                 String nextString = dbHelper.getNextCursor();
-
-                // Prep esIndexer for standard indexing.
-                messageIntent.setAction( ElasticSearchIndexer.INDEX );
-                messageIntent.putExtra( "url", updateURL( "POST" ));
-                passedContext.sendBroadcast( messageIntent );
-
 
                 // If nextString has data.
                 if ( nextString != null ) {
 
-                    messageIntent.putExtra( "upload_string", nextString );
-                    passedContext.sendBroadcast( messageIntent );
+                    esIndexer.uploadString = nextString;
 
-                    sleepForResults( esIndexer );
+                    try{
+                        esIndexer.start();
+                        // Join the indexing thread, and wait for it to finish.
+                        esIndexer.join();
+                    }catch( InterruptedException interEx ){
+                        Log.e(logTag, "Failed to join ESI thread, possibly not running." );
+                    }
 
                     if( uploadSuccess ){
-                        dbHelper.deleteJson();
+
                         globalUploadTimer = System.currentTimeMillis();
                         timeoutCount = 0;
+                        indexSuccess( true );
+                        dbHelper.deleteJson();
                         //Log.e(logTag, "Successful index.");
                     }else{
+
                         timeoutCount++;
+                        indexSuccess( false );
+                        if( timeoutCount >= 9 ){
+                            stopUploading();
+                            Log.e(logTag, "Failed to connect 10 times, shutting down." );
+                        }
                     }
 
-                    if( timeoutCount >= 9 ){
-                        stopUploadThread = true;
-                        Log.e(logTag, "Failed to connect 10 times, shutting down." );
-                    }
                 }
-                onProgressUpdate();
-            }
-        }
-        working = false;
 
+            }
+
+        }
+
+    working = false;
     }
 
     /** Our main connection to the UI thread for communication. */
-    private void onProgressUpdate() {
-        Intent messageIntent = new Intent( EsdServiceManager.UPDATE_UI_UPLOAD_TASK );
+    private void indexSuccess(boolean result ){
         // Give this intent a what field to allow identification.
-        messageIntent.putExtra( "documentsIndexed", documentsIndexed );
-        messageIntent.putExtra( "uploadErrors", uploadErrors );
-        passedContext.sendBroadcast( messageIntent );
-    }
-
-    /** Used to establish an order of operations. This thread needs to wait for server response. */
-    private void sleepForResults( ElasticSearchIndexer esIndexer){
-
-        while( esIndexer.isAlive() ){
-            try{
-                //Log.e( logTag, "Upload thread sleeping." );
-                Thread.sleep(250);
-            }catch( InterruptedException interEx ){
-                Log.e(logTag+" run", "Failed to fall asleep." );
-            }
-        }
+        Intent messageIntent = new Intent( EsdServiceReceiver.INDEX_SUCCESS );
+        messageIntent.putExtra( "INDEX_SUCCESS", result );
+        serviceContext.sendBroadcast( messageIntent );
     }
 
 
     /** Extract config information from sharedPreferences.
      *  Tag the current date stamp on the index name if set in preferences. Credit: GlenRSmith.
      */
-    private URL updateURL(String requestType) {
+    private void updateIndexerUrl() {
 
         // Security variables.
         boolean esSSL = sharedPreferences.getBoolean("ssl", false);
+        String esUsername = sharedPreferences.getString( "user", "" );
+        String esPassword = sharedPreferences.getString( "pass", "" );
+
+        // X-Pack security credentials.
+        if (esUsername.length() > 0 && esPassword.length() > 0) {
+            esIndexer.esUsername = esUsername;
+            esIndexer.esPassword = esPassword;
+        }
 
         String esHost = sharedPreferences.getString("host", "localhost");
         String esPort = sharedPreferences.getString("port", "9200");
         String esIndex = sharedPreferences.getString("index", "test_index");
         String esType = sharedPreferences.getString("type", "esd");
-
-
-        esUsername = sharedPreferences.getString("user", "");
-        esPassword = sharedPreferences.getString("pass", "");
 
         // Tag the current date stamp on the index name if set in preferences
         // Thanks GlenRSmith for this idea
@@ -254,23 +174,20 @@ class Uploads implements Runnable{
         if( esSSL ){
             httpString = "https://";
         }
+        String mappingURL = String.format( "%s%s:%s/%s", httpString ,esHost ,esPort ,esIndex );
 
-        URL returnURL;
-        String urlString = String.format( "%s%s:%s/%s", httpString ,esHost ,esPort ,esIndex );
-
-        if( requestType.equals("POST") ){
-            urlString = String.format( "%s/%s/", urlString, esType );
-        }
+        // Note the different URLs. Regular post ends with type. Mapping ends with index ID.
+        String postingURL = String.format( "%s%s:%s/%s/%s", httpString ,esHost ,esPort ,esIndex, esType );
 
         try{
-            returnURL = new URL(urlString);
-        }catch( Exception ex ){
-            Log.e( logTag+"updateUrl", "FAILURE TO UPDATE URL" );
-            return null;
+            esIndexer.mapUrl = new URL( mappingURL );
+            esIndexer.postUrl = new URL( postingURL );
+        }catch( MalformedURLException malformedUrlEx ){
+            Log.e(logTag, "Failed to update URLs." );
+            esIndexer.mapUrl = null;
+            esIndexer.postUrl = null;
         }
 
-        //Log.e( logTag+" updateUrl", returnURL.toString() );
-        return returnURL;
     }
 
     /** Helper method to determine if we currently have access to an elastic server to upload to. */

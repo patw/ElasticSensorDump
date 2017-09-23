@@ -69,22 +69,29 @@ public class MainActivity extends Activity{
             @Override
             public void onReceive( Context context, Intent intent ) {
 
-                if( intent.getAction().equals(UI_ACTION_RECEIVER ) ){
-                    serviceManagerRunning = intent.getBooleanExtra("serviceManagerRunning", false );
-                }else if( intent.getAction().equals(UI_DATA_RECEIVER ) ){
-                    String verb = intent.getStringExtra( "verb" );
+                switch( intent.getAction() ){
 
-                    if( verb.equals( "sensor" ) ){
+                    case UI_ACTION_RECEIVER:
+                        serviceManagerRunning = intent.getBooleanExtra("serviceManagerRunning", false );
+
+                        break;
+                    case UI_DATA_RECEIVER:
+                        // Update our metrics. If the intent reading is null, use the last reading we received.
                         sensorReadings = intent.getIntExtra("sensorReadings", sensorReadings );
                         gpsReadings = intent.getIntExtra("gpsReadings", gpsReadings );
                         audioReadings = intent.getIntExtra( "audioReadings", audioReadings );
-                    }else if( verb.equals( "upload" ) ){
+
                         documentsIndexed = intent.getIntExtra( "documentsIndexed", documentsIndexed );
                         uploadErrors = intent.getIntExtra( "uploadErrors", uploadErrors );
-                    }
 
-                    updateScreen();
+                        updateScreen();
+
+                        break;
+                    default:
+
+                        break;
                 }
+
             }
         };
         registerReceiver( broadcastReceiver, intentFilter );
@@ -107,6 +114,7 @@ public class MainActivity extends Activity{
         databaseHelper = new DatabaseHelper( this );
         getDatabasePopulation();
         updateScreen();
+        Log.e(logTag, "Started Main Activity!" );
 
         mainActivityRunning = true;
     }
@@ -136,7 +144,11 @@ public class MainActivity extends Activity{
    * Need to update UI based on the passed data intent.
    */
     void updateScreen() {
-        if( updateCounterForDatabaseQueries % 3 == 0 ) { getDatabasePopulation(); }
+        // Execute this on first executeIndexer, and then every third update from then on.
+        if( updateCounterForDatabaseQueries % 3 == 0 ) {
+            updateCounterForDatabaseQueries = 0;
+            getDatabasePopulation();
+        }
 
         TextView sensorTV = (TextView) findViewById(R.id.sensor_tv);
         TextView documentsTV = (TextView) findViewById(R.id.documents_tv);
@@ -185,7 +197,7 @@ public class MainActivity extends Activity{
                 }
                 // Broadcast to the service manager that we are toggling sensor logging.
                 Intent messageIntent = new Intent();
-                messageIntent.setAction( EsdServiceManager.SENSOR_MESSAGE );
+                messageIntent.setAction( EsdServiceReceiver.SENSOR_MESSAGE );
                 messageIntent.putExtra( "sensorPower", isChecked );
                 sendBroadcast( messageIntent );
             }
@@ -211,7 +223,7 @@ public class MainActivity extends Activity{
                     BooleanToPrefs("gps_asked", false);
                 }else{
                     // Broadcast to the service manager that we are toggling gps logging.
-                    Intent messageIntent = new Intent( EsdServiceManager.GPS_MESSAGE );
+                    Intent messageIntent = new Intent( EsdServiceReceiver.GPS_MESSAGE );
                     messageIntent.putExtra("gpsPower", isChecked );
                     sendBroadcast( messageIntent );
                 }
@@ -231,7 +243,7 @@ public class MainActivity extends Activity{
                     BooleanToPrefs("audio_Asked", false);
                 }else{
                     // Broadcast to the service manager that we are toggling audio logging.
-                    Intent messageIntent = new Intent( EsdServiceManager.AUDIO_MESSAGE );
+                    Intent messageIntent = new Intent( EsdServiceReceiver.AUDIO_MESSAGE );
                     messageIntent.putExtra( "audioPower", isChecked );
                     sendBroadcast( messageIntent );
                 }
@@ -251,7 +263,7 @@ public class MainActivity extends Activity{
                     sensorRefreshTime = progress * 10;
                 }
 
-                Intent messageIntent = new Intent( EsdServiceManager.INTERVAL );
+                Intent messageIntent = new Intent( EsdServiceReceiver.INTERVAL );
                 messageIntent.putExtra( "sensorInterval", sensorRefreshTime );
                 sendBroadcast( messageIntent );
 
@@ -314,9 +326,6 @@ public class MainActivity extends Activity{
 
         return audioPermission;
     }
-
-
-
 
 
     /** If our activity is paused, we need to close out the resources in use. */

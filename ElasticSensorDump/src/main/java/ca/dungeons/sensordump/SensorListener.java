@@ -87,11 +87,11 @@ class SensorListener implements android.hardware.SensorEventListener {
 
 // Communications.
     /** Number of sensorMessageHandler readings this session, default 0. */
-    private int sensorReadings = 0;
+    private boolean sensorReading = false;
     /** Number of gps readings this session, default 0. */
-    private int gpsReadings = 0;
+    private boolean gpsReading = false;
     /** Number of audio events. */
-    private int audioReadings = 0;
+    private boolean audioReading = false;
 
     SensorListener( Context context, SharedPreferences sharedPreferences ){
         sharedPrefs = sharedPreferences;
@@ -106,16 +106,20 @@ class SensorListener implements android.hardware.SensorEventListener {
 
     }
 
-
-
-
+    
     /** Our main connection to the UI thread for communication. */
     private void onProgressUpdate() {
-        Intent messageIntent = new Intent( EsdServiceManager.UPDATE_UI_SENSOR_THREAD );
-        messageIntent.putExtra("sensorReadings", sensorReadings );
-        messageIntent.putExtra( "gpsReadings", gpsReadings );
-        //Log.e(logTag, "gps Readings == " + gpsReadings );
-        messageIntent.putExtra( "audioReadings", audioReadings );
+        Intent messageIntent = new Intent( EsdServiceReceiver.SENSOR_SUCCESS );
+        messageIntent.putExtra( "sensorReading", sensorReading );
+
+        if( gpsRegistered ){
+            messageIntent.putExtra( "gpsReading", gpsReading );
+        }
+
+        if( audioRegistered ){
+            messageIntent.putExtra( "audioReading", audioReading );
+        }
+
         passedContext.sendBroadcast( messageIntent );
     }
 
@@ -136,6 +140,9 @@ class SensorListener implements android.hardware.SensorEventListener {
             // ^^ Make sure we generate docs at an adjustable rate.
             // 250ms is the default setting.
 
+            // Reset our flags to update the service manager about the type of sensor readings.
+            sensorReading = gpsReading = audioReading = false;
+
             // Check if we should be shutting down sensor recording.
             if( !sensorLogging ){
                 return;
@@ -151,13 +158,13 @@ class SensorListener implements android.hardware.SensorEventListener {
                 //Log.e(logTag, "gpsRegistered: " + gpsRegistered + " gps has data? " + gpsLogger.gpsHasData );
                 if( gpsRegistered && gpsLogger.gpsHasData ){
                     joSensorData = gpsLogger.getGpsData( joSensorData );
-                    gpsReadings++;
+                    gpsReading = true;
                 }
 
                 //Log.e(logTag, "audioRegistered: " + audioRegistered + " gps has data? " + gpsLogger.gpsHasData );
                 if( audioRegistered && audioRunnable.hasData ){
                     joSensorData = audioRunnable.getAudioData( joSensorData );
-                    audioReadings++;
+                    audioReading = true;
                 }
 
                 if( batteryLevel > 0 ){
@@ -173,7 +180,7 @@ class SensorListener implements android.hardware.SensorEventListener {
                 }
 
                 dbHelper.JsonToDatabase( joSensorData );
-                sensorReadings++;
+                sensorReading = true;
                 onProgressUpdate();
                 lastUpdate = System.currentTimeMillis();
                 //Log.e( logTag, "Sensor EVENT!" );
@@ -252,21 +259,15 @@ class SensorListener implements android.hardware.SensorEventListener {
         };
     }
 
-
-
-
 // GPS
-
-    /**
-     * Control method to enable/disable gps recording.
-     */
+    /** Control method to enable/disable gps recording. */
     void setGpsPower(boolean power) {
 
-        if (power && sensorLogging && !gpsRegistered) {
+        if( power && sensorLogging && !gpsRegistered ){
             registerGpsSensors();
         }
 
-        if (!power && gpsRegistered) {
+        if( !power && gpsRegistered ){
             unRegisterGpsSensors();
         }
 
@@ -306,9 +307,7 @@ class SensorListener implements android.hardware.SensorEventListener {
 
 //AUDIO
 
-    /**
-     * Set audio recording on/off.
-     */
+    /** Set audio recording on/off. */
     void setAudioPower(boolean power) {
         if (power && sensorLogging && !audioRegistered) {
             registerAudioSensors();
