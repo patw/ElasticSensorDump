@@ -28,7 +28,7 @@ class Uploads_Receiver {
     /** Control method to shut down upload thread. */
     final static String STOP_UPLOAD_THREAD = "esd.intent.action.message.Uploads_Receiver.STOP_UPLOAD_THREAD";
 
-    final static String UPDATE_ESD_OPTIONS = "esd.intent.action.message.Uploads_Receiver.UPDATE_ESD_OPTIONS";
+    final static String INDEX_SUCCESS = "esd.intent.action.message.Uploads_Receiver.INDEX_SUCCESS";
     final static String START_UPLOAD_THREAD = "esd.intent.action.message.Uploads_Receiver.START_UPLOAD_THREAD";
 
     // Default Constructor.
@@ -54,6 +54,11 @@ class Uploads_Receiver {
                     uploads.stopUploading();
                     break;
 
+                case INDEX_SUCCESS:
+
+
+                    break;
+
                 default:
                     Log.e(logTag , "Received bad information from ACTION intent." );
                     break;
@@ -69,7 +74,7 @@ class Uploads_Receiver {
         IntentFilter filter = new IntentFilter();
 
         filter.addAction( STOP_UPLOAD_THREAD );
-        filter.addAction(UPDATE_ESD_OPTIONS);
+        filter.addAction(INDEX_SUCCESS);
         filter.addAction( START_UPLOAD_THREAD );
 
 

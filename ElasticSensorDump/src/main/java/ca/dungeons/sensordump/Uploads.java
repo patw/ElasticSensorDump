@@ -30,6 +30,7 @@ class Uploads implements Runnable{
 
     private ElasticSearchIndexer esIndexer;
 
+    /** Static variable for the indexer thread to communicate success or failure of an index attempt. */
     static boolean uploadSuccess = false;
 
     /** Control variable to indicate if we should stop uploading to elastic. */
@@ -41,8 +42,6 @@ class Uploads implements Runnable{
     /** Used to keep track of how many POST requests we are allowed to do each second. */
     private Long globalUploadTimer = System.currentTimeMillis();
 
-
-
     /** Default Constructor using the application context. */
     Uploads(Context context, SharedPreferences passedPreferences ) {
         serviceContext = context;
@@ -50,12 +49,13 @@ class Uploads implements Runnable{
         esIndexer = new ElasticSearchIndexer( context );
     }
 
+    /** Main class entry. The data we need has already been updated. So just go nuts. */
     @Override
     public void run() {
-
         startUploading();
     }
 
+    /** Control variable to halt the whole thread. */
     void stopUploading(){  stopUploadThread = true;  }
 
     /** Main work of upload runnable is accomplished here. */
@@ -97,8 +97,8 @@ class Uploads implements Runnable{
                     esIndexer.uploadString = nextString;
 
                     try{
+                        // Start the indexing thread, and join to wait for it to finish.
                         esIndexer.start();
-                        // Join the indexing thread, and wait for it to finish.
                         esIndexer.join();
                     }catch( InterruptedException interEx ){
                         Log.e(logTag, "Failed to join ESI thread, possibly not running." );
@@ -115,29 +115,23 @@ class Uploads implements Runnable{
 
                         timeoutCount++;
                         indexSuccess( false );
-                        if( timeoutCount >= 9 ){
+                        if( timeoutCount > 9 ){
+                            Log.e(logTag, "Failed to index 10 times, shutting down." );
                             stopUploading();
-                            Log.e(logTag, "Failed to connect 10 times, shutting down." );
                         }
                     }
-
                 }
-
             }
-
         }
-
     working = false;
     }
 
     /** Our main connection to the UI thread for communication. */
     private void indexSuccess(boolean result ){
-        // Give this intent a what field to allow identification.
         Intent messageIntent = new Intent( EsdServiceReceiver.INDEX_SUCCESS );
         messageIntent.putExtra( "INDEX_SUCCESS", result );
         serviceContext.sendBroadcast( messageIntent );
     }
-
 
     /** Extract config information from sharedPreferences.
      *  Tag the current date stamp on the index name if set in preferences. Credit: GlenRSmith.
@@ -216,12 +210,10 @@ class Uploads implements Runnable{
             responseCode = httpConnection.getResponseCode();
             if( responseCode >= 200 && responseCode <= 299 ){
                 responseCodeSuccess = true;
-                //Log.e(logTag+" check host.", "Successful connection to elastic host." );
-
             }
         }catch( MalformedURLException malformedUrlEx ){
-            Log.e( logTag+" chkHost.", "MalformedURL cause: " + malformedUrlEx.getCause() );
             malformedUrlEx.printStackTrace();
+            Log.e( logTag+" chkHost.", "MalformedURL cause: " + malformedUrlEx.getCause() );
         }catch(IOException IoEx ){
             //IoEx.printStackTrace();
             Log.e( logTag+" chkHost.", "Failure to open connection cause: " + IoEx.getMessage() + " " + responseCode );

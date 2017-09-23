@@ -58,10 +58,15 @@ class ElasticSearchIndexer extends Thread{
 
     private void indexSuccess( boolean result ){
 
-        Intent messageIntent = new Intent( EsdServiceReceiver.INDEX_SUCCESS );
+        Intent messageIntent;
+
+        messageIntent = new Intent( Uploads_Receiver.INDEX_SUCCESS );
         messageIntent.putExtra("INDEX_SUCCESS", result );
         passedContext.sendBroadcast( messageIntent );
 
+        messageIntent = new Intent( EsdServiceReceiver.INDEX_SUCCESS );
+        messageIntent.putExtra("INDEX_SUCCESS", result );
+        passedContext.sendBroadcast( messageIntent );
     }
 
 
@@ -125,11 +130,10 @@ class ElasticSearchIndexer extends Thread{
                 // Check status of post operation.
                 if( checkResponseCode() ){
                     //Log.e(logTag+" index", "Uploaded string SUCCESSFULLY!"  );
-                    Uploads.uploadSuccess = true;
                     indexSuccess( true );
                 }else{
-                    indexSuccess( false );
                     Log.e(logTag+" esIndex.", "Uploaded string FAILURE!"  );
+                    indexSuccess( false );
                 }
             }catch( IOException IOex ){
                 // Error writing to httpConnection.
@@ -137,7 +141,6 @@ class ElasticSearchIndexer extends Thread{
             }
             httpCon.disconnect();
         }
-
     }
 
     /** Open a connection with the server. */
@@ -169,7 +172,7 @@ class ElasticSearchIndexer extends Thread{
                 httpCon.setDoInput(true);
                 httpCon.setRequestMethod( verb );
                 httpCon.connect();
-                //Log.e( logTag+" connect.", "Connected to ESD.");
+
                 // Reset the failure count.
                 connectFailCount = 0;
                 return true;
@@ -183,10 +186,12 @@ class ElasticSearchIndexer extends Thread{
         }else{
             Log.e(logTag, "Failure to connect. Aborting!" );
         }
-
+    // If it got this far, it failed.
     return false;
     }
 
+    /** Helper class to determine if an individual indexing operation was successful.
+     * "I expect the finest of 200s" - Ademara*/
     private boolean checkResponseCode(){
 
         String responseMessage = "ResponseCode placeholder.";
