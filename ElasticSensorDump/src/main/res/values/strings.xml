@@ -22,6 +22,10 @@
     <string name="uploadCount">Indexes:</string>
     <string name="locationCount">Location:</string>
     <string name="gps">GPS</string>
+    <string name="EsPasswordPreferences">Elastic password. ( Requires X-pack installation. )</string>
+    <string name="EsUsernamePreferences">Elastic user name. ( Requires Xpack installation. )</string>
+    <string name="Es_ssl_protection">Select if Elastic X-Pack is installed.</string>
+    <string name="Es_Tag_description">Tag sensor data with this string. ( Optional ).</string>
 
 
 </resources>
