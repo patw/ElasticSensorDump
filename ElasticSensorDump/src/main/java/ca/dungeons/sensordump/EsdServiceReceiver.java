@@ -13,53 +13,64 @@ import android.util.Log;
 
 public class EsdServiceReceiver extends BroadcastReceiver {
 
+    /** ID this class in LogCat. */
     private static final String logTag = "EsdServiceReceiver";
 
+    /** Instance of ESD service manager. */
     private EsdServiceManager esdServiceManager;
 
+    /** Filter for the broadcast receiver. */
     IntentFilter messageFilter = new IntentFilter();
 
-    /* Communication with ElasticSearchIndexer. */
-    /** These are the different actions that the receiver can manage. */
+/* Sensor toggles. */
+    /** Intent action address: Boolean - If we are recording PHONE sensor data. */
     public final static String SENSOR_MESSAGE = "esd.intent.action.message.SENSOR";
+
+    /** Intent action address: Boolean - If we are recording GPS sensor data. */
     public final static String GPS_MESSAGE = "esd.intent.action.message.GPS";
+
+    /** Intent action address: Boolean - If we are recording AUDIO sensor data. */
     public final static String AUDIO_MESSAGE = "esd.intent.action.message.AUDIO";
+
+/* Interval rate change from main UI. */
+    /**  Intent action address: integer - Rate change from user. */
     public final static String INTERVAL = "esd.intent.action.message.INTERVAL";
-/* Upload UI. */
-    /** Use these receivers to update the UI thread when possible. */
-    public final static String UPDATE_UI_UPLOAD_TASK = "esd.intent.action.message.UPDATE_UI_UPLOAD_TASK";
-    public final static String UPDATE_UI_SENSOR_THREAD = "esd.intent.action.message.UPDATE_UI_SENSOR_THREAD";
+
+/* Update UI. */
+    /** Intent action address: String - Call for the service to update the UI thread data records. */
+    public final static String UPDATE_UI_display = "esd.intent.action.message.UPDATE_UI_display";
 
 /* Update counts. */
-    /** Used by ElasticSearchIndexer to indicate if the current upload attempt was successful or failed. */
+    /** Intent action address: Boolean - Indicate if the current index attempt was successful. */
     public final static String INDEX_SUCCESS = "esd.intent.action.message.Uploads.INDEX_SUCCESS";
 
 /* Sensor readings. */
-    /** Used by SensorListener to update EsdServiceManagers' variables. */
+    /** Intent action address: Boolean - Used by SensorListener to update EsdServiceManagers data. */
     public final static String SENSOR_SUCCESS = "esd.intent.action.message.SensorListener.SENSOR_SUCCESS";
 
-
+    /** Default constructor:
+     * This class is instantiated by the service manager, thus it passes itself to this class. */
     public EsdServiceReceiver( EsdServiceManager passedManagerObj ) {
-
         esdServiceManager = passedManagerObj;
         addFilters();
-
-
     }
 
+    /** Assembles the message filter for this receiver. */
     private void addFilters(){
         messageFilter.addAction( SENSOR_MESSAGE );
         messageFilter.addAction( GPS_MESSAGE );
         messageFilter.addAction( AUDIO_MESSAGE );
         messageFilter.addAction( INTERVAL );
 
-        messageFilter.addAction( UPDATE_UI_SENSOR_THREAD );
-        messageFilter.addAction( UPDATE_UI_UPLOAD_TASK );
+        messageFilter.addAction(UPDATE_UI_display);
 
         messageFilter.addAction( INDEX_SUCCESS );
         messageFilter.addAction( SENSOR_SUCCESS );
     }
 
+    /** Main point of contact for the service manager. 
+     *  All information and requests are handled here.
+     */
     @Override
         public void onReceive(Context context, Intent intent) {
             Intent messageIntent = new Intent();
@@ -95,7 +106,7 @@ public class EsdServiceReceiver extends BroadcastReceiver {
                     esdServiceManager.sendBroadcast(messageIntent);
                     break;
 
-                case UPDATE_UI_SENSOR_THREAD:
+                case UPDATE_UI_display:
                     esdServiceManager.updateUiData();
                     break;
 
@@ -125,6 +136,7 @@ public class EsdServiceReceiver extends BroadcastReceiver {
                     break;
             }
         }
+
 
 
 }

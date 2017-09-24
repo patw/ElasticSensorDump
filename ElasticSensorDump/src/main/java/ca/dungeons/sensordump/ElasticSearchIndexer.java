@@ -17,13 +17,14 @@ import org.json.JSONException;
 
 class ElasticSearchIndexer extends Thread{
 
+    /** Used to identify which class is writing to logCat. */
     private final String logTag = "eSearchIndexer";
 
+    /** The context of the service manager. */
     private Context passedContext;
 
     /** Elastic username. */
     String esUsername = "";
-
     /** Elastic password. */
     String esPassword = "";
 
@@ -33,11 +34,15 @@ class ElasticSearchIndexer extends Thread{
     /** Connection fail count. When this hits 10, cancel the upload thread. */
     private int connectFailCount = 0;
 
+    /** The URL we use to post data to the server. */
     URL postUrl;
+    /** The URL we use to create an index and PUT a mapping schema on it. */
     URL mapUrl;
 
+    /** Variable to keep track if this instance of the indexer has submitted a map. */
     private boolean alreadySentMapping;
 
+    /** A variable to hold the JSON string to be uploaded. */
     String uploadString = "";
 
     /** Base constructor. */
@@ -45,6 +50,7 @@ class ElasticSearchIndexer extends Thread{
         passedContext = context;
     }
 
+    /** This run method is executed upon each index start. */
     @Override
     public void run() {
         if( !alreadySentMapping ){
@@ -56,6 +62,7 @@ class ElasticSearchIndexer extends Thread{
         }
     }
 
+    /** Send messages to Upload thread and ESD service thread to indicate result of index.*/
     private void indexSuccess( boolean result ){
 
         Intent messageIntent;
@@ -85,9 +92,6 @@ class ElasticSearchIndexer extends Thread{
                 mappingTypes.put("location", new JSONObject().put("type", "geo_point" ));
                 // Put the two newly typed fields under properties.
                 JSONObject properties = new JSONObject().put("properties", mappingTypes);
-
-                //String esTag = sharedPreferences.getString("tag", "phone_data");
-                //      INSERT TAG ID HERE.
 
                 // Mappings should be nested under index_type.
                 JSONObject esTypeObj = new JSONObject().put( "esd", properties);
@@ -119,7 +123,7 @@ class ElasticSearchIndexer extends Thread{
 
     /** Send JSON data to elastic using POST. */
     private void index( String uploadString ) {
-        Log.e(logTag+" index", "Index STARTED: " + uploadString );
+        //Log.e(logTag+" index", "Index STARTED: " + uploadString );
 
         // Boolean return to check if we successfully connected to the elastic host.
         if( connect("POST") ){
@@ -129,7 +133,6 @@ class ElasticSearchIndexer extends Thread{
                 dataOutputStream.writeBytes( uploadString );
                 // Check status of post operation.
                 if( checkResponseCode() ){
-                    //Log.e(logTag+" index", "Uploaded string SUCCESSFULLY!"  );
                     indexSuccess( true );
                 }else{
                     Log.e(logTag+" esIndex.", "Uploaded string FAILURE!"  );
@@ -191,7 +194,7 @@ class ElasticSearchIndexer extends Thread{
     }
 
     /** Helper class to determine if an individual indexing operation was successful.
-     * "I expect the finest of 200s" - Ademara*/
+     * "I expect only the finest of 200s" - Ademara*/
     private boolean checkResponseCode(){
 
         String responseMessage = "ResponseCode placeholder.";
@@ -204,6 +207,11 @@ class ElasticSearchIndexer extends Thread{
 
                 if (200 <= responseCode && responseCode <= 299 || responseCode == 400 ) {
                     //Log.e( logTag, "Success with response code: " + responseMessage + responseCode );
+
+                    if( responseCode == 400 ){
+                        Log.e( logTag, "Index already exists. Skipping map." );
+                    }
+
                     httpCon.disconnect();
                     return true;
                 }else{
@@ -218,7 +226,6 @@ class ElasticSearchIndexer extends Thread{
                         "Response Message: ", responseMessage,
                         httpCon.getURL() + " request type: " + httpCon.getRequestMethod() )// End string.
                 );
-
 
             }
 

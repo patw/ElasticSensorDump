@@ -16,36 +16,46 @@ import java.util.concurrent.ExecutorService;
 
 class Uploads_Receiver {
 
-    private final String logTag = "Uploads_Receiver";
-
-    private Uploads uploads;
-
     /** Main activity context. */
     private Context passedContext;
 
+    /** Instance of the Uploads runnable that we can update data on before indexing. */
+    private Uploads uploads;
+    /** Thread pool from the service manager to execute the uploads runnable. */
     private ExecutorService workingThreadPool;
 
-    /** Control method to shut down upload thread. */
+    /** Intent action address: Boolean - Control method to shut down upload thread. */
     final static String STOP_UPLOAD_THREAD = "esd.intent.action.message.Uploads_Receiver.STOP_UPLOAD_THREAD";
 
+    /** Intent action address: Boolean - If ESIndexer was successful indexing a record. */
     final static String INDEX_SUCCESS = "esd.intent.action.message.Uploads_Receiver.INDEX_SUCCESS";
+
+    /** Intent action address: Boolean - Request by the service manager to start up the upload thread. */
     final static String START_UPLOAD_THREAD = "esd.intent.action.message.Uploads_Receiver.START_UPLOAD_THREAD";
 
-    // Default Constructor.
+    /**
+     * Default constructor:
+     * @param context - ESD service manager context.
+     * @param sharedPreferences - The application preferences, contains URL and ID data.
+     * @param passedThreadPool - Application wide thread pool. Execute uploads runnable on this.
+     */
     Uploads_Receiver(Context context, SharedPreferences sharedPreferences, ExecutorService passedThreadPool ) {
         passedContext = context;
         workingThreadPool = passedThreadPool;
         uploads = new Uploads( passedContext, sharedPreferences );
     }
 
+    /** Broadcast receiver initialization. */
     private BroadcastReceiver messageReceiver = new BroadcastReceiver() {
 
         @Override
         public void onReceive(Context context, Intent intent) {
             //Log.e(logTag+ "Up_chk", "Received indexer response");
+            String logTag = "Uploads_Receiver";
             switch( intent.getAction() ){
 
                 case START_UPLOAD_THREAD :
+                    Log.e( logTag, "Submitted upload runnable." );
                     workingThreadPool.submit( uploads );
                     break;
 
@@ -55,8 +65,7 @@ class Uploads_Receiver {
                     break;
 
                 case INDEX_SUCCESS:
-
-
+                    Uploads.uploadSuccess = intent.getBooleanExtra("INDEX_SUCCESS", false );
                     break;
 
                 default:
