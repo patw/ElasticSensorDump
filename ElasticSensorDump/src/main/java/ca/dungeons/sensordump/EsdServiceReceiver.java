@@ -68,7 +68,7 @@ public class EsdServiceReceiver extends BroadcastReceiver {
         messageFilter.addAction( SENSOR_SUCCESS );
     }
 
-    /** Main point of contact for the service manager. 
+    /** Main point of contact for the service manager.
      *  All information and requests are handled here.
      */
     @Override

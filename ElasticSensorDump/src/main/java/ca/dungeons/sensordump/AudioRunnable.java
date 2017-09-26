@@ -12,30 +12,32 @@ class AudioRunnable implements Runnable {
 
     private final String logTag = "audioLogger";
 
-    /** We use this to indicate to the sensor thread if we have data to send. */
+        /** We use this to indicate to the sensor thread if we have data to send. */
     boolean hasData = false;
 
-    /** Use this control variable to stop the recording of audio data. */
+        /** Use this control variable to stop the recording of audio data. */
     private boolean stopThread = false;
 
-    /** A reference to the current audio sample "loudness" in terms of percentage of mic capability.*/
+        /** A reference to the current audio sample "loudness" in terms of percentage of mic capability.*/
     private float amplitude = 0;
-    /** A reference to the current audio sample frequency. */
+
+        /** A reference to the current audio sample frequency. */
     private float frequency = 0;
 
-    /** Android API to facilitate the recording of audio data. */
-    private AudioRecord audioRecord;
-    /** The sampling rate of the audio recording. */
+        /** The sampling rate of the audio recording. */
     private final int SAMPLE_RATE = 44100;
 
-    /** Short type array to feed to the recording API. */
+        /** Short type array to feed to the recording API. */
     private short[] audioBuffer;
-    /** Minimum buffer size required by AudioRecord API. */
+
+        /** Minimum buffer size required by AudioRecord API. */
     private int bufferSize;
 
 
-    /** Constructor.
-     * Here we set static variables used for all recording. */
+    /** Default constructor.
+     * Determine minimum buffer size, get data from Android audio api.
+     * Set variables before executing the runnable.
+     */
     AudioRunnable(){
 
         // Buffer size in bytes.
@@ -48,13 +50,14 @@ class AudioRunnable implements Runnable {
             bufferSize = SAMPLE_RATE * 2;
         }
 
-
     }
 
+        /** Stop the audio logging thread. */
     void setStopAudioThread( boolean power ){
         stopThread = power;
     }
 
+        /** Main entrance. */
     @Override
     public void run() {
 
@@ -62,7 +65,7 @@ class AudioRunnable implements Runnable {
         audioBuffer = new short[bufferSize / 2];
 
         // New instance of Android audio recording api.
-        audioRecord = new AudioRecord(
+        AudioRecord audioRecord = new AudioRecord(
                 MediaRecorder.AudioSource.DEFAULT,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
@@ -128,7 +131,7 @@ class AudioRunnable implements Runnable {
 
     }
 
-    /** Called on the sensor thread, delivers data to the sensor message handler. */
+        /** Called on the sensor thread, delivers data to the sensor message handler. */
     JSONObject getAudioData( JSONObject passedJson ){
         if(passedJson != null ){
             try{

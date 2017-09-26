@@ -99,9 +99,7 @@ public class MainActivity extends Activity{
 
 
       /**
-       * Set contentView to portrait, and lock it that way.
        * Build main activity buttons.
-       * Get a list of all available sensors on the device and store in array.
        * @param savedInstanceState A generic object.
        */
     @Override
@@ -111,9 +109,7 @@ public class MainActivity extends Activity{
         sharedPrefs = this.getPreferences(MODE_PRIVATE);
         buildButtonLogic();
         createBroadcastReceiver();
-        databaseHelper = new DatabaseHelper( this );
-        getDatabasePopulation();
-        updateScreen();
+
         Log.e(logTag, "Started Main Activity!" );
 
         mainActivityRunning = true;
@@ -166,9 +162,10 @@ public class MainActivity extends Activity{
         updateCounterForDatabaseQueries++;
     }
 
-    /** Get the current db */
+        /** Get the current database population. */
     private void getDatabasePopulation(){
-        Long databaseEntries = databaseHelper.databaseEntries();
+        Long databaseEntries;
+        databaseEntries = databaseHelper.databaseEntries();
         //Log.e(logTag + "getDbPop", "Database population = " + databaseEntries );
         databasePopulation = Integer.valueOf( databaseEntries.toString() );
     }
@@ -278,12 +275,10 @@ public class MainActivity extends Activity{
 
     }
 
-    /**
-     * Prompt user for gps access.
-     * Write this result to shared preferences.
-     *
-     * @return True if we asked for permission and it was granted.
-     */
+        /** Prompt user for GPS access.
+         * Write this result to shared preferences.
+         * @return True if we asked for permission and it was granted.
+         */
     public boolean gpsPermission() {
 
         boolean gpsPermissionCoarse = (ContextCompat.checkSelfPermission(this, Manifest.permission.
@@ -311,6 +306,9 @@ public class MainActivity extends Activity{
         return ( gpsPermissionFine || gpsPermissionCoarse );
     }
 
+        /** Prompt user for MICROPHONE access.
+         * Write this result to shared preferences.
+         * @return True if we asked for permission and it was granted.*/
     public boolean audioPermission(){
         boolean audioPermission = sharedPrefs.getBoolean( "audio_permission", false );
 
@@ -328,21 +326,25 @@ public class MainActivity extends Activity{
     }
 
 
-    /** If our activity is paused, we need to close out the resources in use. */
+        /** If our activity is paused, we need to indicate to the service manager via a static variable. */
     @Override
     protected void onPause() {
         mainActivityRunning = false;
+        unregisterReceiver( broadcastReceiver );
+        databaseHelper.close();
         super.onPause();
     }
 
-    /** When the activity starts or resumes, we start the upload process immediately.
-     *  If we were logging, we need to start the logging process.
-     */
+        /** When the activity starts or resumes, we start the upload process immediately.
+         *  If we were logging, we need to start the logging process. ( OS memory trim only )
+         */
     @Override
     protected void onResume() {
         super.onResume();
         updateCounterForDatabaseQueries = 0;
         startServiceManager();
+        databaseHelper = new DatabaseHelper( this );
+        getDatabasePopulation();
         updateScreen();
     }
 
@@ -351,6 +353,7 @@ public class MainActivity extends Activity{
         super.onStop();
     }
 
+    /** */
     @Override
     protected void onDestroy() {
         unregisterReceiver( broadcastReceiver );

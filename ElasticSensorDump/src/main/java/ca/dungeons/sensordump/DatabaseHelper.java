@@ -84,6 +84,7 @@ class DatabaseHelper extends SQLiteOpenHelper{
         writableDatabase.execSQL( "DELETE FROM " + TABLE_NAME + " WHERE ID = " + deleteRowId );
     }
 
+        /** Query the database for the next row. Return null if database is empty. */
     String getNextCursor(){
 
         if( databaseEntries() >= 1 ){
