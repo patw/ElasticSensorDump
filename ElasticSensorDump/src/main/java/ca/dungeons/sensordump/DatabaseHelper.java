@@ -10,24 +10,29 @@ import android.util.Log;
 import org.json.JSONObject;
 
 
-/**
- * A class to buffer generated data to a dataBase for later upload.
- * @author Gurtok.
- * @version First version of ESD dataBase helper.
- */
+    /**
+     * A class to buffer generated data to a dataBase for later upload.
+     * @author Gurtok.
+     * @version First version of ESD dataBase helper.
+     */
 class DatabaseHelper extends SQLiteOpenHelper{
 
         /** Main database name */
     private static final String DATABASE_NAME = "dbStorage";
+
         /** Database version. */
     private static final int DATABASE_VERSION = 1;
+
         /** Table name for database. */
     private static final String TABLE_NAME = "StorageTable";
+
         /** Json data column name. */
     private static final String dataColumn = "JSON";
-        /** Since we only have one database, we reference it on creation. */
-    private SQLiteDatabase writableDatabase = this.getWritableDatabase();
 
+        /** Since we only have one database, we reference it on creation. */
+    private final SQLiteDatabase writableDatabase = this.getWritableDatabase();
+
+        /** Used to keep track of the database row we are working on. */
     private int deleteRowId;
 
         /** Default constructor.
@@ -67,16 +72,16 @@ class DatabaseHelper extends SQLiteOpenHelper{
          * Will also start a background thread to upload the database to Kibana.
          * @param jsonObject Passed object to be inserted.
          */
-    boolean JsonToDatabase(JSONObject jsonObject){
+    void JsonToDatabase(JSONObject jsonObject){
         ContentValues values = new ContentValues();
         values.put(dataColumn, jsonObject.toString() );
         long checkDB = writableDatabase.insert( TABLE_NAME, null, values);
 
         if(checkDB == -1){
             Log.e("Failed insert","Failed insert database.");
-            return false;
+
         }
-        return true;
+
     }
 
         /** Delete top row from the database. */

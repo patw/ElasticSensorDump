@@ -13,52 +13,54 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-/**
- * A class to start a thread upload the database to Kibana.
- * @author Gurtok.
- * @version First version of upload Async thread.
- */
+    /**
+    * A class to start a thread upload the database to Kibana.
+    * @author Gurtok.
+    * @version First version of upload Async thread.
+    */
 class Uploads implements Runnable{
 
-    /** Lazy mans ID for logging. */
+        /** ID for logcat. */
     private final String logTag = "Uploads";
 
-    /** Used to gain access to the application database. */
-    private Context serviceContext;
-    /** A reference to the apps stored preferences. */
-    private SharedPreferences sharedPreferences;
+        /** Used to gain access to the application database. */
+    private final Context serviceContext;
 
-    private ElasticSearchIndexer esIndexer;
+        /** A reference to the apps stored preferences. */
+    private final SharedPreferences sharedPreferences;
 
-    /** Static variable for the indexer thread to communicate success or failure of an index attempt. */
+        /** */
+    private final ElasticSearchIndexer esIndexer;
+
+        /** Static variable for the indexer thread to communicate success or failure of an index attempt. */
     static boolean uploadSuccess = false;
 
-    /** Control variable to indicate if we should stop uploading to elastic. */
+        /** Control variable to indicate if we should stop uploading to elastic. */
     private static boolean stopUploadThread = false;
 
-    /** Control variable to indicate if this runnable is currently uploading data. */
+        /** Control variable to indicate if this runnable is currently uploading data. */
     boolean working = false;
 
-    /** Used to keep track of how many POST requests we are allowed to do each second. */
+        /** Used to keep track of how many POST requests we are allowed to do each second. */
     private Long globalUploadTimer = System.currentTimeMillis();
 
-    /** Default Constructor using the application context. */
+        /** Default Constructor using the application context. */
     Uploads(Context context, SharedPreferences passedPreferences ) {
         serviceContext = context;
         sharedPreferences = passedPreferences;
         esIndexer = new ElasticSearchIndexer( context );
     }
 
-    /** Main class entry. The data we need has already been updated. So just go nuts. */
+        /** Main class entry. The data we need has already been updated. So just go nuts. */
     @Override
     public void run() {
         startUploading();
     }
 
-    /** Control variable to halt the whole thread. */
+        /** Control variable to halt the whole thread. */
     void stopUploading(){  stopUploadThread = true;  }
 
-    /** Main work of upload runnable is accomplished here. */
+        /** Main work of upload runnable is accomplished here. */
     private void startUploading() {
 
         Log.e( logTag, "Started upload thread." );
@@ -126,16 +128,16 @@ class Uploads implements Runnable{
     working = false;
     }
 
-    /** Our main connection to the UI thread for communication. */
+        /** Our main connection to the UI thread for communication. */
     private void indexSuccess(boolean result ){
         Intent messageIntent = new Intent( EsdServiceReceiver.INDEX_SUCCESS );
         messageIntent.putExtra( "INDEX_SUCCESS", result );
         serviceContext.sendBroadcast( messageIntent );
     }
 
-    /** Extract config information from sharedPreferences.
-     *  Tag the current date stamp on the index name if set in preferences. Credit: GlenRSmith.
-     */
+        /** Extract config information from sharedPreferences.
+        *  Tag the current date stamp on the index name if set in preferences. Credit: GlenRSmith.
+        */
     private void updateIndexerUrl() {
 
         // Security variables.
@@ -184,7 +186,7 @@ class Uploads implements Runnable{
 
     }
 
-    /** Helper method to determine if we currently have access to an elastic server to upload to. */
+        /** Helper method to determine if we currently have access to an elastic server to upload to. */
     private boolean checkForElasticHost(){
 
         boolean responseCodeSuccess = false;

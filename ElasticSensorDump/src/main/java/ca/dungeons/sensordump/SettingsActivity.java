@@ -7,8 +7,10 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
+    /** */
 public class SettingsActivity extends PreferenceActivity
 {
+        /** */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -16,6 +18,7 @@ public class SettingsActivity extends PreferenceActivity
         checkValues();
     }
 
+    /** */
     public static class MyPreferenceFragment extends PreferenceFragment {
         @Override
         public void onCreate(final Bundle savedInstanceState) {
@@ -24,6 +27,7 @@ public class SettingsActivity extends PreferenceActivity
         }
     }
 
+    /** */
     private void checkValues() {
         SharedPreferences sharedPrefs =
                 PreferenceManager.getDefaultSharedPreferences(getBaseContext());

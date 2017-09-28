@@ -8,28 +8,51 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+    /**
+    * GPS Logger - Location Listener implementation.
+    */
 class GPSLogger implements LocationListener {
 
-    private static final String logTag = "GpsLogger";
-
-
+        /** */
     private String gpsProvider;
+
+        /** */
     private int gpsUpdates = 0;
+
+        /** */
     private double gpsLat, gpsLong, gpsAlt;
+
+        /** */
     private double gpsLatStart, gpsLongStart;
+
+        /** */
     private double gpsDistanceMetres, gpsDistanceFeet, gpsTotalDistance;
+
+        /** */
     private double gpsTotalDistanceKM, gpsTotalDistanceMiles;
+
+        /** */
     private float gpsAccuracy, gpsBearing;
+
+        /** */
     private float gpsSpeed, gpsSpeedKMH, gpsSpeedMPH;
+
+        /** */
     private float gpsAcceleration, gpsAccelerationKMH, gpsAccelerationMPH;
+
+        /** */
     private float lastSpeed;
+
+        /** */
     private double lastLat, lastLong;
+
+        /** */
     boolean gpsHasData = false;
 
-    /**
-     * Method to record gps.
-     * @param location Current location.
-     */
+        /**
+        * Method to record gps.
+        * @param location Current location.
+        */
     @Override
     public void onLocationChanged(Location location) {
 
@@ -83,26 +106,27 @@ class GPSLogger implements LocationListener {
 
         // We're live!
         gpsHasData = true;
-
-
+        gpsUpdates++;
     }
 
 
-    /** Required over ride. Not used. */
+        /** Required over ride. Not used. */
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras){}
-    /** Required over ride. Not used. */
+
+        /** Required over ride. Not used. */
     @Override
     public void onProviderEnabled(String provider){}
-    /** Required over ride. Not used. */
+
+        /** Required over ride. Not used. */
     @Override
     public void onProviderDisabled(String provider){}
 
-    /**
-     * Take the passed json object, add the collected gps data.
-     * @param passedJson A reference to the SensorRunnable json file that will be uploaded.
-     * @return The json that now included the gps data.
-     */
+        /**
+        * Take the passed json object, add the collected gps data.
+        * @param passedJson A reference to the SensorRunnable json file that will be uploaded.
+        * @return The json that now included the gps data.
+        */
     JSONObject getGpsData( JSONObject passedJson ){
 
         if( passedJson != null ){

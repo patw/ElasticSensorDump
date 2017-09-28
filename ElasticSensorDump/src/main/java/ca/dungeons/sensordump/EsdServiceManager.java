@@ -18,53 +18,61 @@ import java.util.concurrent.TimeUnit;
 
 public class EsdServiceManager extends Service {
 
-    /** String to identify this class in LogCat. */
+        /** String to identify this class in LogCat. */
     private static final String logTag = "EsdServiceManager";
 
-    /** Android connection manager. Use to find out if we are connected before doing any networking. */
+        /** Android connection manager. Use to find out if we are connected before doing any networking. */
     private ConnectivityManager connectionManager;
 
-    /** Uploads controls the data flow between the local database and Elastic server. */
+        /** Uploads controls the data flow between the local database and Elastic server. */
     private Uploads_Receiver uploadsReceiver;
 
-    /** Main activity preferences. Holds URL and name data. */
+        /** Main activity preferences. Holds URL and name data. */
     private SharedPreferences sharedPrefs;
 
-    /** True if we are currently reading sensor data. */
+        /** True if we are currently reading sensor data. */
     boolean logging = false;
 
-    /** Toggle, if we should be recording AUDIO sensor data. */
+        /** Toggle, if we should be recording AUDIO sensor data. */
     boolean audioLogging = false;
-    /** Toggle, if we should be recording GPS data.*/
+
+        /** Toggle, if we should be recording GPS data.*/
     boolean gpsLogging = false;
-    /** The rate in milliseconds we record sensor data. */
+
+        /** The rate in milliseconds we record sensor data. */
     int sensorRefreshRate = 250;
-    /** Toggle, if this service is currently running. Used by the main activity. */
+
+        /** Toggle, if this service is currently running. Used by the main activity. */
     private boolean serviceActive = false;
-    /** Time of the last sensor recording. Used to shut down unused resources. */
+
+        /** Time of the last sensor recording. Used to shut down unused resources. */
     private long lastSuccessfulSensorResult;
 
-    /** Number of sensor readings this session. */
+        /** Number of sensor readings this session. */
     public int sensorReadings = 0;
-    /** Number of audio readings this session. */
+
+        /** Number of audio readings this session. */
     public int audioReadings = 0;
-    /** Number of gps locations recorded this session */
+
+        /** Number of gps locations recorded this session */
     public int gpsReadings = 0;
-    /** Number of documents indexed to Elastic this session. */
+
+        /** Number of documents indexed to Elastic this session. */
     public int documentsIndexed = 0;
-    /** Number of data uploaded failures this session. */
+
+        /** Number of data uploaded failures this session. */
     public int uploadErrors = 0;
 
-    /** This thread pool is the working pool. Use this to execute the sensor runnable and Uploads. */
-    private ExecutorService workingThreadPool = Executors.newFixedThreadPool( 4 );
+        /** This thread pool is the working pool. Use this to execute the sensor runnable and Uploads. */
+    private final ExecutorService workingThreadPool = Executors.newFixedThreadPool( 4 );
 
-    /** This thread pool handles the timer in which we control this service.
-     *  Timer that controls if/when we should be uploading data to the server.
-     */
-    private ScheduledExecutorService timerPool = Executors.newScheduledThreadPool( 2 );
+        /** This thread pool handles the timer in which we control this service.
+        *  Timer that controls if/when we should be uploading data to the server.
+        */
+    private final   ScheduledExecutorService timerPool = Executors.newScheduledThreadPool( 2 );
 
-    /** This is the runnable we will use to check network connectivity once every 30 min. */
-    private Runnable uploadRunnable = new Runnable() {
+        /** This is the runnable we will use to check network connectivity once every 30 min. */
+    private final Runnable uploadRunnable = new Runnable() {
         @Override
         public void run() {
             if( !uploadsReceiver.isWorking() && connectionManager.getActiveNetworkInfo().isConnected() ){
@@ -80,11 +88,11 @@ public class EsdServiceManager extends Service {
         }
     };
 
-    /**
-     * Service Timeout timer runnable.
-     * If we go more than an a half hour without recording any sensor data, shut down this thread.
-     */
-    private Runnable serviceTimeoutRunnable = new Runnable() {
+        /**
+        * Service Timeout timer runnable.
+        * If we go more than an a half hour without recording any sensor data, shut down this thread.
+        */
+    private final Runnable serviceTimeoutRunnable = new Runnable() {
         @Override
         public void run() {
             // Last sensor result plus 1/2 hour in milliseconds is greater than the current time.
@@ -97,11 +105,11 @@ public class EsdServiceManager extends Service {
         }
     };
 
-    /**
-     * Default constructor:
-     * Instantiate the class broadcast receiver and messageFilters.
-     * Register receiver to make sure we can communicate with the other threads.
-     */
+        /**
+        * Default constructor:
+        * Instantiate the class broadcast receiver and messageFilters.
+        * Register receiver to make sure we can communicate with the other threads.
+        */
     @Override
     public void onCreate () {
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences( this.getBaseContext() );
@@ -110,13 +118,13 @@ public class EsdServiceManager extends Service {
         registerReceiver( esdMessageReceiver, esdMessageReceiver.messageFilter );
     }
 
-    /**
-     * Runs when the mainActivity executes this service.
-     * @param intent - Not used.
-     * @param flags - Not used.
-     * @param startId - Name of mainActivity.
-     * @return START_STICKY will make sure the OS restarts this process if it has to trim memory.
-     */
+        /**
+        * Runs when the mainActivity executes this service.
+        * @param intent - Not used.
+        * @param flags - Not used.
+        * @param startId - Name of mainActivity.
+        * @return START_STICKY will make sure the OS restarts this process if it has to trim memory.
+        */
     @Override
     public int onStartCommand (Intent intent, int flags, int startId){
         //Log.e(logTag, "ESD -- On Start Command." );
@@ -141,9 +149,6 @@ public class EsdServiceManager extends Service {
 
         /* Send a message to the main thread to indicate the manager service has been initialized. */
             serviceActive = true;
-            Intent messageIntent = new Intent(MainActivity.UI_ACTION_RECEIVER);
-            messageIntent.putExtra("serviceManagerRunning", serviceActive );
-            sendBroadcast( messageIntent );
 
             Log.i(logTag, "Started service manager.");
         }
@@ -151,7 +156,7 @@ public class EsdServiceManager extends Service {
         return Service.START_STICKY;
     }
 
-    /** This method uses the passed UI handler to relay messages if/when the activity is running. */
+        /** This method uses the passed UI handler to relay messages if/when the activity is running. */
     synchronized void updateUiData(){
 
         if( getApplicationContext() != null ){
@@ -170,23 +175,23 @@ public class EsdServiceManager extends Service {
     }
 
 
-    /** Timer used to periodically check if the upload runnable needs to be executed. */
+        /** Timer used to periodically check if the upload runnable needs to be executed. */
     private void setupUploads() {
         timerPool.scheduleAtFixedRate( uploadRunnable, 10, 30, TimeUnit.SECONDS );
     } // Delay the task 10 seconds out and then repeat every 30 seconds.
 
-    /** Timer used to periodically check if this service is being used (recording data). */
-    void setupManagerTimeout(){
+        /** Timer used to periodically check if this service is being used (recording data). */
+    private void setupManagerTimeout(){
         timerPool.scheduleAtFixedRate( serviceTimeoutRunnable, 30, 30, TimeUnit.MINUTES );
     } // Delay the task 60 min out. Then repeat once every 60 min.
 
-    /**
-     * Start logging method:
-     * Send toggle requests to the sensor thread receiver.
-     * 1. SENSOR toggle.
-     * 2. GPS toggle.
-     * 3. AUDIO toggle.
-     */
+        /**
+        * Start logging method:
+        * Send toggle requests to the sensor thread receiver.
+        * 1. SENSOR toggle.
+        * 2. GPS toggle.
+        * 3. AUDIO toggle.
+        */
     public void startLogging() {
         logging = true;
 
@@ -208,12 +213,12 @@ public class EsdServiceManager extends Service {
 
     }
 
-    /**
-     * Stop logging method:
-     * 1. Unregister listeners for both sensors and battery.
-     * 2. Turn gps recording off.
-     * 3. Update main thread to initialize UI changes.
-     */
+        /**
+        * Stop logging method:
+        * 1. Unregister listeners for both sensors and battery.
+        * 2. Turn gps recording off.
+        * 3. Update main thread to initialize UI changes.
+        */
     public void stopLogging() {
         logging = false;
         Intent messageIntent = new Intent( SensorRunnable.SENSOR_POWER );
@@ -221,12 +226,12 @@ public class EsdServiceManager extends Service {
         sendBroadcast( messageIntent );
     }
 
-    /**
-     * This runs when the service either shuts itself down or the OS trims memory.
-     * StopLogging() stops all sensor logging.
-     * Unregister the Upload broadcast receiver.
-     * Sends a message to the UI and UPLOAD receivers that we have shut down.
-     */
+        /**
+        * This runs when the service either shuts itself down or the OS trims memory.
+        * StopLogging() stops all sensor logging.
+        * Unregister the Upload broadcast receiver.
+        * Sends a message to the UI and UPLOAD receivers that we have shut down.
+        */
     @Override
     public void onDestroy () {
 
@@ -244,12 +249,7 @@ public class EsdServiceManager extends Service {
         super.onDestroy();
     }
 
-    /** Not used as of yet. */
-    @Override
-    public boolean onUnbind (Intent intent){
-        return super.onUnbind(intent);
-    }
-    /** Not used as of yet. */
+        /** Not used as of yet. */
     @Nullable
     @Override
     public IBinder onBind (Intent intent ){

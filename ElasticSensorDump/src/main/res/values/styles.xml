@@ -8,7 +8,5 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
-    <style name="start_button"></style>
-
 
 </resources>

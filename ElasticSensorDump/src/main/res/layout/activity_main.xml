@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/parent"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/backGroundGreyTint"
@@ -10,11 +8,11 @@
     android:paddingLeft="8dp"
     android:paddingRight="8dp"
     android:paddingTop="8dp"
-    tools:context="ca.dungeons.sensordump.MainActivity">
+    tools:context="ca.dungeons.sensordump.MainActivity"
+    tools:ignore="Overdraw">
 
 
     <LinearLayout
-        android:id="@+id/MainUILayout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
@@ -69,14 +67,12 @@
         android:src="@drawable/ic_action_navigation_more_vert" />
 
     <FrameLayout
-        android:id="@+id/frameLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true">
 
         <ImageView
-            android:id="@+id/elasticLogo"
             android:layout_width="match_parent"
             android:layout_height="350dp"
             android:layout_gravity="center"
@@ -117,7 +113,6 @@
         </LinearLayout>
 
         <TableLayout
-            android:id="@+id/tableLayout2"
             android:layout_width="match_parent"
             android:layout_height="305dp"
             android:layout_gravity="bottom"
@@ -130,7 +125,6 @@
                 android:padding="10dp">
 
                 <TextView
-                    android:id="@+id/SensorCountView"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
                     android:layout_gravity="end"
@@ -163,7 +157,6 @@
                 android:padding="10dp">
 
                 <TextView
-                    android:id="@+id/GPS_Updates_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
                     android:layout_gravity="end"
@@ -197,7 +190,6 @@
                 android:padding="10dp">
 
                 <TextView
-                    android:id="@+id/audio_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="end"
@@ -230,7 +222,6 @@
                 android:padding="10dp">
 
                 <TextView
-                    android:id="@+id/DatabaseCountView"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
                     android:layout_gravity="end"
@@ -263,7 +254,6 @@
                 android:padding="10dp">
 
                 <TextView
-                    android:id="@+id/Documents_Written_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
                     android:layout_gravity="end"
@@ -296,7 +286,6 @@
                 android:padding="10dp">
 
                 <TextView
-                    android:id="@+id/Error_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
                     android:layout_gravity="end"

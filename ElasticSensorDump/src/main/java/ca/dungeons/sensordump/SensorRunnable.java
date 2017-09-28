@@ -6,45 +6,51 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 
-/**
- * Listener class to record sensorMessageHandler data.
- * @author Gurtok.
- * @version First version of sensor thread.
- */
-
+    /**
+    * Listener class to record sensorMessageHandler data.
+    * @author Gurtok.
+    * @version First version of sensor thread.
+    */
 class SensorRunnable implements Runnable {
 
-    /**
-     * Main activity context.
-     */
-    private Context passedContext;
+        /**
+        * Main activity context.
+        */
+    private final Context passedContext;
 
-    private SensorListener sensorListener;
+        /** */
+    private final SensorListener sensorListener;
 
-    /**
-     * These are the different actions that the receiver can manage.
-     */
+        /** */
     final static String SENSOR_POWER = "esd.serviceManager.message.SENSOR_POWER";
+
+        /** */
     final static String GPS_POWER = "esd.serviceManager.message.GPS_POWER";
+
+        /** */
     final static String AUDIO_POWER = "esd.serviceManager.message.AUDIO_POWER";
+
+        /** */
     final static String INTERVAL = "esd.serviceManager.message.sensor.REFRESH_RATE";
 
 // Guts.
 
-    /**
-     * Constructor:
-     * Initialize the sensorMessageHandler manager.
-     */
+        /**
+        * Constructor:
+        * Initialize the sensorMessageHandler manager.
+        */
     SensorRunnable(Context context, SharedPreferences sharedPreferences) {
         passedContext = context;
         sensorListener = new SensorListener(passedContext, sharedPreferences);
     }
 
+        /** */
     @Override
     public void run() {
         registerMessageReceiver();
     }
 
+        /** */
     private void registerMessageReceiver() {
 
         IntentFilter filter = new IntentFilter();
@@ -83,9 +89,5 @@ class SensorRunnable implements Runnable {
 
         passedContext.registerReceiver(receiver, filter);
     }
-
-
-
-
 
 }

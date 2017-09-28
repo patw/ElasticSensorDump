@@ -34,10 +34,10 @@ class AudioRunnable implements Runnable {
     private int bufferSize;
 
 
-    /** Default constructor.
-     * Determine minimum buffer size, get data from Android audio api.
-     * Set variables before executing the runnable.
-     */
+        /** Default constructor.
+         * Determine minimum buffer size, get data from Android audio api.
+         * Set variables before executing the runnable.
+         */
     AudioRunnable(){
 
         // Buffer size in bytes.
@@ -53,11 +53,12 @@ class AudioRunnable implements Runnable {
     }
 
         /** Stop the audio logging thread. */
-    void setStopAudioThread( boolean power ){
-        stopThread = power;
+    void setStopAudioThread(){
+        stopThread = true;
     }
 
         /** Main entrance. */
+    @SuppressWarnings("ConstantConditions")
     @Override
     public void run() {
 

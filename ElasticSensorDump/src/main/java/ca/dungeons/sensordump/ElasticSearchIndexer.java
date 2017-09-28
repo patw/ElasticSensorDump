@@ -15,42 +15,49 @@ import java.io.IOException;
 import org.json.JSONObject;
 import org.json.JSONException;
 
+
+/**
+* Elastic Search Indexer.
+* Use this thread to upload data to the elastic server.
+*/
 class ElasticSearchIndexer extends Thread{
 
-    /** Used to identify which class is writing to logCat. */
+        /** Used to identify which class is writing to logCat. */
     private final String logTag = "eSearchIndexer";
 
-    /** The context of the service manager. */
-    private Context passedContext;
+        /** The context of the service manager. */
+    private final Context passedContext;
 
-    /** Elastic username. */
+        /** Elastic username. */
     String esUsername = "";
-    /** Elastic password. */
+
+        /** Elastic password. */
     String esPassword = "";
 
-    /** Used to establish outside connection. */
+        /** Used to establish outside connection. */
     private HttpURLConnection httpCon;
 
-    /** Connection fail count. When this hits 10, cancel the upload thread. */
+        /** Connection fail count. When this hits 10, cancel the upload thread. */
     private int connectFailCount = 0;
 
-    /** The URL we use to post data to the server. */
+        /** The URL we use to post data to the server. */
     URL postUrl;
-    /** The URL we use to create an index and PUT a mapping schema on it. */
+
+        /** The URL we use to create an index and PUT a mapping schema on it. */
     URL mapUrl;
 
-    /** Variable to keep track if this instance of the indexer has submitted a map. */
+        /** Variable to keep track if this instance of the indexer has submitted a map. */
     private boolean alreadySentMapping;
 
-    /** A variable to hold the JSON string to be uploaded. */
+        /** A variable to hold the JSON string to be uploaded. */
     String uploadString = "";
 
-    /** Base constructor. */
+        /** Base constructor. */
     ElasticSearchIndexer( Context context ){
         passedContext = context;
     }
 
-    /** This run method is executed upon each index start. */
+        /** This run method is executed upon each index start. */
     @Override
     public void run() {
         if( !alreadySentMapping ){
@@ -62,7 +69,7 @@ class ElasticSearchIndexer extends Thread{
         }
     }
 
-    /** Send messages to Upload thread and ESD service thread to indicate result of index.*/
+        /** Send messages to Upload thread and ESD service thread to indicate result of index.*/
     private void indexSuccess( boolean result ){
 
         Intent messageIntent;
@@ -77,7 +84,7 @@ class ElasticSearchIndexer extends Thread{
     }
 
 
-    /** Create a map and send to elastic for sensor index. */
+        /** Create a map and send to elastic for sensor index. */
     private void createMapping() {
         Log.e(logTag + " newMap", "Mapping uploading." );
         // Connect to elastic using PUT to make elastic understand this is a mapping.
@@ -121,7 +128,7 @@ class ElasticSearchIndexer extends Thread{
         Log.e(logTag, "Finished mapping." );
     }
 
-    /** Send JSON data to elastic using POST. */
+        /** Send JSON data to elastic using POST. */
     private void index( String uploadString ) {
         //Log.e(logTag+" index", "Index STARTED: " + uploadString );
 
@@ -146,7 +153,7 @@ class ElasticSearchIndexer extends Thread{
         }
     }
 
-    /** Open a connection with the server. */
+        /** Open a connection with the server. */
     private boolean connect(String verb){
         //Log.e( logTag+" connect.", "Connecting." );
         if( connectFailCount == 0 || connectFailCount % 10 != 0 ){
@@ -193,8 +200,8 @@ class ElasticSearchIndexer extends Thread{
     return false;
     }
 
-    /** Helper class to determine if an individual indexing operation was successful.
-     * "I expect only the finest of 200s" - Ademara*/
+        /** Helper class to determine if an individual indexing operation was successful.
+        * "I expect only the finest of 200s" - Ademara*/
     private boolean checkResponseCode(){
 
         String responseMessage = "ResponseCode placeholder.";

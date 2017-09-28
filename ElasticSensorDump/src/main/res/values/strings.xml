@@ -2,30 +2,21 @@
     <string name="app_name">Elastic Sensor Dump</string>
     <string name="buttonStart">Start Collecting</string>
     <string name="buttonStop">Stop Collecting</string>
-    <string name="loggingStopped">Logging Stopped</string>
     <string name="Collection_Interval">Collection Interval</string>
     <string name="milliseconds">ms</string>
-    <string name="No_Sensor_Readings">No sensor Readings</string>
     <string name="Sensor_Readings">Readings:</string>
     <string name="Errors">Errors: </string>
     <string name="settings">Settings</string>
-    <string name="sensor_tv">sensor_tv</string>
-    <string name="documents_tv">documents_tv</string>
-    <string name="gps_tv">gps_tv</string>
-    <string name="errors_tv">errors_tv</string>
-    <string name="logging">Logging</string>
     <string name="_0">0</string>
     <string name="databaseText">Database:</string>
     <string name="audio">Audio:</string>
     <string name="indexCountTv">Uploads:</string>
     <string name="audioRadioBtn">AUDIO</string>
-    <string name="uploadCount">Indexes:</string>
     <string name="locationCount">Location:</string>
     <string name="gps">GPS</string>
     <string name="EsPasswordPreferences">Elastic password. ( Requires X-pack installation. )</string>
     <string name="EsUsernamePreferences">Elastic user name. ( Requires Xpack installation. )</string>
     <string name="Es_ssl_protection">Select if Elastic X-Pack is installed.</string>
-    <string name="Es_Tag_description">Tag sensor data with this string. ( Optional ).</string>
 
 
 </resources>

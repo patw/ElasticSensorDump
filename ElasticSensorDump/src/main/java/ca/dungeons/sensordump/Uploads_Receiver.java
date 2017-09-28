@@ -9,44 +9,43 @@ import android.util.Log;
 
 import java.util.concurrent.ExecutorService;
 
-/**
- * Created by Gurtok on 8/28/2017.
- *
- */
-
+    /**
+    * Broadcast receiver for the upload runnable.
+    */
 class Uploads_Receiver {
 
-    /** Main activity context. */
-    private Context passedContext;
+        /** Main activity context. */
+    private final Context passedContext;
 
-    /** Instance of the Uploads runnable that we can update data on before indexing. */
-    private Uploads uploads;
-    /** Thread pool from the service manager to execute the uploads runnable. */
-    private ExecutorService workingThreadPool;
+        /** Instance of the Uploads runnable that we can update data on before indexing. */
+    private final Uploads uploads;
 
-    /** Intent action address: Boolean - Control method to shut down upload thread. */
+        /** Thread pool from the service manager to execute the uploads runnable. */
+    private final ExecutorService workingThreadPool;
+
+        /** Intent action address: Boolean - Control method to shut down upload thread. */
     final static String STOP_UPLOAD_THREAD = "esd.intent.action.message.Uploads_Receiver.STOP_UPLOAD_THREAD";
 
-    /** Intent action address: Boolean - If ESIndexer was successful indexing a record. */
+        /** Intent action address: Boolean - If ESIndexer was successful indexing a record. */
     final static String INDEX_SUCCESS = "esd.intent.action.message.Uploads_Receiver.INDEX_SUCCESS";
 
-    /** Intent action address: Boolean - Request by the service manager to start up the upload thread. */
+        /** Intent action address: Boolean - Request by the service manager to start up the upload thread. */
     final static String START_UPLOAD_THREAD = "esd.intent.action.message.Uploads_Receiver.START_UPLOAD_THREAD";
 
-    /**
-     * Default constructor:
-     * @param context - ESD service manager context.
-     * @param sharedPreferences - The application preferences, contains URL and ID data.
-     * @param passedThreadPool - Application wide thread pool. Execute uploads runnable on this.
-     */
+        /**
+        * Default constructor:
+        * @param context - ESD service manager context.
+        * @param sharedPreferences - The application preferences, contains URL and ID data.
+        * @param passedThreadPool - Application wide thread pool. Execute uploads runnable on this.
+        */
     Uploads_Receiver(Context context, SharedPreferences sharedPreferences, ExecutorService passedThreadPool ) {
         passedContext = context;
         workingThreadPool = passedThreadPool;
         uploads = new Uploads( passedContext, sharedPreferences );
     }
 
-    /** Broadcast receiver initialization. */
-    private BroadcastReceiver messageReceiver = new BroadcastReceiver() {
+        /** Broadcast receiver initialization. */
+    private final BroadcastReceiver messageReceiver = new BroadcastReceiver() {
 
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -75,9 +74,10 @@ class Uploads_Receiver {
         }
     };
 
-    /** Used by the service manager to indicate if this runnable is uploading data. */
+        /** Used by the service manager to indicate if this runnable is uploading data. */
     synchronized boolean isWorking(){ return uploads.working; }
 
+        /** */
     void registerMessageReceiver(){
 
         IntentFilter filter = new IntentFilter();
@@ -91,6 +91,7 @@ class Uploads_Receiver {
         passedContext.registerReceiver(messageReceiver, filter );
     }
 
+        /** */
     void unRegisterUploadReceiver(){
         passedContext.unregisterReceiver( messageReceiver );
     }

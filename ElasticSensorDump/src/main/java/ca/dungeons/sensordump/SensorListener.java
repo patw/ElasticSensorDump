@@ -28,71 +28,85 @@ import java.util.concurrent.Executors;
  * Created by Gurtok on 8/14/2017.
  *
  */
-
 class SensorListener implements android.hardware.SensorEventListener {
 
 
-    /** Use this to identify this classes log messages. */
+        /** Use this to identify this classes log messages. */
     private final String logTag = "SensorRunnable";
 
-    /** Main activity context. */
-    private Context passedContext;
+        /** Main activity context. */
+    private final Context passedContext;
 
-    /** Applications' shared preferences. */
-    private SharedPreferences sharedPrefs;
+        /** Applications' shared preferences. */
+    private final SharedPreferences sharedPrefs;
 
-    /** Gives access to the local database via a helper class.*/
-    private DatabaseHelper dbHelper;
-
-    private ExecutorService threadPool = Executors.newSingleThreadExecutor();
+        /** Gives access to the local database via a helper class.*/
+    private final DatabaseHelper dbHelper;
+        /** */
+    private final ExecutorService threadPool = Executors.newSingleThreadExecutor();
 
 // Date / Time variables.
-    /** A static reference to the custom date format. */
+        /** A static reference to the custom date format. */
     @SuppressWarnings("SpellCheckingInspection")
     private final SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ", Locale.US);
-    /** Timers, the schema is defined else where. */
-    private long startTime, lastUpdate;
+
+        /** Timers, the schema is defined else where. */
+    private final long startTime;
+    private long lastUpdate;
 
 // Sensor variables.
-    /** If we are currently logging PHONE sensor data. */
+        /** If we are currently logging PHONE sensor data. */
     private boolean sensorLogging = false;
-    /** Instance of sensorMessageHandler Manager. */
+
+        /** Instance of sensorMessageHandler Manager. */
     private SensorManager mSensorManager;
-    /** Each loop, data wrapper to upload to Elastic. */
+
+        /** Each loop, data wrapper to upload to Elastic. */
     private JSONObject joSensorData = new JSONObject();
-    /** Array to hold sensorMessageHandler references. */
+
+        /** Array to hold sensorMessageHandler references. */
     private List<Integer> usableSensorList;
-    /** Refresh time in milliseconds. Default = 250ms.*/
+
+        /** Refresh time in milliseconds. Default = 250ms.*/
     private int sensorRefreshTime = 250;
-    /** If listeners are active. */
+
+        /** If listeners are active. */
     private boolean sensorsRegistered = false;
-    /** Listener for battery updates. */
+
+        /** Listener for battery updates. */
     private BroadcastReceiver batteryReceiver;
-    /** Battery level in percentages. */
+
+        /** Battery level in percentages. */
     private double batteryLevel = 0;
 
 // GPS variables.
-    /** Used to get access to GPS. */
-    private LocationManager locationManager;
-    /** Helper class to organize gps data. */
+        /** Used to get access to GPS. */
+    private final LocationManager locationManager;
+
+        /** Helper class to organize gps data. */
     private GPSLogger gpsLogger = new GPSLogger();
-    /** Control for telling if we have already registered the gps listeners. */
+
+        /** Control for telling if we have already registered the gps listeners. */
     private boolean gpsRegistered;
 
 // AUDIO variables.
-    /** Helper class for obtaining audio data. */
+        /** Helper class for obtaining audio data. */
     private AudioRunnable audioRunnable;
-    /** Control variable to make sure we only create one audio logger. */
+
+        /** Control variable to make sure we only create one audio logger. */
     private boolean audioRegistered;
 
 // Communications.
-    /** Number of sensorMessageHandler readings this session, default 0. */
+        /** Number of sensorMessageHandler readings this session, default 0. */
     private boolean sensorReading = false;
-    /** Number of gps readings this session, default 0. */
+
+        /** Number of gps readings this session, default 0. */
     private boolean gpsReading = false;
-    /** Number of audio events. */
+
+        /** Number of audio events. */
     private boolean audioReading = false;
 
+        /** Default Constructor. */
     SensorListener( Context context, SharedPreferences sharedPreferences ){
         sharedPrefs = sharedPreferences;
         passedContext = context;
@@ -107,7 +121,7 @@ class SensorListener implements android.hardware.SensorEventListener {
     }
 
     
-    /** Our main connection to the UI thread for communication. */
+        /** Our main connection to the UI thread for communication. */
     private void onProgressUpdate() {
         Intent messageIntent = new Intent( EsdServiceReceiver.SENSOR_SUCCESS );
         messageIntent.putExtra( "sensorReading", sensorReading );
@@ -123,16 +137,16 @@ class SensorListener implements android.hardware.SensorEventListener {
         passedContext.sendBroadcast( messageIntent );
     }
 
-    /**
-     * This is the main recording loop. One reading per sensorMessageHandler per loop.
-     * Update timestamp in sensorMessageHandler data structure.
-     * Store the logging start time with each document.
-     * Store the duration of the sensorMessageHandler log with each document.
-     * Dump gps data into document if it's ready.
-     * Put battery status percentage into the Json.
-     *
-     * @param event A reference to the event object.
-     */
+        /**
+        * This is the main recording loop. One reading per sensorMessageHandler per loop.
+        * Update timestamp in sensorMessageHandler data structure.
+        * Store the logging start time with each document.
+        * Store the duration of the sensorMessageHandler log with each document.
+        * Dump gps data into document if it's ready.
+        * Put battery status percentage into the Json.
+        *
+        * @param event A reference to the event object.
+        */
     @Override
     public final void onSensorChanged(SensorEvent event) {
 
@@ -190,9 +204,8 @@ class SensorListener implements android.hardware.SensorEventListener {
         }
     }
 
-    // Phone Sensors
-
-    /** Use this method to control if we should be recording sensor data or not. */
+// Phone Sensors
+        /** Use this method to control if we should be recording sensor data or not. */
     void setSensorLogging( boolean power ){
         sensorLogging = power;
         if( power && !sensorsRegistered  ){
@@ -203,14 +216,14 @@ class SensorListener implements android.hardware.SensorEventListener {
         }
     }
 
-    /**
-     * A control method for collection intervals.
-     */
+        /**
+        * A control method for collection intervals.
+        */
     void setSensorRefreshTime(int updatedRefresh) {
         sensorRefreshTime = updatedRefresh;
     }
 
-    /** Method to register listeners upon logging. */
+        /** Method to register listeners upon logging. */
     private void registerSensorListeners(){
 
         // Register each sensorMessageHandler to this activity.
@@ -223,7 +236,7 @@ class SensorListener implements android.hardware.SensorEventListener {
         sensorsRegistered = true;
     }
 
-    /** Unregister listeners. */
+        /** Unregister listeners. */
     private void unregisterSensorListeners(){
         passedContext.unregisterReceiver( this.batteryReceiver );
         mSensorManager.unregisterListener( this );
@@ -232,7 +245,7 @@ class SensorListener implements android.hardware.SensorEventListener {
         sensorsRegistered = false;
     }
 
-    /** Generate a list of on-board phone sensors. */
+        /** Generate a list of on-board phone sensors. */
     @TargetApi(21)
     private void parseSensorArray(){
 
@@ -260,7 +273,7 @@ class SensorListener implements android.hardware.SensorEventListener {
     }
 
 // GPS
-    /** Control method to enable/disable gps recording. */
+        /** Control method to enable/disable gps recording. */
     void setGpsPower(boolean power) {
 
         if( power && sensorLogging && !gpsRegistered ){
@@ -274,7 +287,7 @@ class SensorListener implements android.hardware.SensorEventListener {
     }
 
 
-    /** Register gps sensors to enable recording. */
+        /** Register gps sensors to enable recording. */
     private void registerGpsSensors(){
 
         boolean gpsPermissionFine = sharedPrefs.getBoolean("gps_permission_FINE", false );
@@ -298,7 +311,7 @@ class SensorListener implements android.hardware.SensorEventListener {
         }
     }
 
-    /** Unregister gps sensors. */
+        /** Unregister gps sensors. */
     private void unRegisterGpsSensors(){
         locationManager.removeUpdates( gpsLogger );
         gpsRegistered = false;
@@ -307,7 +320,7 @@ class SensorListener implements android.hardware.SensorEventListener {
 
 //AUDIO
 
-    /** Set audio recording on/off. */
+        /** Set audio recording on/off. */
     void setAudioPower(boolean power) {
         if (power && sensorLogging && !audioRegistered) {
             registerAudioSensors();
@@ -317,7 +330,7 @@ class SensorListener implements android.hardware.SensorEventListener {
         }
     }
 
-    /** Register audio recording thread. */
+        /** Register audio recording thread. */
     private void registerAudioSensors(){
         audioRunnable = new AudioRunnable();
         threadPool.submit( audioRunnable );
@@ -325,15 +338,15 @@ class SensorListener implements android.hardware.SensorEventListener {
         Log.i( logTag, "Registered audio sensors." );
     }
 
-    /** Stop audio recording thread. */
+        /** Stop audio recording thread. */
     private void unregisterAudioSensors(){
-        audioRunnable.setStopAudioThread(true);
+        audioRunnable.setStopAudioThread();
         audioRegistered = false;
         Log.i( logTag, "Unregistered audio sensors." );
     }
 
 
-    /** Required stub. Not used. */
+        /** Required stub. Not used. */
     @Override
     public final void onAccuracyChanged(Sensor sensor, int accuracy){} // <- Empty
 
