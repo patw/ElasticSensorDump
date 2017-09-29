@@ -6,14 +6,19 @@ import android.content.SharedPreferences;
 import android.util.Log;
 
 import java.io.IOException;
+import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.PasswordAuthentication;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-    /**
+import javax.net.ssl.HttpsURLConnection;
+
+
+/**
     * A class to start a thread upload the database to Kibana.
     * @author Gurtok.
     * @version First version of upload Async thread.
@@ -191,41 +196,70 @@ class Uploads implements Runnable{
 
         boolean responseCodeSuccess = false;
         int responseCode = 0;
+        String esHostUrlString;
 
-        HttpURLConnection httpConnection = null;
-        String esHost, esPort;
+        HttpURLConnection httpConnection;
+        HttpsURLConnection httpsConnection;
+
         URL esUrl;
-        esHost = sharedPreferences.getString("host", "192.168.1.120" );
-        esPort = sharedPreferences.getString("port", "9200" );
-        String esHostUrlString = String.format("http://%s:%s/", esHost, esPort );
+        String esHost = sharedPreferences.getString("host", "192.168.1.120" );
+        String esPort = sharedPreferences.getString("port", "9200" );
+        boolean esSSL = sharedPreferences.getBoolean("ssl", false );
 
-        try{
-            //Log.e("Uploads-CheckHost", esHostUrlString); // DIAGNOSTICS
-            esUrl = new URL( esHostUrlString );
+        // Secured Connection
+        if( esSSL ) {
 
-            httpConnection = (HttpURLConnection) esUrl.openConnection();
+            final String esUsername = sharedPreferences.getString("user", "");
+            final String esPassword = sharedPreferences.getString("pass", "");
 
-            httpConnection.setConnectTimeout(2000);
-            httpConnection.setReadTimeout(2000);
-            httpConnection.connect();
+            try {
+                esUrl = new URL( String.format( "https://%s:%s/", esHost, esPort ) );
+                httpsConnection = (HttpsURLConnection) esUrl.openConnection();
 
-            responseCode = httpConnection.getResponseCode();
-            if( responseCode >= 200 && responseCode <= 299 ){
-                responseCodeSuccess = true;
+                // Send authentication if required
+                if (esUsername.length() > 0 && esPassword.length() > 0) {
+                    Authenticator.setDefault(new Authenticator() {
+                        protected PasswordAuthentication getPasswordAuthentication() {
+                            return new PasswordAuthentication(esUsername, esPassword.toCharArray());
+                        }
+                    });
+                }
+
+                httpsConnection.setConnectTimeout(2000);
+                httpsConnection.setReadTimeout(2000);
+                httpsConnection.connect();
+
+                responseCode = httpsConnection.getResponseCode();
+                if( responseCode >= 200 && responseCode <= 299 ){
+                    responseCodeSuccess = true;
+                    httpsConnection.disconnect();
+                }
+            }catch( IOException | NullPointerException ex ){
+                Log.e(logTag + " chkHost.", "Failure to open connection cause." + ex.getMessage() + " " + responseCode);
+                ex.printStackTrace();
             }
-        }catch( MalformedURLException malformedUrlEx ){
-            malformedUrlEx.printStackTrace();
-            Log.e( logTag+" chkHost.", "MalformedURL cause: " + malformedUrlEx.getCause() );
-        }catch(IOException IoEx ){
-            //IoEx.printStackTrace();
-            Log.e( logTag+" chkHost.", "Failure to open connection cause: " + IoEx.getMessage() + " " + responseCode );
+        }else{ // Else NON-secured connection.
+            esHostUrlString = String.format("http://%s:%s/", esHost, esPort );
+            try{
+                //Log.e("Uploads-CheckHost", esHostUrlString); // DIAGNOSTICS
+                esUrl = new URL( esHostUrlString );
+                httpConnection = (HttpURLConnection) esUrl.openConnection();
+                httpConnection.setConnectTimeout(2000);
+                httpConnection.setReadTimeout(2000);
+                httpConnection.connect();
+
+                responseCode = httpConnection.getResponseCode();
+                if( responseCode >= 200 && responseCode <= 299 ){
+                    responseCodeSuccess = true;
+                    httpConnection.disconnect();
+                }
+            }catch( IOException ex ){
+                Log.e(logTag + " chkHost.", "Failure to open connection cause." + ex.getMessage() + " " + responseCode);
+                ex.printStackTrace();
+            }
         }
 
-        if( httpConnection != null ){
-            httpConnection.disconnect();
-        }
-
-        // Returns true if the response code was valid.
+        // Returns TRUE if the response code was valid.
         return responseCodeSuccess;
     }
 

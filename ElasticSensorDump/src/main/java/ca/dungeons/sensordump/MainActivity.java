@@ -277,6 +277,7 @@ public class MainActivity extends Activity{
         * Write this result to shared preferences.
         * @return True if we asked for permission and it was granted.
         */
+        @SuppressWarnings("BooleanMethodIsAlwaysInverted")
         private boolean gpsPermission() {
 
         boolean gpsPermissionCoarse = (ContextCompat.checkSelfPermission(this, Manifest.permission.
@@ -308,6 +309,7 @@ public class MainActivity extends Activity{
         * Write this result to shared preferences.
         * @return True if we asked for permission and it was granted.
         */
+        @SuppressWarnings("BooleanMethodIsAlwaysInverted")
         private boolean audioPermission(){
         boolean audioPermission = sharedPrefs.getBoolean( "audio_permission", false );
 
