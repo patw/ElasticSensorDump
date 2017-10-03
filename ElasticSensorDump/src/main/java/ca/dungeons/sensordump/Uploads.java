@@ -169,16 +169,11 @@ class Uploads implements Runnable{
         }
 
         // Default currently is non-secure. Will change that asap.
-
-        // Sanitize the input
+        //TODO: Sanitize the input
         String httpString = "http://";
         if( esSSL ){
             httpString = "https://";
         }
-
-
-
-
 
         String mappingURL = String.format( "%s%s:%s/%s", httpString ,esHost ,esPort ,esIndex );
 

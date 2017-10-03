@@ -8,9 +8,7 @@ import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import android.widget.BaseAdapter;
 
-import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.common.api.CommonStatusCodes;
 
 public class Fragment_Preference extends PreferenceFragment {
@@ -34,7 +32,7 @@ public class Fragment_Preference extends PreferenceFragment {
         qrPreference.setOnPreferenceClickListener( new Preference.OnPreferenceClickListener() {
             @Override
             public boolean onPreferenceClick(Preference preference) {
-                Intent qr_Intent = new Intent( getContext(), QR_Activity.class );
+                Intent qr_Intent = new Intent( getContext(), BarcodeMainActivity.class );
                 startActivityForResult( qr_Intent, QR_REQUEST_CODE );
                 return false;
             }
@@ -61,18 +59,12 @@ public class Fragment_Preference extends PreferenceFragment {
                     Log.e( TAG, "Supplied intent is null !!" );
                 }
 
+
+
             }
 
         }
     }
-
-    void updatePreferenceScreen(){
-
-        BaseAdapter screenAdapter = (BaseAdapter) this.getPreferenceScreen().getRootAdapter();
-        screenAdapter.notifyDataSetChanged();
-
-    }
-
 
 
 }

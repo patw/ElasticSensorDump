@@ -85,11 +85,11 @@ public final class BarcodeCaptureActivity extends AppCompatActivity implements B
         setContentView(R.layout.barcode_capture);
 
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
-
         mGraphicOverlay = ( GraphicOverlay<BarcodeGraphic> ) findViewById(R.id.graphicOverlay);
 
         if( mGraphicOverlay != null ){
             Log.e( TAG, "mGraphicOverlay NOT NULL" );
+
         }else{
             Log.e( TAG, "mGraphicOverlay NULL!!" );
         }

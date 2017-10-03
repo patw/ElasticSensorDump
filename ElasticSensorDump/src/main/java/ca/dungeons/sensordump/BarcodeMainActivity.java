@@ -16,22 +16,22 @@
 
 package ca.dungeons.sensordump;
 
-        import android.content.Intent;
-        import android.os.Bundle;
-        import android.app.Activity;
-        import android.util.Log;
-        import android.view.View;
-        import android.widget.CompoundButton;
-        import android.widget.TextView;
+import android.content.Intent;
+import android.os.Bundle;
+import android.app.Activity;
+import android.util.Log;
+import android.view.View;
+import android.widget.CompoundButton;
+import android.widget.TextView;
 
-        import com.google.android.gms.common.api.CommonStatusCodes;
-        import com.google.android.gms.vision.barcode.Barcode;
+import com.google.android.gms.common.api.CommonStatusCodes;
+import com.google.android.gms.vision.barcode.Barcode;
 
 /**
  * Main activity demonstrating how to pass extra parameters to an activity that
  * reads barcodes.
  */
-public class QR_Activity extends Activity implements View.OnClickListener {
+public class BarcodeMainActivity extends Activity implements View.OnClickListener {
 
     // use a compound button so either checkbox or switch widgets work.
     private CompoundButton autoFocus;
@@ -45,7 +45,7 @@ public class QR_Activity extends Activity implements View.OnClickListener {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.barcode_activity_main);
+        setContentView(R.layout.activity_main);
 
         statusMessage = (TextView)findViewById(R.id.status_message);
         barcodeValue = (TextView)findViewById(R.id.barcode_value);
@@ -98,19 +98,16 @@ public class QR_Activity extends Activity implements View.OnClickListener {
      */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-
-
         if (requestCode == RC_BARCODE_CAPTURE) {
-
             if (resultCode == CommonStatusCodes.SUCCESS) {
                 if (data != null) {
-                    Log.e( TAG, "Request code = " + requestCode );
                     Barcode barcode = data.getParcelableExtra(BarcodeCaptureActivity.BarcodeObject);
                     statusMessage.setText(R.string.barcode_success);
                     barcodeValue.setText(barcode.displayValue);
+                    Log.d(TAG, "Barcode read: " + barcode.displayValue);
+
                     data.putExtra( "hostString", barcode.displayValue );
                     setResult( resultCode, data);
-                    Log.d(TAG, "Barcode read: " + barcode.displayValue);
                 } else {
                     statusMessage.setText(R.string.barcode_failure);
                     Log.d(TAG, "No barcode captured, intent data is null");
@@ -120,7 +117,8 @@ public class QR_Activity extends Activity implements View.OnClickListener {
                         CommonStatusCodes.getStatusCodeString(resultCode)));
             }
         }
-
-        super.onActivityResult( requestCode , resultCode, data );
+        else {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
     }
 }
