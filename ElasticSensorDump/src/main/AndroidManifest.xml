@@ -6,37 +6,36 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
 
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_elastic_logo"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme"
-        >
-
+        android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"
             android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
         <activity
             android:name=".SettingsActivity"
-            android:label="Settings">
-        </activity>
+            android:label="Settings"></activity>
 
         <service
             android:name=".EsdServiceManager"
-            android:label="ESD Service Manager"
-            android:exported="false">
-        </service>
+            android:exported="false"
+            android:label="ESD Service Manager"></service>
 
-
+        <activity android:name=".BarcodeCaptureActivity"></activity>
+        <activity android:name=".QR_Activity"></activity>
     </application>
 
 </manifest>

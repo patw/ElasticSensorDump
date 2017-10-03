@@ -46,10 +46,13 @@ public class MainActivity extends Activity{
     private boolean registeredReceivers;
 
         /** Action string address to facilitate communication for updating UI display. */
-    public static final String UI_DATA_RECEIVER = "esd.intent.action.message.UI_DATA_RECEIVER";
+    public static final String UI_SENSOR_COUNT = "esd.intent.action.message.UI_SENSOR_COUNT";
 
         /** Action string address to indicate if the service manager is currently running. */
     public static final String UI_ACTION_RECEIVER = "esd.intent.action.message.UI_ACTION_RECEIVER";
+
+        /** */
+    public static final String UI_UPLOAD_COUNT = "esd.intent.action.message.UI_ACTION_RECEIVER";
 
         /** Control variable to lessen the impact of consistent database queries. Once per 5 updates. */
     private int updateCounterForDatabaseQueries;
@@ -66,7 +69,8 @@ public class MainActivity extends Activity{
         /** Create our main activity broadcast receiver to receive data from app. */
     private void createBroadcastReceiver(){
         IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction( UI_DATA_RECEIVER );
+        intentFilter.addAction( UI_SENSOR_COUNT );
+        intentFilter.addAction( UI_UPLOAD_COUNT );
 
         broadcastReceiver = new BroadcastReceiver() {
             @Override
@@ -74,20 +78,19 @@ public class MainActivity extends Activity{
 
                 switch( intent.getAction() ){
 
-                    case UI_DATA_RECEIVER:
-                        // Update our metrics. If the intent reading is null, use the last reading we received.
+                    case UI_SENSOR_COUNT:
+                        // Update sensor metrics. If the intent reading is null, use the last reading we received.
                         sensorReadings = intent.getIntExtra("sensorReadings", sensorReadings );
                         gpsReadings = intent.getIntExtra("gpsReadings", gpsReadings );
                         audioReadings = intent.getIntExtra( "audioReadings", audioReadings );
-
+                        break;
+                    case UI_UPLOAD_COUNT:
+                        // Update upload metrics. If the intent reading is null, use the last reading we received.
                         documentsIndexed = intent.getIntExtra( "documentsIndexed", documentsIndexed );
                         uploadErrors = intent.getIntExtra( "uploadErrors", uploadErrors );
-
                         updateScreen();
-
                         break;
                     default:
-
                         break;
                 }
 
@@ -138,8 +141,9 @@ public class MainActivity extends Activity{
         * Need to update UI based on the passed data intent.
         */
         private void updateScreen() {
+            Log.i( logTag, "Updating screen." );
         // Execute this on first executeIndexer, and then every third update from then on.
-        if( updateCounterForDatabaseQueries % 3 == 0 ) {
+        if( updateCounterForDatabaseQueries % 10 == 0 ) {
             updateCounterForDatabaseQueries = 0;
             getDatabasePopulation();
         }

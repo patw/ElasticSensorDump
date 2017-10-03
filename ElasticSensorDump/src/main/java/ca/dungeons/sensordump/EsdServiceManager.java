@@ -30,6 +30,9 @@ public class EsdServiceManager extends Service {
         /** Main activity preferences. Holds URL and name data. */
     private SharedPreferences sharedPrefs;
 
+        /** */
+    private EsdServiceReceiver esdMessageReceiver;
+
         /** True if we are currently reading sensor data. */
     boolean logging = false;
 
@@ -114,7 +117,7 @@ public class EsdServiceManager extends Service {
     public void onCreate () {
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences( this.getBaseContext() );
 
-        EsdServiceReceiver esdMessageReceiver = new EsdServiceReceiver( this );
+        esdMessageReceiver = new EsdServiceReceiver( this );
         registerReceiver( esdMessageReceiver, esdMessageReceiver.messageFilter );
     }
 
@@ -153,7 +156,7 @@ public class EsdServiceManager extends Service {
             Log.i(logTag, "Started service manager.");
         }
         // If the service is shut down, do not restart it automatically.
-        return Service.START_STICKY;
+        return Service.START_NOT_STICKY;
     }
 
         /** This method uses the passed UI handler to relay messages if/when the activity is running. */
@@ -161,7 +164,7 @@ public class EsdServiceManager extends Service {
 
         if( getApplicationContext() != null ){
 
-            Intent outIntent = new Intent( MainActivity.UI_DATA_RECEIVER );
+            Intent outIntent = new Intent( MainActivity.UI_SENSOR_COUNT);
 
             outIntent.putExtra( "sensorReadings", sensorReadings );
             outIntent.putExtra( "gpsReadings", gpsReadings );
@@ -236,7 +239,7 @@ public class EsdServiceManager extends Service {
     public void onDestroy () {
 
         stopLogging();
-
+        this.unregisterReceiver( esdMessageReceiver );
         uploadsReceiver.unRegisterUploadReceiver();
 
         Intent messageIntent = new Intent( MainActivity.UI_ACTION_RECEIVER );

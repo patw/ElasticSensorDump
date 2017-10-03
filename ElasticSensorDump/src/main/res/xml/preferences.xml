@@ -33,5 +33,10 @@
         android:key="ssl"
         android:summary="@string/Es_ssl_protection"
         android:title="Use SSL" />
+    <Preference
+        android:key="qr_code"
+        android:summary="@string/qrCodeSummary"
+        android:title="@string/qrCodeTitle"
+        />
 
 </PreferenceScreen>

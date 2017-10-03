@@ -17,6 +17,11 @@
     <string name="EsPasswordPreferences">Elastic password. ( Requires X-pack installation. )</string>
     <string name="EsUsernamePreferences">Elastic user name. ( Requires Xpack installation. )</string>
     <string name="Es_ssl_protection">Select if Elastic X-Pack is installed.</string>
+    <string name="qrCodeTitle">QR Code</string>
+    <string name="qrCodeSummary">Import host address.</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 
 
 </resources>

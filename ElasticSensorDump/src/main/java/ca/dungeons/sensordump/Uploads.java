@@ -100,9 +100,7 @@ class Uploads implements Runnable{
 
                 // If nextString has data.
                 if ( nextString != null ) {
-
                     esIndexer.uploadString = nextString;
-
                     try{
                         // Start the indexing thread, and join to wait for it to finish.
                         esIndexer.start();
@@ -110,24 +108,24 @@ class Uploads implements Runnable{
                     }catch( InterruptedException interEx ){
                         Log.e(logTag, "Failed to join ESI thread, possibly not running." );
                     }
-
                     if( uploadSuccess ){
-
                         globalUploadTimer = System.currentTimeMillis();
                         timeoutCount = 0;
                         indexSuccess( true );
                         dbHelper.deleteJson();
                         //Log.e(logTag, "Successful index.");
                     }else{
-
                         timeoutCount++;
                         indexSuccess( false );
-                        if( timeoutCount > 9 ){
-                            Log.e(logTag, "Failed to index 10 times, shutting down." );
-                            stopUploading();
-                        }
                     }
+                }else{
+                    timeoutCount++;
                 }
+                if( timeoutCount > 9 ){
+                    Log.i(logTag, "Failed to index 10 times, shutting down." );
+                    stopUploading();
+                }
+
             }
         }
     working = false;
@@ -171,10 +169,17 @@ class Uploads implements Runnable{
         }
 
         // Default currently is non-secure. Will change that asap.
+
+        // Sanitize the input
         String httpString = "http://";
         if( esSSL ){
             httpString = "https://";
         }
+
+
+
+
+
         String mappingURL = String.format( "%s%s:%s/%s", httpString ,esHost ,esPort ,esIndex );
 
         // Note the different URLs. Regular post ends with type. Mapping ends with index ID.
@@ -196,7 +201,6 @@ class Uploads implements Runnable{
 
         boolean responseCodeSuccess = false;
         int responseCode = 0;
-        String esHostUrlString;
 
         HttpURLConnection httpConnection;
         HttpsURLConnection httpsConnection;
@@ -236,13 +240,13 @@ class Uploads implements Runnable{
                 }
             }catch( IOException | NullPointerException ex ){
                 Log.e(logTag + " chkHost.", "Failure to open connection cause." + ex.getMessage() + " " + responseCode);
-                ex.printStackTrace();
+                //ex.printStackTrace();
             }
         }else{ // Else NON-secured connection.
-            esHostUrlString = String.format("http://%s:%s/", esHost, esPort );
+
             try{
                 //Log.e("Uploads-CheckHost", esHostUrlString); // DIAGNOSTICS
-                esUrl = new URL( esHostUrlString );
+                esUrl = new URL( String.format("http://%s:%s/", esHost, esPort ) );
                 httpConnection = (HttpURLConnection) esUrl.openConnection();
                 httpConnection.setConnectTimeout(2000);
                 httpConnection.setReadTimeout(2000);
@@ -255,7 +259,7 @@ class Uploads implements Runnable{
                 }
             }catch( IOException ex ){
                 Log.e(logTag + " chkHost.", "Failure to open connection cause." + ex.getMessage() + " " + responseCode);
-                ex.printStackTrace();
+                //ex.printStackTrace();
             }
         }
 

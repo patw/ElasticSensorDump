@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "ca.dungeons.sensordump"
-        minSdkVersion 20
+        minSdkVersion 25
         //noinspection OldTargetApi
         targetSdkVersion 25
         versionCode 16
@@ -23,7 +23,10 @@ android {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:25.3.1'
     compile 'com.android.support:support-v4:25.3.1'
+    compile 'com.android.support.constraint:constraint-layout:1.0.2'
+    compile 'com.google.android.gms:play-services:11.0.4'
+    testCompile 'junit:junit:4.12'
+    compile 'com.android.support:design:26.0.0-alpha1'
 }
