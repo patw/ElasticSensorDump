@@ -108,6 +108,7 @@ class ElasticSearchIndexer {
                 try {
                     u = new URL(url);
                     httpCon = (HttpURLConnection) u.openConnection();
+                    httpCon.setRequestProperty("Content-Type", "application/json");
                     httpCon.setConnectTimeout(2000);
                     httpCon.setReadTimeout(2000);
                     httpCon.setDoOutput(true);
@@ -115,7 +116,6 @@ class ElasticSearchIndexer {
                     osw = new OutputStreamWriter(httpCon.getOutputStream());
                     osw.write(jsonData);
                     osw.close();
-                    httpCon.getInputStream();
 
                     // Something bad happened. I expect only the finest of 200's
                     int responseCode = httpCon.getResponseCode();
@@ -123,6 +123,7 @@ class ElasticSearchIndexer {
                         if (!isCreatingMapping) {
                             failedIndex++;
                             isLastIndexSuccessful = false;
+                            Log.v("Fail Code", "" + responseCode);
                         }
                     } else {
                         isLastIndexSuccessful = true;
@@ -153,6 +154,7 @@ class ElasticSearchIndexer {
                         Log.v("Fail Reason", e.toString());
                         Log.v("Fail URL", url);
                         Log.v("Fail Data", jsonData);
+                        e.printStackTrace();
                         failedIndex++;
                     }
                 }
