@@ -25,7 +25,7 @@ class AudioLogger {
             isRunning = true;
         }
 
-        new Thread(new Runnable() {
+        Thread audio_thread = new Thread(new Runnable() {
             @Override
             public void run() {
                 // buffer size in bytes
@@ -100,7 +100,9 @@ class AudioLogger {
                 record.release();
                 Log.i("Audio", "Audio recording stopped.");
             }
-        }).start();
+        });
+
+        audio_thread.start();
     }
 
     void stopRecording() {

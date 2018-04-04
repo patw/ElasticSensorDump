@@ -2,7 +2,6 @@ package ca.dungeons.sensordump;
 
 import android.content.SharedPreferences;
 import android.util.Log;
-import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -117,8 +116,10 @@ class ElasticSearchIndexer {
                     osw.write(jsonData);
                     osw.close();
 
-                    // Something bad happened. I expect only the finest of 200's
                     int responseCode = httpCon.getResponseCode();
+                    httpCon.disconnect();
+
+                    // Something bad happened. I expect only the finest of 200's
                     if (responseCode > LAST_RESPONSE_CODE) {
                         if (!isCreatingMapping) {
                             failedIndex++;
@@ -130,7 +131,6 @@ class ElasticSearchIndexer {
                         indexSuccess++;
                     }
 
-                    httpCon.disconnect();
 
                 } catch (Exception e) {
 
@@ -154,7 +154,6 @@ class ElasticSearchIndexer {
                         Log.v("Fail Reason", e.toString());
                         Log.v("Fail URL", url);
                         Log.v("Fail Data", jsonData);
-                        e.printStackTrace();
                         failedIndex++;
                     }
                 }
