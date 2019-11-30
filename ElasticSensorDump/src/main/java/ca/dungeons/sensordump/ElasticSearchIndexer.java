@@ -62,7 +62,7 @@ class ElasticSearchIndexer {
         // Elastic 6.0, I've decided to make a single type and call it ESD.  Users
         // can now use the Tag option to create a string to constrain their data during
         // parallel ingests.
-        esType = "esd";
+        esType = "_doc";
 
 
         // Tag the current date stamp on the index name if set in preferences
@@ -198,7 +198,7 @@ class ElasticSearchIndexer {
     // Send mapping to elastic for sensor index using PUT
     // I'm sorry this is ugly.
     private void createMapping() {
-        String es_mapping = "{\"mappings\": {\"esd\": {\"dynamic_templates\": [{\"long_to_float\": {\"match_mapping_type\": \"long\",\"mapping\": {\"type\": \"float\"}}}],\"properties\":{\"start_location\":{\"type\":\"geo_point\"},\"location\":{\"type\":\"geo_point\"},\"tag\":{\"type\":\"keyword\"},\"gps_provider\":{\"type\":\"keyword\"}}}}}";
+        String es_mapping = "{\"mappings\": {\"_doc\": {\"dynamic_templates\": [{\"long_to_float\": {\"match_mapping_type\": \"long\",\"mapping\": {\"type\": \"float\"}}}],\"properties\":{\"start_location\":{\"type\":\"geo_point\"},\"location\":{\"type\":\"geo_point\"},\"tag\":{\"type\":\"keyword\"},\"gps_provider\":{\"type\":\"keyword\"}}}}}";
         Log.v("Mapping", es_mapping);
         callElasticAPI("PUT", buildURL(), es_mapping, false);
     }
