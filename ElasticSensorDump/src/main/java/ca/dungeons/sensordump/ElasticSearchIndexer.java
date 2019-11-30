@@ -198,7 +198,7 @@ class ElasticSearchIndexer {
     // Send mapping to elastic for sensor index using PUT
     // I'm sorry this is ugly.
     private void createMapping() {
-        String es_mapping = "{\"mappings\": {\"_doc\": {\"dynamic_templates\": [{\"long_to_float\": {\"match_mapping_type\": \"long\",\"mapping\": {\"type\": \"float\"}}}],\"properties\":{\"start_location\":{\"type\":\"geo_point\"},\"location\":{\"type\":\"geo_point\"},\"tag\":{\"type\":\"keyword\"},\"gps_provider\":{\"type\":\"keyword\"}}}}}";
+        String es_mapping = "{\"mappings\": {\"dynamic_templates\": [{\"long_to_float\": {\"match_mapping_type\": \"long\",\"mapping\": {\"type\": \"float\"}}}],\"properties\":{\"start_location\":{\"type\":\"geo_point\"},\"location\":{\"type\":\"geo_point\"},\"tag\":{\"type\":\"keyword\"},\"gps_provider\":{\"type\":\"keyword\"}}}}";
         Log.v("Mapping", es_mapping);
         callElasticAPI("PUT", buildURL(), es_mapping, false);
     }
