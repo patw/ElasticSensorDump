@@ -26,16 +26,20 @@
     <EditTextPreference
         android:defaultValue=""
         android:key="user"
-        android:summary="Authenticate with user (requires Shield)"
+        android:summary="Authenticate with user"
         android:title="User"></EditTextPreference>
     <EditTextPreference
         android:defaultValue=""
         android:key="pass"
-        android:summary="Authenticate with password (requires Shield)"
+        android:summary="Authenticate with password"
         android:title="Password"></EditTextPreference>
     <CheckBoxPreference
         android:key="ssl"
-        android:summary="Connect to elastic using SSL (requires Shield)"
+        android:summary="Connect to elastic using SSL"
         android:title="Use SSL"></CheckBoxPreference>
+    <CheckBoxPreference
+        android:key="es7"
+        android:summary="Connect to ES 7.x or higher"
+        android:title="Elastic 7.x+"></CheckBoxPreference>
 
 </PreferenceScreen>
